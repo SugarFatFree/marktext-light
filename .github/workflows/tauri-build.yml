@@ -1,22 +1,19 @@
 name: Tauri Build
 
 # Builds the (in-progress) Tauri shell on GitHub-hosted runners so we don't need
-# a local Rust + webkit2gtk toolchain. Produces installers as artifacts for the
-# size / startup comparison against the Electron build.
+# a local Rust + webkit2gtk toolchain, and publishes the installers as Release
+# assets for the size / startup comparison against the Electron build.
 #
-# Manual by default (workflow_dispatch); also runs on pushes/PRs that touch the
-# Tauri surface so regressions surface early.
+# Triggered manually (workflow_dispatch) or on merge to develop — deliberately
+# NOT on every PR sync: a 4-platform Rust build is expensive and, when it ran on
+# each push, its jobs competed with ~12 other PR workflows for runners. Keeping
+# it manual gives a clean, contention-free signal (important while runner
+# scheduling is degraded).
 
 on:
   workflow_dispatch:
   push:
     branches: [develop]
-    paths:
-      - 'packages/desktop/src-tauri/**'
-      - 'packages/desktop/vite.tauri.config.ts'
-      - 'packages/desktop/src/renderer/src/tauri-bridge/**'
-      - '.github/workflows/tauri-build.yml'
-  pull_request:
     paths:
       - 'packages/desktop/src-tauri/**'
       - 'packages/desktop/vite.tauri.config.ts'
@@ -34,6 +31,7 @@ jobs:
   build:
     name: Build (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -116,6 +114,7 @@ jobs:
     # not block handing out the installers that did build.
     if: ${{ always() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
