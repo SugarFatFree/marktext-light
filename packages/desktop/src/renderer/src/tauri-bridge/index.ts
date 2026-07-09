@@ -145,7 +145,7 @@ const registerEvent = (channel: string, listener: Listener, once: boolean): (() 
 
 const buildIpcWrapper = () => ({
   send: (channel: string, ...args: unknown[]) => handleSend(channel, args),
-  sendSync: (channel: string, ...args: unknown[]): unknown => {
+  sendSync: (channel: string, ..._args: unknown[]): unknown => {
     // Tauri has no synchronous invoke. The only sync caller is the
     // case-insensitive path fallback, which the shim already narrowed to a rare
     // branch; return false rather than block. boot-info is handled up front.
