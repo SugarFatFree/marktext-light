@@ -111,6 +111,10 @@ jobs:
   release:
     name: Publish raw installers
     needs: build
+    # Publish whatever built successfully even if a platform leg flaked
+    # (macOS runners are occasionally cancelled while queued) — a flaky leg must
+    # not block handing out the installers that did build.
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -121,16 +125,20 @@ jobs:
           path: artifacts
 
       - name: Collect installer files
+        id: collect
         run: |
           mkdir -p release
           find artifacts -type f \( \
             -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \
             -o -name '*.exe' -o -name '*.msi' -o -name '*.dmg' \
             -o -name '*.app.tar.gz' \) -exec cp -f {} release/ \;
-          echo "Collected installers:"
+          count=$(find release -type f | wc -l | tr -d ' ')
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "Collected $count installers:"
           ls -la release
 
       - name: Publish to the tauri-preview prerelease
+        if: ${{ steps.collect.outputs.count != '0' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
