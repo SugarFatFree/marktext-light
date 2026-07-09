@@ -57,7 +57,7 @@ const INVOKE_ROUTES: Record<string, CommandRoute> = {
   'mt::cmd::exists': { cmd: 'command_exists', map: ([name]) => ({ name }) }
 }
 
-const routedInvoke = async (channel: string, args: unknown[]): Promise<unknown> => {
+const routedInvoke = async(channel: string, args: unknown[]): Promise<unknown> => {
   const route = INVOKE_ROUTES[channel]
   if (route) {
     return invoke(route.cmd, route.map(args))
@@ -74,36 +74,41 @@ const routedInvoke = async (channel: string, args: unknown[]): Promise<unknown> 
 
 const win = () => getCurrentWindow()
 
+// Fire-and-forget helper. The window/clipboard ops below are best-effort and
+// have no caller waiting on them; swallow rejections so a failed native call
+// can't surface as an unhandled promise rejection.
+const fire = (op: Promise<unknown>): void => {
+  op.catch((err) => console.warn('[tauri-bridge]', err))
+}
+
 const handleSend = (channel: string, args: unknown[]): void => {
   switch (channel) {
     case 'mt::win::minimize':
-      void win().minimize()
+      fire(win().minimize())
       return
     case 'mt::win::maximize':
-      void win().maximize()
+      fire(win().maximize())
       return
     case 'mt::win::unmaximize':
-      void win().unmaximize()
+      fire(win().unmaximize())
       return
     case 'mt::win::toggle-maximize':
-      void win().toggleMaximize()
+      fire(win().toggleMaximize())
       return
     case 'mt::win::close':
-      void win().close()
+      fire(win().close())
       return
     case 'mt::win::set-fullscreen':
-      void win().setFullscreen(Boolean(args[0]))
+      fire(win().setFullscreen(Boolean(args[0])))
       return
     case 'mt::win::toggle-fullscreen':
-      void win()
-        .isFullscreen()
-        .then((f) => win().setFullscreen(!f))
+      fire(win().isFullscreen().then((f) => win().setFullscreen(!f)))
       return
     case 'mt::clipboard::write-text':
-      void writeText(String(args[0] ?? ''))
+      fire(writeText(String(args[0] ?? '')))
       return
     case 'mt::shell::show-item':
-      void revealItemInDir(String(args[0] ?? ''))
+      fire(revealItemInDir(String(args[0] ?? '')))
       return
     default:
       // Fire-and-forget app-lifecycle channels not yet migrated.
@@ -121,15 +126,17 @@ type Listener = (event: unknown, ...args: unknown[]) => void
 const registerEvent = (channel: string, listener: Listener, once: boolean): (() => void) => {
   let unlisten: UnlistenFn | undefined
   let disposed = false
-  void listen(channel, (evt) => {
-    const payload = evt.payload
-    const args = Array.isArray(payload) ? payload : [payload]
-    listener({}, ...args)
-    if (once && unlisten) unlisten()
-  }).then((fn) => {
-    unlisten = fn
-    if (disposed) fn()
-  })
+  fire(
+    listen(channel, (evt) => {
+      const payload = evt.payload
+      const args = Array.isArray(payload) ? payload : [payload]
+      listener({}, ...args)
+      if (once && unlisten) unlisten()
+    }).then((fn) => {
+      unlisten = fn
+      if (disposed) fn()
+    })
+  )
   return () => {
     disposed = true
     if (unlisten) unlisten()
@@ -209,7 +216,7 @@ const buildGlobals = (boot: BootInfo, ipc: ReturnType<typeof buildIpcWrapper>) =
     clipboard: {
       writeText: (text: string) => writeText(text),
       readText: () => readText(),
-      guessFilePath: async () => null
+      guessFilePath: async() => null
     },
     webFrame: {
       // System WebView zoom differs per platform; wire real zoom in phase 3.
@@ -304,10 +311,10 @@ const stubbedExtras = () => {
   return {
     commandExists: { exists: (name: string) => routedInvoke('mt::cmd::exists', [name]) },
     i18nUtils: {
-      loadTranslations: async (_language: string) => ({})
+      loadTranslations: async(_language: string) => ({})
     },
     ripgrep: {
-      start: async () => ({ searchId: '' }),
+      start: async() => ({ searchId: '' }),
       cancel: () => {},
       onMatch: noopUnsub(),
       onProgress: noopUnsub(),
@@ -315,8 +322,8 @@ const stubbedExtras = () => {
       onError: noopUnsub(),
       onCancelled: noopUnsub()
     },
-    uploader: { uploadImage: async () => ({}) },
-    fonts: { list: async () => [] as string[] }
+    uploader: { uploadImage: async() => ({}) },
+    fonts: { list: async() => [] as string[] }
   }
 }
 

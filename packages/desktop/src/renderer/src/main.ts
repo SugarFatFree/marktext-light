@@ -72,4 +72,4 @@ async function start(): Promise<void> {
   app.mount('#app')
 }
 
-void start()
+start().catch((err) => console.error('[marktext] renderer init failed', err))
