@@ -358,5 +358,5 @@ export async function installTauriBridge(): Promise<void> {
 
 /** True when running under the Tauri shell rather than Electron. */
 export function isTauri(): boolean {
-  return typeof (window as Record<string, unknown>).__TAURI_INTERNALS__ !== 'undefined'
+  return typeof (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ !== 'undefined'
 }
