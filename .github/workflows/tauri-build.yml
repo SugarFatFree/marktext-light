@@ -104,3 +104,42 @@ jobs:
             packages/desktop/src-tauri/target/release/bundle/msi/*.msi
             packages/desktop/src-tauri/target/release/bundle/dmg/*.dmg
             packages/desktop/src-tauri/target/release/bundle/macos/*.app.tar.gz
+
+  # GitHub *artifacts* are always downloaded as a .zip wrapper — there is no way
+  # to disable that. To hand out the raw installer files, publish them as
+  # Release assets instead (Release downloads are the bare files, no zip).
+  release:
+    name: Publish raw installers
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect installer files
+        run: |
+          mkdir -p release
+          find artifacts -type f \( \
+            -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \
+            -o -name '*.exe' -o -name '*.msi' -o -name '*.dmg' \
+            -o -name '*.app.tar.gz' \) -exec cp -f {} release/ \;
+          echo "Collected installers:"
+          ls -la release
+
+      - name: Publish to the tauri-preview prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="tauri-preview"
+          # Refresh the moving preview tag so the assets are always this build.
+          gh release delete "$tag" --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" || true
+          gh release create "$tag" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "marktext-light — Tauri preview build" \
+            --notes "Raw installer files (no zip wrapper). Built from ${GITHUB_SHA}."
