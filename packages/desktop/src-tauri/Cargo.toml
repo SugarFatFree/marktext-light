@@ -1,0 +1,37 @@
+[package]
+name = "marktext"
+version = "0.20.0"
+description = "MarkText — next generation markdown editor"
+authors = ["Jocs"]
+edition = "2021"
+rust-version = "1.77.2"
+
+# The library the desktop binary links against. Keeping a lib target lets
+# integration tests and (future) mobile targets share the command surface.
+[lib]
+name = "marktext_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[features]
+# Enabled by tauri when building for production; forwarded from tauri.conf.json.
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+# Optimize the shipped binary for size — one of the reasons we moved off
+# Electron. `opt-level = "s"` + LTO + stripped symbols keeps the installer small.
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

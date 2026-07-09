@@ -18,45 +18,58 @@ import services from './services/index'
 import routes from './router'
 import Main from './Main.vue'
 
+import { installTauriBridge, isTauri } from './tauri-bridge'
+
 import './assets/styles/index.css'
 import './assets/styles/printService.css'
 
 // -----------------------------------------------
 
-window.marktext = {}
-bootstrapRenderer()
+// Under the Tauri shell there is no Electron preload injecting `window.electron`
+// & friends, so install the invoke-backed bridge and complete the boot-info
+// handshake before anything reads those globals. A no-op under Electron.
+async function start(): Promise<void> {
+  if (isTauri()) {
+    await installTauriBridge()
+  }
 
-// -----------------------------------------------
-// Be careful when changing code before this line!
+  window.marktext = {}
+  bootstrapRenderer()
 
-// Create Vue app
-const app: App<Element> = createApp(Main)
+  // -----------------------------------------------
+  // Be careful when changing code before this line!
 
-// Configure Element Plus with locale
-app.use(ElementPlus, {
-  locale: en
-})
+  // Create Vue app
+  const app: App<Element> = createApp(Main)
 
-const envType = window.marktext?.env?.type as string | undefined
+  // Configure Element Plus with locale
+  app.use(ElementPlus, {
+    locale: en
+  })
 
-const router = createRouter({
-  history: createWebHashHistory(),
-  // it seems like something might have changed in vue-router? it uses the full "file path" instead of
-  // links like /editor if we use the old createWebHistory()
-  routes: routes(envType)
-})
+  const envType = window.marktext?.env?.type as string | undefined
 
-app.use(router)
-app.use(pinia)
-app.use(i18nPlugin)
+  const router = createRouter({
+    history: createWebHashHistory(),
+    // it seems like something might have changed in vue-router? it uses the full "file path" instead of
+    // links like /editor if we use the old createWebHistory()
+    routes: routes(envType)
+  })
 
-// Configure axios globally
-app.config.globalProperties.$http = axios
+  app.use(router)
+  app.use(pinia)
+  app.use(i18nPlugin)
 
-// Register services globally
-;(services as unknown as Array<Record<string, unknown> & { name: string }>).forEach((s) => {
-  app.config.globalProperties['$' + s.name] = s[s.name]
-})
+  // Configure axios globally
+  app.config.globalProperties.$http = axios
 
-// Mount the app
-app.mount('#app')
+  // Register services globally
+  ;(services as unknown as Array<Record<string, unknown> & { name: string }>).forEach((s) => {
+    app.config.globalProperties['$' + s.name] = s[s.name]
+  })
+
+  // Mount the app
+  app.mount('#app')
+}
+
+void start()
