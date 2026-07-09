@@ -3,12 +3,21 @@
 // old Electron preload → ipcMain path.
 
 mod commands;
+mod menu;
 
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            let menu = menu::build_menu(app.handle())?;
+            app.set_menu(menu)?;
+            Ok(())
+        })
+        .on_menu_event(|app, event| {
+            menu::handle_menu_event(app, event.id().as_ref());
+        })
         .invoke_handler(tauri::generate_handler![
             // fs::* — mirror of the mt::fs:: channels
             commands::fs::is_file,

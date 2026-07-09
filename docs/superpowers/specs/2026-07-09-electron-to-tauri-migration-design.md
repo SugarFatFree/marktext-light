@@ -103,7 +103,8 @@ spellchecker      91   Chromium 内置拼写
 
 - **阶段 0（前置）**：安装 Rust 工具链（用户空间）+ 系统 WebView 开发库（Linux 需 `sudo` 装 `webkit2gtk-4.1-dev`、`libgtk-3-dev`、`libayatana-appindicator3-dev`、`librsvg2-dev`）。
 - **阶段 1（本次会话地基）**：Tauri 骨架 + 核心 command 垂直切片（fs/shell/clipboard/paths/boot/window）+ 桥接 shim + renderer 独立构建。目标：现有编辑器能在系统 WebView 里加载、打开/保存文件、正常渲染。**验证最大风险 + 拿到真实体积/启动数据。**
-- **阶段 2**：文件系统与监听。`chokidar` → Rust `notify` crate；目录树、trash、watcher 事件推送。
+- **阶段 2（部分已落地）**：应用菜单系统。`src-tauri/src/menu` 用 Tauri menu API 重建 File/Edit/Paragraph/Format/View/Window/Help 菜单树，点击时 `emit` 对应 `mt::*` 事件到渲染层现有监听器（无需改渲染层）；Open File/Folder 用 dialog 插件完成读文件→`mt::open-new-tab` / `mt::open-directory` 的完整切片。**未完成**：i18n 标签（现为英文占位）、快捷键从 keybindings 动态取（现为默认值）、最近文件/主题动态子菜单、按选区的勾选态、上下文菜单 popup（随自定义标题栏，phase 3）。
+- **阶段 2b**：文件系统监听。`chokidar` → Rust `notify` crate；目录树、trash、watcher 事件推送。
 - **阶段 3**：窗口管理器与生命周期。多窗口、状态恢复（`electron-window-state` → Rust）、editor bootstrap、CLI 入口、文件关联/deep-link。
 - **阶段 4**：菜单与快捷键（最大块，3642 行）。Tauri menu API 重建应用菜单 + 上下文菜单；`native-keymap` 替代方案。
 - **阶段 5**：偏好设置与拼写检查。`electron-store` → `tauri-plugin-store`；拼写走 WebView 原生 + 降级。

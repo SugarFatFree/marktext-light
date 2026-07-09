@@ -247,8 +247,11 @@ const buildGlobals = (boot: BootInfo, ipc: ReturnType<typeof buildIpcWrapper>) =
       toggleFullScreen: () => handleSend('mt::win::toggle-fullscreen', []),
       isMaximized: () => win().isMaximized(),
       isFullScreen: () => win().isFullscreen(),
-      popupMenu: () => console.warn('[tauri-bridge] context menu pending phase 4'),
-      popupApplicationMenu: () => console.warn('[tauri-bridge] app menu pending phase 4')
+      // The application menu is now a native Tauri menu set on the window
+      // (see src-tauri/src/menu). Context-menu popup and the frameless-titlebar
+      // app-menu popup still need wiring alongside the custom titlebar (phase 3).
+      popupMenu: () => console.warn('[tauri-bridge] context-menu popup pending phase 3'),
+      popupApplicationMenu: () => console.warn('[tauri-bridge] menu popup pending phase 3')
     }
   }
 
