@@ -333,6 +333,27 @@ const stubbedExtras = () => {
 let installed = false
 
 /**
+ * The Electron main process opened editor windows at `index.html?type=editor&
+ * wid=1&udp=<userData>&…`; `bootstrap.ts` parses those query args and throws on
+ * a missing `wid` (and the router only routes to /editor when `type=editor`).
+ * The Tauri window loads `index.html` bare, so reconstruct the minimum args from
+ * boot-info before `bootstrapRenderer()` runs. Preserves any real query string.
+ */
+function synthesizeEditorUrlArgs(boot: BootInfo): void {
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('type')) return
+  params.set('type', 'editor')
+  params.set('wid', '1')
+  params.set('udp', boot.paths?.userData || '/tmp')
+  params.set('theme', 'light')
+  params.set('debug', '0')
+  params.set('hsb', '0')
+  params.set('tbs', 'custom')
+  const search = params.toString()
+  window.history.replaceState(null, '', `${window.location.pathname}?${search}${window.location.hash}`)
+}
+
+/**
  * Install the Tauri-backed `window.*` bridge. Awaits the boot-info handshake so
  * the renderer can read platform/paths synchronously afterwards, exactly like
  * the old preload. Safe to call once; subsequent calls are no-ops.
@@ -342,6 +363,7 @@ export async function installTauriBridge(): Promise<void> {
   installed = true
 
   const boot = (await invoke('boot_info')) as BootInfo
+  synthesizeEditorUrlArgs(boot)
   const ipc = buildIpcWrapper()
   const { electron, fileUtils, path, processShim } = buildGlobals(boot, ipc)
   const extras = stubbedExtras()

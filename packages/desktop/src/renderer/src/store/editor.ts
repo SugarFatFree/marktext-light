@@ -28,8 +28,10 @@ import type {
   LineEnding,
   MarkdownDocument,
   PageOptions,
-  TabOptions
+  TabOptions,
+  BootstrapEditorConfig
 } from '@shared/types/files'
+import { isTauri } from '@/tauri-bridge'
 
 // ----------------------------------------------------------------------------
 // Local helper types
@@ -887,7 +889,7 @@ export const useEditorStore = defineStore('editor', {
         }, 100)
       }, 400)
 
-      window.electron.ipcRenderer.on('mt::bootstrap-editor', (_, config) => {
+      const bootstrapEditor = (config: BootstrapEditorConfig): void => {
         const {
           addBlankTab,
           markdownList,
@@ -923,7 +925,22 @@ export const useEditorStore = defineStore('editor', {
             isFirst = false
           }
         }
-      })
+      }
+
+      window.electron.ipcRenderer.on('mt::bootstrap-editor', (_, config) => bootstrapEditor(config))
+
+      // Under Tauri there is no main process to push `mt::bootstrap-editor`, so
+      // self-bootstrap into a blank editor once the listeners above are set up.
+      if (isTauri()) {
+        bootstrapEditor({
+          addBlankTab: true,
+          markdownList: [],
+          lineEnding: 'lf',
+          sideBarVisibility: false,
+          tabBarVisibility: true,
+          sourceCodeModeEnabled: false
+        })
+      }
     },
 
     // Open a new tab, optionally with content.
