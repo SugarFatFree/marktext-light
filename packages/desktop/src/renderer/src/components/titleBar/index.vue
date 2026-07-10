@@ -12,7 +12,8 @@
         { active: active },
         { 'tabs-visible': showTabBar },
         { frameless: titleBarStyle === 'custom' },
-        { isOsx: isOsx }
+        { isOsx: isOsx },
+        { 'has-menu-bar': isTauriShell }
       ]"
       data-tauri-drag-region
     >
@@ -83,7 +84,7 @@
         </el-tooltip>
       </div>
       <div
-        v-if="titleBarStyle === 'custom' && !isFullScreen && !isOsx"
+        v-if="titleBarStyle === 'custom' && !isFullScreen && !isOsx && !isTauriShell"
         class="right-toolbar"
         :class="[{ 'title-no-drag': titleBarStyle === 'custom' }]"
       >
@@ -141,6 +142,7 @@
 <script setup lang="ts">
 import { usePreferencesStore } from '@/store/preferences.js'
 import { useLayoutStore } from '@/store/layout.js'
+import { isTauri } from '@/tauri-bridge'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { storeToRefs } from 'pinia'
 import { minimizePath, restorePath, maximizePath, closePath } from '../../assets/window-controls.js'
@@ -173,6 +175,9 @@ const editorStore = useEditorStore()
 const { t } = useI18n()
 
 const isOsx = isOsxPlatform
+// Under the Tauri shell the window controls live in the top menu bar, so the
+// title bar must not render its own duplicate set.
+const isTauriShell = isTauri()
 const HASH = {
   word: {
     short: 'W',
@@ -344,6 +349,10 @@ onBeforeUnmount(() => {
   z-index: 2;
   transition: color 0.4s ease-in-out;
   cursor: default;
+  /* Offset below the always-on top menu bar (its own 30px row) under Tauri. */
+  &.has-menu-bar {
+    top: 30px;
+  }
 }
 .active {
   color: var(--editorColor);
