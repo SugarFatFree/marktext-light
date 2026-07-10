@@ -56,6 +56,7 @@
         >
           <span class="text-center-vertical">&#9707;</span>
         </div>
+        <MenuBar v-if="showCustomTitleBar" />
         <el-tooltip
           v-if="wordCount"
           class="item"
@@ -141,6 +142,7 @@
 <script setup lang="ts">
 import { usePreferencesStore } from '@/store/preferences.js'
 import { useLayoutStore } from '@/store/layout.js'
+import MenuBar from '@/components/menuBar/index.vue'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { storeToRefs } from 'pinia'
 import { minimizePath, restorePath, maximizePath, closePath } from '../../assets/window-controls.js'

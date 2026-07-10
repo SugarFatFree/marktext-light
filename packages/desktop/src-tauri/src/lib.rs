@@ -41,6 +41,8 @@ pub fn run() {
             commands::cmd::command_exists,
             // boot
             commands::boot::boot_info,
+            // custom top menu bar (frameless Windows/Linux)
+            menu::dispatch_menu,
         ])
         .run(tauri::generate_context!())
         .expect("error while running MarkText");

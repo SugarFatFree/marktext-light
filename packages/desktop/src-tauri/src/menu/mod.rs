@@ -21,6 +21,14 @@ use tauri::{AppHandle, Runtime};
 
 pub use dispatch::handle_menu_event;
 
+/// Invoked by the renderer's custom top menu bar (used on frameless
+/// Windows/Linux where the native menu bar can't render). Routes through the
+/// exact same dispatch as a native menu click.
+#[tauri::command]
+pub fn dispatch_menu(app: tauri::AppHandle, id: String) {
+    handle_menu_event(&app, &id);
+}
+
 /// Build a dispatchable `MenuItem` with an optional accelerator.
 fn item<R: Runtime>(
     app: &AppHandle<R>,
@@ -64,7 +72,7 @@ fn file_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::Res
         .item(&item(app, "file:save", &tr.t("menu.file.save"), Some("CmdOrCtrl+S"))?)
         .item(&item(app, "file:save-as", &tr.t("menu.file.saveAs"), Some("CmdOrCtrl+Shift+S"))?)
         .item(&PredefinedMenuItem::separator(app)?)
-        .item(&item(app, "cmd:file.export", &tr.t("menu.file.export"), None)?)
+        .item(&item(app, "cmd:file.export-file", &tr.t("menu.file.export"), None)?)
         .item(&item(app, "cmd:file.print", &tr.t("menu.file.print"), Some("CmdOrCtrl+P"))?)
         .item(&PredefinedMenuItem::separator(app)?)
         .item(&item(app, "file:rename", &tr.t("menu.file.rename"), None)?)
@@ -190,7 +198,7 @@ fn window_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::R
 
 fn help_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::Result<Submenu<R>> {
     SubmenuBuilder::new(app, tr.t("menu.help.help"))
-        .item(&item(app, "cmd:help.learn-more", &tr.t("menu.help.markdownReference"), None)?)
+        .item(&item(app, "cmd:docs.markdown-syntax", &tr.t("menu.help.markdownReference"), None)?)
         .item(&item(app, "help:about", &tr.t("menu.help.about"), None)?)
         .build()
 }
