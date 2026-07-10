@@ -315,6 +315,9 @@ export interface BootInfo {
   }
   isUpdatable: boolean
   MARKDOWN_INCLUSIONS: string[]
+  // File to open on launch (CLI arg / file association), resolved by the Tauri
+  // backend. Absent under Electron.
+  initialFile?: { markdown: string; filename: string; pathname: string } | null
 }
 
 // =================================================================

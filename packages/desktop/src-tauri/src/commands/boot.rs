@@ -17,6 +17,14 @@ pub struct BootPaths {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct InitialFile {
+    markdown: String,
+    filename: String,
+    pathname: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BootInfo {
     // Node-style values so existing renderer checks (`platform === 'darwin'`)
     // keep working without change.
@@ -28,6 +36,35 @@ pub struct BootInfo {
     is_updatable: bool,
     #[serde(rename = "MARKDOWN_INCLUSIONS")]
     markdown_inclusions: Vec<String>,
+    /// File to open on launch, taken from the CLI argument / file association.
+    initial_file: Option<InitialFile>,
+}
+
+/// Scan the process arguments for a readable file to open on launch (CLI use:
+/// `marktext-light path/to/file.md`, and Windows/Linux file associations, which
+/// also pass the path as an argument).
+fn initial_file_from_args() -> Option<InitialFile> {
+    for arg in std::env::args().skip(1) {
+        if arg.starts_with('-') {
+            continue;
+        }
+        let path = std::path::Path::new(&arg);
+        if !path.is_file() {
+            continue;
+        }
+        if let Ok(markdown) = std::fs::read_to_string(path) {
+            let filename = path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            return Some(InitialFile {
+                markdown,
+                filename,
+                pathname: path.to_string_lossy().into_owned(),
+            });
+        }
+    }
+    None
 }
 
 const MARKDOWN_EXTENSIONS: [&str; 11] = [
@@ -88,5 +125,6 @@ pub fn boot_info(app: tauri::AppHandle) -> Result<BootInfo, String> {
         // Auto-update lands in phase 7 (tauri-plugin-updater).
         is_updatable: false,
         markdown_inclusions: MARKDOWN_EXTENSIONS.iter().map(|s| s.to_string()).collect(),
+        initial_file: initial_file_from_args(),
     })
 }

@@ -930,16 +930,22 @@ export const useEditorStore = defineStore('editor', {
       window.electron.ipcRenderer.on('mt::bootstrap-editor', (_, config) => bootstrapEditor(config))
 
       // Under Tauri there is no main process to push `mt::bootstrap-editor`, so
-      // self-bootstrap into a blank editor once the listeners above are set up.
+      // self-bootstrap once the listeners above are set up: open the CLI /
+      // file-association file if one was passed, otherwise a blank tab.
       if (isTauri()) {
+        const initialFile = (window as unknown as { __MT_INITIAL_FILE__?: MarkdownDocument | null })
+          .__MT_INITIAL_FILE__
         bootstrapEditor({
-          addBlankTab: true,
+          addBlankTab: !initialFile,
           markdownList: [],
           lineEnding: 'lf',
           sideBarVisibility: false,
           tabBarVisibility: true,
           sourceCodeModeEnabled: false
         })
+        if (initialFile) {
+          this.NEW_TAB_WITH_CONTENT({ markdownDocument: initialFile, options: {}, selected: true })
+        }
       }
     },
 

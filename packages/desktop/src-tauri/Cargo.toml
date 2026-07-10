@@ -16,12 +16,17 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+# `devtools` keeps the WebView inspector (F12 / right-click → Inspect) available
+# in release builds too, so the renderer console is reachable while the Tauri
+# migration is still being verified.
+tauri = { version = "2", features = ["devtools"] }
 tauri-plugin-opener = "2"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Detect the OS UI language to localize the native application menu.
+sys-locale = "0.3"
 
 [features]
 # Enabled by tauri when building for production; forwarded from tauri.conf.json.
