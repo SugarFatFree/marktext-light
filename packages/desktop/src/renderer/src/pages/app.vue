@@ -13,6 +13,8 @@
         :is-saved="isSaved"
       />
 
+      <menu-bar />
+
       <div
         v-if="!init"
         class="editor-placeholder"
@@ -45,6 +47,7 @@ import { addStyles, addThemeStyle, addCustomStyle, type AddStylesOptions } from 
 import Recent from '@/components/recent/index.vue'
 import EditorWithTabs from '@/components/editorWithTabs/index.vue'
 import TitleBar from '@/components/titleBar/index.vue'
+import MenuBar from '@/components/menuBar/index.vue'
 import SideBar from '@/components/sideBar/index.vue'
 import AboutDialog from '@/components/about/index.vue'
 import CommandPalette from '@/components/commandPalette/index.vue'

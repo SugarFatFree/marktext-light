@@ -13,7 +13,7 @@
 // recent-files/theme submenus, and per-selection checkmark state.
 
 mod dispatch;
-mod i18n;
+pub mod i18n;
 
 use i18n::Translations;
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu, SubmenuBuilder};

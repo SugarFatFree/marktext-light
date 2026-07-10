@@ -41,6 +41,7 @@ pub fn run() {
             commands::cmd::command_exists,
             // boot
             commands::boot::boot_info,
+            commands::boot::load_locale,
             // custom top menu bar (frameless Windows/Linux)
             menu::dispatch_menu,
         ])

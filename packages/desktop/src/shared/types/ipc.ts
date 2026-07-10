@@ -320,6 +320,8 @@ export interface BootInfo {
   // File to open on launch (CLI arg / file association), resolved by the Tauri
   // backend. Absent under Electron.
   initialFile?: { markdown: string; filename: string; pathname: string } | null
+  // OS UI language resolved to an available locale (e.g. 'zh-CN'). Tauri only.
+  locale?: string
 }
 
 // =================================================================

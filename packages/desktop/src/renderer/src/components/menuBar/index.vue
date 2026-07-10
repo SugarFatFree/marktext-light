@@ -41,9 +41,12 @@ import { MENU_STRUCTURE } from './structure'
 const isTauriEnv = isTauri()
 const sections = MENU_STRUCTURE
 
-// Locale strings carry a Windows mnemonic '&' (e.g. '&Theme'); strip it for the
-// HTML menu bar (native menus consume it, the DOM shows it literally).
-const label = (key: string): string => t(key).replace(/&/g, '')
+// Locale strings carry a Windows access-key mnemonic — '&Theme' (Latin) or
+// '主题(&T)' (CJK). Native menus consume it; strip it for the HTML menu bar.
+const label = (key: string): string =>
+  t(key)
+    .replace(/\(&[^)]*\)/g, '')
+    .replace(/&/g, '')
 
 const dispatchMenu = (id: string): void => {
   invoke('dispatch_menu', { id }).catch((err) => console.error('[menu-bar]', err))
@@ -54,16 +57,22 @@ const dispatchMenu = (id: string): void => {
 .tauri-menu-bar {
   display: flex;
   align-items: center;
-  height: 100%;
+  height: 30px;
+  width: 100%;
+  padding: 0 6px;
+  box-sizing: border-box;
+  background: var(--editorBgColor);
+  border-bottom: 1px solid var(--floatBorderColor);
+  user-select: none;
   -webkit-app-region: no-drag;
 }
 
 .menu-bar-title {
-  padding: 2px 8px;
+  padding: 3px 9px;
   font-size: 13px;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: default;
-  color: var(--sideBarTitleColor);
+  color: var(--editorColor);
   outline: none;
   white-space: nowrap;
 }

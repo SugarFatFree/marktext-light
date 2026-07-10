@@ -28,9 +28,21 @@ impl Translations {
     pub fn t(&self, key: &str) -> String {
         lookup(&self.tree, key)
             .or_else(|| lookup(&self.fallback, key))
-            .map(|s| s.replace('&', ""))
+            .map(|s| strip_mnemonic(&s))
             .unwrap_or_else(|| key.rsplit('.').next().unwrap_or(key).to_string())
     }
+}
+
+/// Remove a Windows access-key mnemonic: the CJK form `主题(&T)` or the Latin
+/// form `&Theme`.
+fn strip_mnemonic(s: &str) -> String {
+    let mut out = s.to_string();
+    if let Some(start) = out.find("(&") {
+        if let Some(rel_end) = out[start..].find(')') {
+            out.replace_range(start..start + rel_end + 1, "");
+        }
+    }
+    out.replace('&', "")
 }
 
 fn lookup(tree: &Value, key: &str) -> Option<String> {
@@ -41,7 +53,7 @@ fn lookup(tree: &Value, key: &str) -> Option<String> {
     node.as_str().map(|s| s.to_string())
 }
 
-fn resolve_locale() -> &'static str {
+pub fn resolve_locale() -> &'static str {
     let raw = sys_locale::get_locale().unwrap_or_default();
     // Exact match (e.g. "zh-CN").
     if let Some(hit) = AVAILABLE.iter().find(|l| raw.eq_ignore_ascii_case(l)) {

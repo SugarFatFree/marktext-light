@@ -38,6 +38,9 @@ pub struct BootInfo {
     markdown_inclusions: Vec<String>,
     /// File to open on launch, taken from the CLI argument / file association.
     initial_file: Option<InitialFile>,
+    /// OS UI language resolved to an available locale (e.g. "zh-CN"), so the
+    /// renderer loads the matching translations.
+    locale: String,
 }
 
 /// Scan the process arguments for a readable file to open on launch (CLI use:
@@ -89,6 +92,20 @@ fn node_arch() -> String {
     .to_string()
 }
 
+/// Return the bundled translation JSON for `lang` so the renderer's i18n can
+/// load non-English locales (the Electron path went through main via IPC).
+#[tauri::command]
+pub fn load_locale(app: tauri::AppHandle, lang: String) -> Option<serde_json::Value> {
+    let path = app
+        .path()
+        .resource_dir()
+        .ok()?
+        .join("locales")
+        .join(format!("{lang}.json"));
+    let text = std::fs::read_to_string(path).ok()?;
+    serde_json::from_str(&text).ok()
+}
+
 #[tauri::command]
 pub fn boot_info(app: tauri::AppHandle) -> Result<BootInfo, String> {
     let resolver = app.path();
@@ -126,5 +143,6 @@ pub fn boot_info(app: tauri::AppHandle) -> Result<BootInfo, String> {
         is_updatable: false,
         markdown_inclusions: MARKDOWN_EXTENSIONS.iter().map(|s| s.to_string()).collect(),
         initial_file: initial_file_from_args(),
+        locale: crate::menu::i18n::resolve_locale().to_string(),
     })
 }

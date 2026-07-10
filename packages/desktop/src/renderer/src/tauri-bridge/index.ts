@@ -24,6 +24,7 @@ import pathe from 'pathe'
 
 import type { BootInfo } from '@shared/types/ipc'
 import { resolveInitialTheme } from './theme'
+import { setLanguage } from '@/i18n'
 
 // -----------------------------------------------------------------------------
 // Invoke-channel → Rust command routing
@@ -315,7 +316,8 @@ const stubbedExtras = () => {
   return {
     commandExists: { exists: (name: string) => routedInvoke('mt::cmd::exists', [name]) },
     i18nUtils: {
-      loadTranslations: async(_language: string) => ({})
+      loadTranslations: (language: string) =>
+        invoke('load_locale', { lang: language }).then((v) => (v as Record<string, unknown>) ?? {})
     },
     ripgrep: {
       start: async() => ({ searchId: '' }),
@@ -423,6 +425,12 @@ export async function installTauriBridge(): Promise<void> {
   const boot = (await invoke('boot_info')) as BootInfo
   synthesizeEditorUrlArgs(boot)
   applyGlobals(boot)
+
+  // Load the OS-language translations before the app mounts so the UI (menu bar,
+  // dialogs, …) renders localized from the first paint. English is bundled.
+  if (boot.locale && boot.locale !== 'en') {
+    await setLanguage(boot.locale)
+  }
 }
 
 /** True when running under the Tauri shell rather than Electron. */
