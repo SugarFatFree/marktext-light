@@ -32,6 +32,7 @@ import type {
   BootstrapEditorConfig
 } from '@shared/types/files'
 import { isTauri } from '@/tauri-bridge'
+import { initThemeController } from '@/tauri-bridge/theme'
 
 // ----------------------------------------------------------------------------
 // Local helper types
@@ -946,6 +947,8 @@ export const useEditorStore = defineStore('editor', {
         if (initialFile) {
           this.NEW_TAB_WITH_CONTENT({ markdownDocument: initialFile, options: {}, selected: true })
         }
+        // Keep the theme in sync with the OS and the native Theme menu.
+        initThemeController((theme) => preferencesStore.SET_USER_PREFERENCE({ theme }))
       }
     },
 

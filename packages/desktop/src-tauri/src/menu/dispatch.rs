@@ -34,6 +34,7 @@ pub fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, id: &str) {
         "fmt" => emit(app, "mt::editor-format-action", json!({ "type": arg })),
         "viewmode" => emit(app, "mt::toggle-view-mode-entry", json!(arg)),
         "viewlayout" => emit(app, "mt::toggle-view-layout-entry", json!(arg)),
+        "theme" => emit(app, "mt::set-theme", json!(arg)),
         "cmd" => emit(app, "mt::execute-command-by-id", json!(arg)),
 
         // File actions that are pure renderer events.

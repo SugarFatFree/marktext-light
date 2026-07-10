@@ -163,6 +163,22 @@ fn view_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::Res
         .build()
 }
 
+fn theme_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::Result<Submenu<R>> {
+    // ids are `theme:<choice>`; the renderer applies 'system' by following the OS
+    // light/dark preference, or the given theme id directly.
+    SubmenuBuilder::new(app, tr.t("menu.theme.theme"))
+        .item(&item(app, "theme:system", &tr.t("menu.theme.followSystem"), None)?)
+        .item(&item(app, "theme:light", &tr.t("menu.theme.light"), None)?)
+        .item(&item(app, "theme:dark", &tr.t("menu.theme.dark"), None)?)
+        .item(&PredefinedMenuItem::separator(app)?)
+        .item(&item(app, "theme:one-dark", &tr.t("menu.theme.oneDark"), None)?)
+        .item(&item(app, "theme:material-dark", &tr.t("menu.theme.materialDark"), None)?)
+        .item(&item(app, "theme:dracula", &tr.t("menu.theme.dracula"), None)?)
+        .item(&item(app, "theme:nord", &tr.t("menu.theme.nord"), None)?)
+        .item(&item(app, "theme:solarized-dark", &tr.t("menu.theme.solarizedDark"), None)?)
+        .build()
+}
+
 fn window_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::Result<Submenu<R>> {
     SubmenuBuilder::new(app, tr.t("menu.window.title"))
         .item(&PredefinedMenuItem::minimize(app, None)?)
@@ -192,6 +208,7 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     menu.append(&paragraph_submenu(app, &tr)?)?;
     menu.append(&format_submenu(app, &tr)?)?;
     menu.append(&view_submenu(app, &tr)?)?;
+    menu.append(&theme_submenu(app, &tr)?)?;
     menu.append(&window_submenu(app, &tr)?)?;
     menu.append(&help_submenu(app, &tr)?)?;
 

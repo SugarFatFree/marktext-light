@@ -14,6 +14,7 @@
         { frameless: titleBarStyle === 'custom' },
         { isOsx: isOsx }
       ]"
+      data-tauri-drag-region
     >
       <div
         class="title"
@@ -50,9 +51,10 @@
         <div
           v-if="showCustomTitleBar"
           class="frameless-titlebar-menu title-no-drag"
-          @click.stop="handleMenuClick"
+          :title="t('menu.view.toggleSidebar')"
+          @click.stop="handleSidebarToggle"
         >
-          <span class="text-center-vertical">&#9776;</span>
+          <span class="text-center-vertical">&#9707;</span>
         </div>
         <el-tooltip
           v-if="wordCount"
@@ -275,8 +277,10 @@ const handleMinimizeClick = () => {
   window.electron.windowControl.minimize()
 }
 
-const handleMenuClick = () => {
-  window.electron.windowControl.popupApplicationMenu({ x: 23, y: 20 })
+// The application menu is now always-on (native menu bar), so this button
+// toggles the left sidebar instead of popping up the menu.
+const handleSidebarToggle = () => {
+  layoutStore.TOGGLE_LAYOUT_ENTRY('showSideBar')
 }
 
 const rename = () => {

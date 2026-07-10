@@ -14,23 +14,31 @@ const AVAILABLE: [&str; 10] = [
     "de", "en", "es", "fr", "ja", "ko", "pt", "tr", "zh-CN", "zh-TW",
 ];
 
-/// Loaded translation tree plus a resolver for dotted keys.
+/// Loaded translation tree plus an English fallback and a dotted-key resolver.
 pub struct Translations {
     tree: Value,
+    fallback: Value,
 }
 
 impl Translations {
-    /// Resolve `menu.section.key`; returns the last path segment if missing so a
-    /// missing translation degrades to a readable label rather than empty text.
+    /// Resolve `menu.section.key` against the active locale, then the English
+    /// fallback, then the last path segment — so a missing translation degrades
+    /// to readable text rather than empty. A leading `&` mnemonic marker (as in
+    /// en's `&Theme`) is stripped.
     pub fn t(&self, key: &str) -> String {
-        let mut node = &self.tree;
-        for part in key.split('.') {
-            node = &node[part];
-        }
-        node.as_str()
-            .map(|s| s.to_string())
+        lookup(&self.tree, key)
+            .or_else(|| lookup(&self.fallback, key))
+            .map(|s| s.replace('&', ""))
             .unwrap_or_else(|| key.rsplit('.').next().unwrap_or(key).to_string())
     }
+}
+
+fn lookup(tree: &Value, key: &str) -> Option<String> {
+    let mut node = tree;
+    for part in key.split('.') {
+        node = node.get(part)?;
+    }
+    node.as_str().map(|s| s.to_string())
 }
 
 fn resolve_locale() -> &'static str {
@@ -53,10 +61,9 @@ fn resolve_locale() -> &'static str {
 
 pub fn load<R: Runtime>(app: &AppHandle<R>) -> Translations {
     let locale = resolve_locale();
-    let tree = read_locale(app, locale)
-        .or_else(|| read_locale(app, "en"))
-        .unwrap_or(Value::Null);
-    Translations { tree }
+    let fallback = read_locale(app, "en").unwrap_or(Value::Null);
+    let tree = read_locale(app, locale).unwrap_or_else(|| fallback.clone());
+    Translations { tree, fallback }
 }
 
 fn read_locale<R: Runtime>(app: &AppHandle<R>, locale: &str) -> Option<Value> {

@@ -261,6 +261,8 @@ export interface IpcMainEventChannels {
   'mt::rg::progress': [payload: unknown]
   'mt::screenshot-captured': [filePath: string]
   'mt::set-line-ending': [lineEnding: LineEnding]
+  // Tauri Theme menu → renderer. Value is 'system' | 'light' | 'dark' | themeId.
+  'mt::set-theme': [choice: string]
   'mt::set-pathname': [payload: { id: string; pathname: string; filename: string }]
   'mt::set-view-layout': [layout: unknown]
   'mt::show-command-palette': []

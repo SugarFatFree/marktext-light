@@ -23,6 +23,7 @@ import { openUrl, openPath, revealItemInDir } from '@tauri-apps/plugin-opener'
 import pathe from 'pathe'
 
 import type { BootInfo } from '@shared/types/ipc'
+import { resolveInitialTheme } from './theme'
 
 // -----------------------------------------------------------------------------
 // Invoke-channel → Rust command routing
@@ -345,7 +346,8 @@ function synthesizeEditorUrlArgs(boot: BootInfo): void {
   params.set('type', 'editor')
   params.set('wid', '1')
   params.set('udp', boot.paths?.userData || '/tmp')
-  params.set('theme', 'light')
+  // Honor a saved theme choice / the OS light-dark preference on first paint.
+  params.set('theme', resolveInitialTheme())
   params.set('debug', '0')
   params.set('hsb', '0')
   params.set('tbs', 'custom')
