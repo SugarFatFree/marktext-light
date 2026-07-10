@@ -353,17 +353,7 @@ function synthesizeEditorUrlArgs(boot: BootInfo): void {
   window.history.replaceState(null, '', `${window.location.pathname}?${search}${window.location.hash}`)
 }
 
-/**
- * Install the Tauri-backed `window.*` bridge. Awaits the boot-info handshake so
- * the renderer can read platform/paths synchronously afterwards, exactly like
- * the old preload. Safe to call once; subsequent calls are no-ops.
- */
-export async function installTauriBridge(): Promise<void> {
-  if (installed) return
-  installed = true
-
-  const boot = (await invoke('boot_info')) as BootInfo
-  synthesizeEditorUrlArgs(boot)
+function applyGlobals(boot: BootInfo): void {
   const ipc = buildIpcWrapper()
   const { electron, fileUtils, path, processShim } = buildGlobals(boot, ipc)
   const extras = stubbedExtras()
@@ -379,6 +369,56 @@ export async function installTauriBridge(): Promise<void> {
   w.ripgrep = extras.ripgrep
   w.uploader = extras.uploader
   w.fonts = extras.fonts
+}
+
+/**
+ * Synchronous boot defaults used before the async `boot_info` handshake
+ * resolves. The only value read at module-init time is `window.path.sep`
+ * (config.ts), which comes from bundled `pathe` and is correct regardless — the
+ * rest (real userData path, platform) is refined by `installTauriBridge()`.
+ */
+function defaultBoot(): BootInfo {
+  const ua = navigator.userAgent
+  const platform = /Win/i.test(ua) ? 'win32' : /Mac/i.test(ua) ? 'darwin' : 'linux'
+  return {
+    platform: platform as NodeJS.Platform,
+    arch: 'x64',
+    versions: {},
+    env: {},
+    paths: { resources: '', userData: '', cwd: '', ripgrepBinary: '' },
+    isUpdatable: false,
+    MARKDOWN_INCLUSIONS: [...MARKDOWN_EXTENSIONS]
+  }
+}
+
+let syncInstalled = false
+
+/**
+ * Install the `window.*` bridge SYNCHRONOUSLY with default boot values. Must run
+ * before any other renderer module executes its top-level code, because several
+ * modules read preload-provided globals at import time (e.g.
+ * `config.ts`'s `window.path.sep`). Under Electron the preload already provided
+ * these, so this is Tauri-only and imported for its side effect by
+ * `tauri-bridge/preload-sync`.
+ */
+export function installTauriBridgeSync(): void {
+  if (syncInstalled || installed) return
+  syncInstalled = true
+  applyGlobals(defaultBoot())
+}
+
+/**
+ * Refine the bridge with real boot-info (userData path, platform) and rebuild
+ * the editor URL args before `bootstrapRenderer()` runs. Awaited once in
+ * main.ts after the synchronous install.
+ */
+export async function installTauriBridge(): Promise<void> {
+  if (installed) return
+  installed = true
+
+  const boot = (await invoke('boot_info')) as BootInfo
+  synthesizeEditorUrlArgs(boot)
+  applyGlobals(boot)
 }
 
 /** True when running under the Tauri shell rather than Electron. */

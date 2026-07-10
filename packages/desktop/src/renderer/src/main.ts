@@ -1,3 +1,8 @@
+// MUST be first: synchronously installs the Tauri window.* globals (window.path,
+// window.electron, …) before any other module reads them at import time. No-op
+// under Electron. See tauri-bridge/preload-sync.
+import './tauri-bridge/preload-sync'
+
 import { createApp, type App } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import bootstrapRenderer from './bootstrap'
