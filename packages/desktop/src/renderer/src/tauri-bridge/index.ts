@@ -204,6 +204,13 @@ const handleSend = (channel: string, args: unknown[]): void => {
     case 'mt::open-file':
       fire(openFileAsTab(String(args[0] ?? ''), args[1]))
       return
+    // Quick Open sends the path along with the window it came from; there is
+    // one window, so the id is dropped. Upstream consults
+    // `openFilesInNewWindow` here and may spawn a second window — deliberately
+    // not done: files open as tabs in this window, never as another one.
+    case 'mt::open-file-by-window-id':
+      fire(openFileAsTab(String(args[1] ?? ''), {}))
+      return
     case 'mt::response-file-save':
       fire(saveDocument(unsavedFileFromArgs(args), dispatchLocal))
       return

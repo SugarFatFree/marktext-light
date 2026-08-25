@@ -16,7 +16,7 @@
 统计 `src/renderer` 里 `ipcRenderer.{send,sendSync,invoke,on,once}` 用到的通道，
 再看 `tauri-bridge/index.ts` 与 `src-tauri/src/**` 是否实现。
 
-**基线 2026-08-25：116 个通道，实现 18 → 当前 88，缺 28。**
+**基线 2026-08-25：116 个通道，实现 18 → 当前 91，缺 25。**
 （复测命令见本文件末尾）
 
 **计数口径的局限**：脚本只统计 `ipcRenderer.*` 调用点。像 `window.ripgrep.*`、`window.uploader.*`、
@@ -331,6 +331,31 @@ router + vue-i18n + en 语言包）+ 编辑器页 381 KB。
 
 **它证明不了「好看」**,只证明「读得出来」。目视验收仍然缺,仍然需要在有 webkit2gtk 的机器上跑安装包。
 
+### 命令面板的快速打开是死的（第 44 轮）
+
+复测通道后逐个查证「缺失」项,发现 **`mt::open-file-by-window-id` 没有路由**——
+命令面板选中文件后发的就是它,而桥对未处理的 send 只打一条 `console.warn`,
+**所以选了文件什么都不会发生,而且是静默的**。`5d1e2ee1` 接上,复用已有的 `openFileAsTab`:
+`NEW_TAB_WITH_CONTENT` 本来就按路径去重并切到已有标签,行为正好对。
+
+**与上游的一处有意分歧**:上游在这里会看 `openFilesInNewWindow` 偏好、可能开第二个窗口;
+这里不看——你的要求是永远开标签页,不开新窗口。
+
+`quick-open-routes.spec.ts` 走**真实路由表**而非源码断言(要防的正是"落到 default 分支"),
+mock 掉 8 个 Tauri 模块后跑 `installTauriBridge()`,再发一次 send 看有没有开出标签页。
+已做变异验证(去掉 case → 两条用例同时失败)。
+
+**顺带查证出两处记载有误,已改正:**
+
+- **导出菜单不是坏的**。计数把 `mt::show-export-dialog` 算作缺失,但 Tauri 菜单的
+  `cmd:file.export-file` 走的是 `mt::execute-command-by-id` → 渲染层命令系统,
+  而 `file.export-file` 命令(含 html/pdf 子命令)是注册了的。属计数假阳性。
+- **pandoc 导入早就做完了**。`commands::cmd::pandoc_to_markdown` 已在 `lib.rs` 注册,
+  桥内 `import.ts` 已接,拖入 .docx 也走这条。文档里"还缺一个 Rust 命令"是过时的。
+
+**教训**:通道计数只是线索,`bootstrap-editor`、`load-state` 这类**有意不实现**的
+和走了别的路径的都会被算成缺口。动手前先查证那一条到底断没断。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
@@ -338,7 +363,9 @@ router + vue-i18n + en 语言包）+ 编辑器页 381 KB。
 2. **自动更新**（6 个通道）：需 `tauri-plugin-updater` + 签名密钥 + 更新服务器，属发布基建。
 3. **拼写检查**（5 个通道）：**硬缺口**。Electron 的拼写检查是 Chromium 内置 API，
    Tauri 无对应物，要做得自带词典与算法。
-4. **pandoc 导入**（2 个通道）：`command_exists` 已有，还缺一个「跑外部进程并取输出」的 Rust 命令。
+4. ~~**pandoc 导入**~~ —— **已经做完了，这条记载过时**。Rust 侧
+   `commands::cmd::pandoc_to_markdown` 已注册（`lib.rs:77`），桥内 `import.ts` 的
+   `canImportWithPandoc` / `importWithPandoc` 已接，拖入 .docx 也走这条路。
 5. **原生菜单状态回显**：自绘菜单栏已有勾选态；macOS 的原生菜单仍无，需 Rust 侧持句柄 `set_checked`。
 6. ~~**E2E 覆盖要求 #4**~~ —— **这条做不到，不要再试**。E2E 跑的是 Electron，而
    **Electron 版本本来就会恢复标签页**（主进程持久化 buffered state + `startUpAction:
