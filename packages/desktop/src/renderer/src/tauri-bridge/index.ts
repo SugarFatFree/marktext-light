@@ -36,6 +36,7 @@ import {
 } from './preferences'
 import { exportDocument, printDocument, type ExportPayload } from './export'
 import { askForImagePath, moveOpenFileTo, renameOpenFile } from './files'
+import { sendKeybindings } from './keybindings'
 import { askForOpenProject, loadProjectTree } from './project'
 import { broadcastLanguage, openSettingsWindow, sendCurrentLanguage } from './settings'
 import { installTabShortcuts } from './shortcuts'
@@ -164,6 +165,7 @@ const toggleBooleanPreference = async(key: string): Promise<void> => {
 // through every call site.
 let bootUserData = ''
 let bootLocale = 'en'
+let bootPlatform = 'linux'
 
 /** Positional `mt::response-file-save(-as)` args → the `UnsavedFile` save.ts takes. */
 const unsavedFileFromArgs = (args: unknown[]): UnsavedFile => ({
@@ -214,6 +216,9 @@ const handleSend = (channel: string, args: unknown[]): void => {
     }
     case 'mt::open-setting-window':
       fire(openSettingsWindow((args[0] as string) ?? null, bootUserData))
+      return
+    case 'mt::request-keybindings':
+      sendKeybindings(dispatchLocal, bootPlatform)
       return
     case 'mt::get-current-language':
       fire(sendCurrentLanguage(dispatchLocal, bootLocale))
@@ -609,6 +614,7 @@ function synthesizeEditorUrlArgs(boot: BootInfo): void {
 function applyGlobals(boot: BootInfo): void {
   bootUserData = boot.paths?.userData ?? ''
   bootLocale = boot.locale || 'en'
+  bootPlatform = boot.platform
   const ipc = buildIpcWrapper()
   const { electron, fileUtils, path, processShim } = buildGlobals(boot, ipc)
   const extras = stubbedExtras()
