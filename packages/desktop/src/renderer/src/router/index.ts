@@ -1,14 +1,22 @@
 import type { RouteRecordRaw } from 'vue-router'
 
-// Every route is an async import. A window only ever visits one of these two
-// trees — the editor never opens a settings panel and vice versa — so a static
-// import would put the whole settings UI in the editor window's entry chunk and
-// delay first paint for code it will never run.
+// The settings tree is loaded on demand: a window only ever visits one of these
+// two, so bundling the whole preferences UI into the editor window would cost
+// first paint for code it never runs.
+//
+// The editor page is NOT deferred, and must not be. Electron's main process
+// sends `mt::bootstrap-editor` from `webContents.once('did-finish-load')`,
+// which fires once the page's *static* imports have loaded. Behind a dynamic
+// import, `app.vue` mounts after that — its `onMounted` registers the listener
+// too late, the message is gone, and the editor window stays blank forever.
+// The editor window needs this chunk immediately in any case, so deferring it
+// bought that window nothing.
 //
 // .vue extensions are explicit so TS resolves them through the *.vue module
 // shim in src/types/renderer.d.ts. Vite handles extension-less imports at
 // runtime, but vue-tsc needs the suffix.
-const App = () => import('@/pages/app.vue')
+import App from '@/pages/app.vue'
+
 const Preference = () => import('@/pages/preference.vue')
 const General = () => import('@/prefComponents/general/index.vue')
 const Editor = () => import('@/prefComponents/editor/index.vue')

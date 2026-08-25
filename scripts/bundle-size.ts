@@ -57,13 +57,12 @@ if (!entry) {
   process.exit(1)
 }
 
+// The editor page is imported statically — it must be, or Electron's bootstrap
+// message arrives before the listener exists — so it normally lands inside the
+// entry chunk. Only look for a separate one if the build split it out.
 const editorRoute = readdirSync(ASSETS).find((f) => f.startsWith('app-') && f.endsWith('.js'))
-if (!editorRoute) {
-  console.error('Could not find the editor route chunk (app-*.js).')
-  process.exit(1)
-}
 
-const firstPaint = closure([entry, editorRoute])
+const firstPaint = closure(editorRoute ? [entry, editorRoute] : [entry])
 
 console.log(`entry chunk           ${kb([entry])} KB`)
 console.log(`editor first paint    ${kb(firstPaint)} KB across ${firstPaint.size} chunks`)

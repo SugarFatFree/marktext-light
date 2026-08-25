@@ -130,11 +130,15 @@
 
 实测体积（`packages/desktop/out-tauri/renderer/assets/`）：
 
-| 阶段 | eager 入口 | 编辑器首屏静态闭包 |
-|---|---|---|
-| 优化前 | 3512 KB | 3512 KB |
-| Element Plus + 路由懒加载后 | 762 KB | 2689 KB |
-| CodeMirror + 主题懒加载后 | **762 KB** | **2469 KB** |
+| 阶段 | 编辑器首屏静态闭包 |
+|---|---|
+| 优化前 | 3512 KB |
+| Element Plus 按需 + 设置页懒加载 | ~2700 KB |
+| CodeMirror + 主题按需 | **2494 KB** |
+
+**一处曾经的误读**：中途把编辑器页也改成异步路由，让"入口 chunk"降到 787 KB，看起来很漂亮——
+但编辑器窗口本来就要把那 2498 KB 全部加载，异步只是把同样的字节拆散，**没有让它少读一个字节**。
+更糟的是它打破了 Electron 的启动握手（见下），所以已改回同步。**该看的数字是首屏闭包，不是入口 chunk。**
 
 已确认**不在**首屏闭包内（muya 自己按需取）：katex、mermaid、cytoscape、wardley、embed。
 剩下 2469 KB 的构成：muya 引擎 1284 KB + 入口 762 KB（Vue + 25 个 Element Plus 组件 + pinia +
