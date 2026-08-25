@@ -169,7 +169,7 @@ export const UNSAVED_FILES_ASK_EVENT = 'unsaved-files::ask'
  * two, so the prompt lives in the renderer instead — which also keeps it
  * localized and themed like the rest of the UI.
  */
-const askAboutUnsavedFiles = (files: UnsavedFile[]): Promise<UnsavedFilesChoice> =>
+export const askAboutUnsavedFiles = (files: UnsavedFile[]): Promise<UnsavedFilesChoice> =>
   new Promise((resolve) => {
     // No dialog mounted (a window still booting) — treat it as "cancel" rather
     // than leaving the caller, and the tab close, hanging forever.

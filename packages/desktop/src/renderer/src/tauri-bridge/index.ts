@@ -31,6 +31,7 @@ import {
   setStoredPreferences,
   setStoredUserData
 } from './preferences'
+import { closeWindow, closeWindowConfirm, installCloseGuard } from './window'
 import { resolveInitialTheme, rememberThemeChoice } from './theme'
 import { setLanguage } from '@/i18n'
 
@@ -158,6 +159,22 @@ const handleSend = (channel: string, args: unknown[]): void => {
     }
     case 'mt::set-user-data':
       fire(setStoredUserData(args[0]))
+      return
+    case 'mt::app-try-quit':
+      // One window per process here, so quitting and closing are the same
+      // handshake: ask the renderer, then honour its answer.
+      dispatchLocal('mt::ask-for-close', [])
+      return
+    case 'mt::close-window':
+      fire(closeWindow())
+      return
+    case 'mt::close-window-confirm':
+      fire(closeWindowConfirm((args[0] as UnsavedFile[]) ?? [], dispatchLocal))
+      return
+    case 'mt::window-initialized':
+    case 'mt::window-tab-closed':
+      // Main-process bookkeeping (window registry, file watchers) with no
+      // counterpart here yet. Intentionally dropped, not missing.
       return
     case 'mt::win::minimize':
       fire(win().minimize())
@@ -525,6 +542,7 @@ export async function installTauriBridge(): Promise<void> {
   synthesizeEditorUrlArgs(boot)
   applyGlobals(boot)
   initPreferenceStores(boot.paths?.userData ?? '')
+  installCloseGuard(dispatchLocal)
 
   // Load the OS-language translations before the app mounts so the UI (menu bar,
   // dialogs, …) renders localized from the first paint. English is bundled.
