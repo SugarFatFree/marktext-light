@@ -16,7 +16,7 @@
 统计 `src/renderer` 里 `ipcRenderer.{send,sendSync,invoke,on,once}` 用到的通道，
 再看 `tauri-bridge/index.ts` 与 `src-tauri/src/**` 是否实现。
 
-**2026-08-25 基线：渲染层用到 116 个通道，已实现 18 个，缺 98 个。**
+**基线 2026-08-25：116 个通道，实现 18 → 当前 31，缺 85。**
 （复测命令见本文件末尾）
 
 缺口按功能域分组：
@@ -24,8 +24,8 @@
 | 优先级 | 功能域 | 代表通道 | 影响 |
 |---|---|---|---|
 | ~~P0~~ ✅ | 文件保存 | `mt::response-file-save(-as)`、`mt::save-tabs`、`mt::tab-saved`、`mt::set-pathname` | 已接通 |
-| **P0** | 关闭前保存提示 | `mt::save-and-close-tabs` → `mt::force-close-tabs-by-id` | 脏标签页关不掉 |
-| **P0** | 偏好持久化 | `mt::ask-for-user-preference`、`mt::set-user-preference`、`mt::user-preference`、`mt::ask-for-user-data`、`mt::set-user-data` | 主题／字体／语言等所有设置重启即丢 |
+| ~~P0~~ ✅ | 关闭前保存提示 | `mt::save-and-close-tabs` → `mt::force-close-tabs-by-id` | 已接通 |
+| ~~P0~~ ✅ | 偏好持久化 | `mt::ask-for-user-preference`、`mt::set-user-preference`、`mt::user-preference`、`mt::ask-for-user-data`、`mt::set-user-data` | 已接通 |
 | **P1** | 窗口与标签生命周期 | `mt::window-initialized`、`mt::close-window`、`mt::app-try-quit`、`mt::ask-for-close`、`mt::switch-tab-by-index`、`mt::tabs-cycle-left/right` | 关窗、切标签快捷键失效 |
 | **P1** | 侧栏项目树 | `mt::ask-for-open-project-in-sidebar`、`mt::update-object-tree`、`mt::rename`、`mt::fs-trash-item` | 打开文件夹后无文件树 |
 | **P1** | 全文搜索 | `ripgrep.*`（桥内 stub） | 侧栏搜索面板空转 |
@@ -69,16 +69,24 @@
   能触发渲染层既有监听器；10 语言补文案。
 - **`7119e075`** 保存链路 `tauri-bridge/save.ts`：`mt::response-file-save(-as)`、`mt::save-tabs`，
   写盘后回发 `mt::set-pathname` / `mt::tab-saved` / `mt::tab-save-failure`；行尾转换与 BOM 对齐
-  `writeMarkdownFile`；非 UTF-8 编码**明确报错而非静默转码**。同 commit 注册
-  `tauri-plugin-single-instance`，二次启动聚焦已有窗口并开成新标签页。
+  `writeMarkdownFile`；非 UTF-8 编码**明确报错而非静默转码**（完整方案是后续挪到 Rust 用
+  `encoding_rs`）。同 commit 注册 `tauri-plugin-single-instance`，二次启动聚焦已有窗口并开成新标签页。
+- **`2beec1d7`** 脏标签页关闭：`mt::save-and-close-tabs`。Electron 用原生三按钮框，Tauri dialog 只有两个，
+  所以提示改为渲染层组件 `components/unsavedFilesDialog`（bus 事件 `unsaved-files::ask`，
+  同时天然本地化＋跟随主题）。只有**真正落盘成功**的文档才进 `mt::force-close-tabs-by-id`，
+  写失败或取消的标签页保持打开而不丢改动。
+- **`199c0141`** 偏好持久化 `tauri-bridge/preferences.ts`：写 `<userData>/preferences.json`
+  与 `dataCenter.json`（只存用户覆盖项，默认值仍由渲染层 store 提供），debounce 300 ms。
+  主题有两个写入方（设置窗口与原生 Theme 菜单），统一走 `theme.ts` 的 `rememberThemeChoice`——
+  首帧渲染早于文件读取，所以 localStorage 仍作同步快取，否则重启会显示上一个主题。
 
 ## 下一步（按优先级）
 
-1. **`mt::save-and-close-tabs`**：需要「保存／不保存／取消」三按钮提示。Tauri dialog 插件只有两按钮，
-   改用渲染层 `ElMessageBox`（i18n key `dialog.save` / `dontSave` / `cancel` / `saveChanges` /
-   `changesWillBeLost` 已存在）。保存成功后回发 `mt::force-close-tabs-by-id`。
-2. **偏好持久化**：`tauri-plugin-store` 或直接写 `userData/preferences.json`，
-   接 `mt::ask-for-user-preference` / `mt::set-user-preference` / `mt::user-preference`。
+1. **窗口与标签生命周期**：`mt::window-initialized`、`mt::close-window`、`mt::app-try-quit`、
+   `mt::ask-for-close`、`mt::switch-tab-by-index`、`mt::tabs-cycle-left/right`。
+   关窗时要先走 `mt::save-and-close-tabs` 那套提示（已就绪）。
+2. **侧栏项目树**：`mt::ask-for-open-project-in-sidebar` → 递归 `readdir` → `mt::update-object-tree`。
+   打开文件夹后侧栏目前是空的。
 3. **启动性能**：`tauri:build-renderer` 主 chunk 3.59 MB（gzip 1.07 MB），另有 mermaid 543 KB、
    cytoscape 443 KB、wardley 612 KB、katex 261 KB。改成动态 import 按需加载，直接决定「秒启动、加载快」。
 4. **大文件**：先建基准（5/20/50 MB 文档的打开耗时与内存），再定优化点。
@@ -97,8 +105,8 @@ for dp, _, fns in os.walk('src/renderer'):
         if f.endswith(('.ts', '.vue', '.js')):
             for kind, ch in pat.findall(open(os.path.join(dp, f), encoding='utf-8').read()):
                 used[ch].add(kind)
-bridge = open('src/renderer/src/tauri-bridge/index.ts', encoding='utf-8').read()
-bridge += open('src/renderer/src/tauri-bridge/save.ts', encoding='utf-8').read()
+bridge = ''.join(open(os.path.join('src/renderer/src/tauri-bridge', f), encoding='utf-8').read()
+                 for f in os.listdir('src/renderer/src/tauri-bridge'))
 rust = ''.join(open(os.path.join(dp, f), encoding='utf-8').read()
                for dp, _, fns in os.walk('src-tauri/src') for f in fns if f.endswith('.rs'))
 miss = [c for c in sorted(used) if f"'{c}'" not in bridge and f'"{c}"' not in rust]
