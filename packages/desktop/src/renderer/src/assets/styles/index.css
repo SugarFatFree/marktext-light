@@ -105,6 +105,14 @@
   --notificationWarningBg: #ff8800;
   --notificationErrorColor: #ffffff;
   --notificationErrorBg: #ff6969;
+
+  /* Inline status colors, for text and panels rather than notification toasts.
+     The backgrounds are low-alpha overlays so they tint whatever they sit on:
+     an opaque near-white tint would vanish on every dark theme. */
+  --successColor: var(--themeColor);
+  --successBgColor: rgba(33, 181, 111, 0.12);
+  --warningColor: var(--notificationWarningBg);
+  --warningBgColor: rgba(255, 136, 0, 0.12);
 }
 
 ::-webkit-scrollbar,
