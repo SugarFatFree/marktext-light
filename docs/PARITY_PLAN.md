@@ -556,8 +556,26 @@ macOS 的 showAll / bringAllToFront。
 **仍剩约 119 ms/击键(210 KB),尚未定位。** 已量过并排除的:
 单块重绘 0.1 ms(与文档规模无关)、`getMarkdown()` 6.9 ms、`getTOC()` 5.6 ms、
 `wordCount()` 8.2 ms;也查过没有 `deep: true` 侦听器。
-已识别项合计约 21 ms,**剩下约 100 ms 不知道在哪**——下一步要么在 muya 的击键处理路径里,
-要么在 store/Vue 侧,需要真实 profiling 而不是继续猜。
+已识别项合计约 21 ms,**剩下约 100 ms 不知道在哪**。
+
+**第 52 轮做了 profiling,结果是一条否定的结论,值得写下来。**
+在 happy-dom 里量 muya 自己的击键路径,得到 36 KB 10.9 ms / 72 KB 33.2 ms / 146 KB 73.3 ms,
+外推到 210 KB 正好约 100 ms——看上去严丝合缝。**但 CPU profile 显示这是假象**:
+
+| 占比 | 函数 |
+|---|---|
+| 37.7% | `get firstChild`(happy-dom) |
+| 37.5% | `compareBoundaryPointsPosition`(happy-dom Range) |
+| 13.5% | `get nextSibling`(happy-dom) |
+
+**约 89% 是 happy-dom 自身的 DOM/Range 实现**,它的 `compareBoundaryPoints` 靠遍历兄弟节点、
+是 O(N);真实浏览器用原生实现,是 O(深度)。`structuredClone` 只占 4.2%。
+
+**结论:happy-dom 里的击键计时不能当作真实浏览器的代理**,那条"muya 击键路径是 O(文档)"的
+推论不成立,已撤回。**打开文档的计时不受此影响**(那一段的瓶颈是纯 JS 的收集与克隆,已验证并修复)。
+
+**下一步**:要量真实浏览器里的击键,只有两条路——桌面 E2E(只给总数)或
+`packages/muya/e2e`(真实 Chromium,可加探针)。不要再在 happy-dom 里量击键。
 
 ## 下一步（按优先级）
 
