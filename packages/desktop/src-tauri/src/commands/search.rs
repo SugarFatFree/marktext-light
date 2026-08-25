@@ -12,7 +12,7 @@
 //     dot-entries are skipped, which covers what the sidebar search needs.
 //   - Exclusion patterns support `*`, `**` and `?`, not the full glob syntax.
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
@@ -56,15 +56,21 @@ struct Match {
     range: [[usize; 2]; 2],
 }
 
-fn cancelled() -> &'static Mutex<HashSet<String>> {
-    static CANCELLED: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
-    CANCELLED.get_or_init(|| Mutex::new(HashSet::new()))
+/// Searches currently running, and whether each has been asked to stop.
+///
+/// One map rather than a set of cancelled ids: a cancel can arrive just after a
+/// search finished — the renderer cancels both on its match-count limit and in
+/// its error path, either of which can race completion — and a set would then
+/// keep an id nothing will ever remove.
+fn searches() -> &'static Mutex<HashMap<String, bool>> {
+    static SEARCHES: OnceLock<Mutex<HashMap<String, bool>>> = OnceLock::new();
+    SEARCHES.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 fn is_cancelled(search_id: &str) -> bool {
-    cancelled()
+    searches()
         .lock()
-        .map(|set| set.contains(search_id))
+        .map(|map| map.get(search_id).copied().unwrap_or(false))
         .unwrap_or(false)
 }
 
@@ -274,6 +280,13 @@ impl Walker<'_> {
 pub fn rg_start(app: AppHandle, req: SearchRequest) -> Result<(), String> {
     let matcher = build_matcher(&req.pattern, &req.options)?;
 
+    // Registered before the thread starts: a cancel that arrives first would
+    // otherwise find no entry to mark and the walk would run to completion.
+    searches()
+        .lock()
+        .map_err(|e| e.to_string())?
+        .insert(req.search_id.clone(), false);
+
     std::thread::spawn(move || {
         let exclusions: Vec<Regex> = req
             .options
@@ -308,17 +321,21 @@ pub fn rg_start(app: AppHandle, req: SearchRequest) -> Result<(), String> {
         };
         walker.emit(event, json!({ "searchId": req.search_id }));
 
-        if let Ok(mut set) = cancelled().lock() {
-            set.remove(&req.search_id);
+        if let Ok(mut map) = searches().lock() {
+            map.remove(&req.search_id);
         }
     });
 
     Ok(())
 }
 
+/// Ask a running search to stop. A search that already finished is not
+/// resurrected as a permanent entry — there is nothing left to cancel.
 #[tauri::command]
 pub fn rg_cancel(search_id: String) {
-    if let Ok(mut set) = cancelled().lock() {
-        set.insert(search_id);
+    if let Ok(mut map) = searches().lock() {
+        if let Some(flag) = map.get_mut(&search_id) {
+            *flag = true;
+        }
     }
 }

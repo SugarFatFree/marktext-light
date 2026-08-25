@@ -14,7 +14,7 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, UNIX_EPOCH};
 
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use notify::event::{CreateKind, ModifyKind, RemoveKind, RenameMode};
+use notify::event::{CreateKind, ModifyKind, RemoveKind};
 use serde_json::json;
 use tauri::{AppHandle, Emitter};
 
@@ -157,9 +157,13 @@ fn handle_event(app: &AppHandle, event: Event) {
             EventKind::Remove(RemoveKind::Any | RemoveKind::File | RemoveKind::Folder) => {
                 emit_removed(app, path)
             }
-            // A rename arrives as two paths; whichever still exists is the
-            // destination, so let the existence check decide.
-            EventKind::Modify(ModifyKind::Name(RenameMode::Any | RenameMode::Both)) => {
+            // Every rename shape, not just the combined one: inotify reports a
+            // rename as separate `From` and `To` events, and matching only
+            // `Any | Both` sent those to `emit_changed`, which updates an mtime
+            // on an entry the tree does not have — so a renamed file never
+            // appeared under its new name. Existence tells the two apart
+            // whatever the backend calls them.
+            EventKind::Modify(ModifyKind::Name(_)) => {
                 if path.exists() {
                     emit_added(app, path)
                 } else {
