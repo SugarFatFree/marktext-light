@@ -101,7 +101,7 @@
 
 | # | 要求 | 状态 |
 |---|---|---|
-| 1 | 多文件在**同一窗口以标签页**打开 | ✅ 桥内 `mt::open-file` + 单实例插件（Rust 待 CI 验证） |
+| 1 | 多文件在**同一窗口以标签页**打开 | ✅ 桥内 `mt::open-file` + 单实例插件;**`tabs-not-windows.spec.ts` 在真实运行的应用里断言窗口数始终为 1、每个文档一个标签,并覆盖同路径去重**(待 CI 首跑) |
 | 2 | 默认显示左侧抽屉菜单页 | ✅ Tauri 自举 `sideBarVisibility: true` |
 | 3 | 打开过的文件在左侧抽屉**持久留存** | ✅ `store/recentFiles.ts` + 侧栏「最近文件」区块；**已在真实运行的编辑器里验证**（E2E `28231b26`） |
 | 4 | 标签页**不**持久化 | ✅ 桥把 `update-buffer-state` 放进 `IGNORED_INVOKES`（有意为之，非巧合）；`no-tab-restore.spec.ts` 双向锁住。**E2E 验不了**——Electron 版本本来就会恢复 |
