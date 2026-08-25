@@ -1,7 +1,6 @@
-import equal from 'deep-equal'
 import bus from '../bus'
 import { getUniqueId, deepClone } from '../util'
-import listToTree, { type ListItem, type TreeNode } from '../util/listToTree'
+import listToTree, { sameHeadings, type ListItem, type TreeNode } from '../util/listToTree'
 import {
   createDocumentState,
   getOptionsFromState,
@@ -1461,7 +1460,7 @@ export const useEditorStore = defineStore('editor', {
       if (history) tab.history = history
 
       // Only update TOC if it's the current file
-      if (id === this.currentFile?.id && toc && !equal(toc, this.listToc)) {
+      if (id === this.currentFile?.id && toc && !sameHeadings(toc, this.listToc)) {
         this.listToc = toc
         this.toc = listToTree<TocItem>(toc)
       }

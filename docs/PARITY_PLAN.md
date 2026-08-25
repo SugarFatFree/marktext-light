@@ -577,6 +577,30 @@ macOS 的 showAll / bringAllToFront。
 **下一步**:要量真实浏览器里的击键,只有两条路——桌面 E2E(只给总数)或
 `packages/muya/e2e`(真实 Chromium,可加探针)。不要再在 happy-dom 里量击键。
 
+### 真实浏览器 profile 的答案(第 54 轮)
+
+`keystroke-profile.spec.ts` 用 CDP 在真实渲染层里采样(210 KB,连打十字符,1673 ms)。
+前 12 项里 11 项是同一个来源:
+
+| 占比 | 函数 |
+|---|---|
+| 6.2% | `deepClone` |
+| 5.1 / 5.0 / 4.9 / 4.7 / 4.7% | `isArrayBuffer` / `isMap` / `isWeakSet` / `isSet` / `isWeakMap` |
+| 4.4 / 4.1 / 4.1 / 3.9 / 3.9% | `tryDateGetDayCall` / `tryStringObject` / `booleanBrandCheck` / `tryBigIntObject` / `tryNumberObject` |
+| 0.9% | `objEquiv` |
+
+这是 **`deep-equal` 这个包的特征调用签名**,合计**超过 40%**。
+它只在一个地方被用到:store 里每次击键都跑的那行 TOC 比较
+`!equal(toc, this.listToc)`——比较的是一组扁平对象,字段只有字符串和数字。
+
+已换成 `util/listToTree.ts` 里的 `sameHeadings`(逐键 `Object.is`)。
+**取舍写在注释和用例里**:它比 `deep-equal` 更严格,结构相同但引用不同的嵌套值会被判为"不同"。
+这个方向是安全的——误判"变了"只多算一次 TOC,误判"没变"才会让侧栏留在旧状态。
+
+**遗留**:`deep-equal` 已无源码引用(未 import 的依赖不进打包,运行时收益已拿到),
+但 `package.json` 里的声明还在。清理要动 lockfile,而本机 `pnpm install` 会触发
+下载 Electron 的 postinstall,不值得在这里冒险。
+
 ### 自定义键位:有意不实现(第 53 轮查证)
 
 `mt::keybinding-save-user-keybindings` 一直记在缺口里。查证后**决定不做**,理由:
