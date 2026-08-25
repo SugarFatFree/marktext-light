@@ -223,6 +223,16 @@ fn window_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::R
 fn help_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::Result<Submenu<R>> {
     SubmenuBuilder::new(app, tr.t("menu.help.help"))
         .item(&item(app, "cmd:docs.markdown-syntax", &tr.t("menu.help.markdownReference"), None)?)
+        .item(&PredefinedMenuItem::separator(app)?)
+        .item(&item(app, "cmd:help.changelog", &tr.t("menu.help.changelog"), None)?)
+        .item(&item(app, "cmd:help.follow-us", &tr.t("menu.help.followUs"), None)?)
+        .item(&item(app, "cmd:help.support", &tr.t("menu.help.support"), None)?)
+        .item(&PredefinedMenuItem::separator(app)?)
+        .item(&item(app, "cmd:help.ask-question", &tr.t("menu.help.askQuestion"), None)?)
+        .item(&item(app, "cmd:help.report-bug", &tr.t("menu.help.reportBug"), None)?)
+        .item(&item(app, "cmd:help.view-source", &tr.t("menu.help.viewSource"), None)?)
+        .item(&item(app, "cmd:help.license", &tr.t("menu.help.license"), None)?)
+        .item(&PredefinedMenuItem::separator(app)?)
         .item(&item(app, "help:about", &tr.t("menu.help.about"), None)?)
         .build()
 }

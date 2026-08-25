@@ -138,7 +138,14 @@ export const MENU_STRUCTURE: MenuBarSection[] = [
     titleKey: 'menu.help.help',
     items: [
       { id: 'cmd:docs.markdown-syntax', labelKey: 'menu.help.markdownReference' },
-      { id: 'help:about', labelKey: 'menu.help.about' }
+      { id: 'cmd:help.changelog', labelKey: 'menu.help.changelog', divided: true },
+      { id: 'cmd:help.follow-us', labelKey: 'menu.help.followUs' },
+      { id: 'cmd:help.support', labelKey: 'menu.help.support' },
+      { id: 'cmd:help.ask-question', labelKey: 'menu.help.askQuestion', divided: true },
+      { id: 'cmd:help.report-bug', labelKey: 'menu.help.reportBug' },
+      { id: 'cmd:help.view-source', labelKey: 'menu.help.viewSource' },
+      { id: 'cmd:help.license', labelKey: 'menu.help.license' },
+      { id: 'help:about', labelKey: 'menu.help.about', divided: true }
     ]
   }
 ]

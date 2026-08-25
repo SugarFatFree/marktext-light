@@ -662,6 +662,54 @@ const commands: CommandDescriptor[] = [
       )
     }
   },
+  // The rest of upstream's Help menu (src/main/menu/templates/help.ts). It
+  // opened these straight from the main process; here they are commands so the
+  // native menu and the custom menu bar can both reach them through the one
+  // dispatch path they already share.
+  {
+    id: 'help.changelog',
+    execute: async() => {
+      window.electron.shell.openExternal('https://github.com/marktext/marktext/releases')
+    }
+  },
+  {
+    id: 'help.follow-us',
+    execute: async() => {
+      window.electron.shell.openExternal('https://twitter.com/marktextapp')
+    }
+  },
+  {
+    id: 'help.support',
+    execute: async() => {
+      window.electron.shell.openExternal('https://github.com/sponsors/marktext')
+    }
+  },
+  {
+    id: 'help.ask-question',
+    execute: async() => {
+      window.electron.shell.openExternal('https://github.com/marktext/marktext/discussions')
+    }
+  },
+  {
+    id: 'help.report-bug',
+    execute: async() => {
+      window.electron.shell.openExternal('https://github.com/marktext/marktext/issues')
+    }
+  },
+  {
+    id: 'help.view-source',
+    execute: async() => {
+      window.electron.shell.openExternal('https://github.com/marktext/marktext')
+    }
+  },
+  {
+    id: 'help.license',
+    execute: async() => {
+      window.electron.shell.openExternal(
+        'https://github.com/marktext/marktext/blob/develop/LICENSE'
+      )
+    }
+  },
 
   // --------------------------------------------------------------------------
   // Misc
