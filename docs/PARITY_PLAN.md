@@ -16,8 +16,21 @@
 统计 `src/renderer` 里 `ipcRenderer.{send,sendSync,invoke,on,once}` 用到的通道，
 再看 `tauri-bridge/index.ts` 与 `src-tauri/src/**` 是否实现。
 
-**基线 2026-08-25：116 个通道，实现 18 → 当前 91，缺 25。**
+**基线 2026-08-25：116 个通道，实现 18 → 当前 91，"缺" 25。**
 （复测命令见本文件末尾）
+
+**这个 25 不能直接读作"还差 25 个功能"。** 逐条查证后(第 44/53/58/59/63 轮),分三类:
+
+| 类别 | 数量 | 明细 |
+|---|---|---|
+| **有意不实现 / 不适用** | 4 | `bootstrap-editor`(Tauri 自举)、`load-state`(标签页有意不恢复,已测)、`switch-tab-by-file_path`(应用内无触发方)、`keybinding-save-user-keybindings` + `debug-dump`(前置条件是 Rust 运行时重建加速键) |
+| **计数假阳性(功能其实可用)** | 10 | `show-export-dialog`(导出菜单走命令系统)、`cm-copy-as-html` / `cm-copy-as-rich` / `cm-paste-as-plain-text` / `cm-insert-paragraph`(自绘右键菜单派发同名 bus 事件)、`spellchecker-*` × 3 + `spelling-*` × 2(系统/WebView 负责,周边 UI 已隐藏) |
+| **真缺口** | 11 | 自动更新 6(需签名密钥 + 更新服务器)、截图 2(Tauri 无对应 API)、`show-notification`(仅 watcher I/O 错误提示)、`window-zoom`(功能可经命令面板到达,缺菜单项)、`spellchecker-get-available-dictionaries`(无词典列表可给) |
+
+**教训**:这个脚本只看"通道名有没有出现在桥或 Rust 里"。
+**有意不实现、走别的路径、以及由系统接管的,都会被算成缺口**——
+我曾据此三次动手去补其实不存在的缺口(导出菜单、pandoc 导入、窗口置顶)。
+**动手前必须先查证那一条到底断没断。**
 
 **计数口径的局限**：脚本只统计 `ipcRenderer.*` 调用点。像 `window.ripgrep.*`、`window.uploader.*`、
 `window.fonts.*` 这些独立的 preload 接口面不在其中——所以全文搜索虽已实现，数字上不体现。
