@@ -76,11 +76,30 @@ export function lexBlock(
     // any consumer that once passed `math: true` would get math parsing forever.
     const m = new Marked();
 
-    if (math) {
+    // Register only the math rules this document could possibly need. marked
+    // consults every registered extension's `start()` on the *whole* remaining
+    // source at each token boundary, and `blockKatex.start` is an
+    // `indexOf('\n$')` that scans to the end when there is nothing to find —
+    // once per block over a shrinking document, which is quadratic. A math-free
+    // 4 MB file spent 11.2 s in `lexBlock` with both rules registered and 0.7 s
+    // with neither.
+    //
+    // Both rules need a `$` at all. The block rule needs more: it matches
+    // `$$\n…\n$$`, so any text it can match contains a newline immediately
+    // followed by the closing delimiter. No `\n$`, no block math.
+    //
+    // Tested against the original `src`: front matter is stripped below, and a
+    // superset with no `$` guarantees the remainder has none either.
+    const inlineMathPossible = math && src.includes('$');
+    const blockMathPossible = inlineMathPossible && src.includes('\n$');
+
+    if (inlineMathPossible) {
         m.use(
             mathExtension({
                 throwOnError: false,
                 useKatexRender: false,
+                inline: true,
+                block: blockMathPossible,
             }),
         );
     }
