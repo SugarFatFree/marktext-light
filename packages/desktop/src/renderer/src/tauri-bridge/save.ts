@@ -12,6 +12,7 @@ import { save as showSaveDialog } from '@tauri-apps/plugin-dialog'
 import pathe from 'pathe'
 
 import bus from '@/bus'
+import { untrackOpenFile } from './open-files'
 
 export interface SaveEncoding {
   encoding?: string
@@ -143,6 +144,9 @@ export const saveDocument = async(
   if (alreadyExistOnDisk) {
     dispatchLocal('mt::tab-saved', [id])
   } else {
+    // Save-as moves the tab onto the new file; whatever it was showing before
+    // is no longer open and should not stay watched.
+    if (pathname) untrackOpenFile(pathname)
     dispatchLocal('mt::set-pathname', [
       { id, pathname: filePath, filename: pathe.basename(filePath) }
     ])

@@ -723,8 +723,23 @@ export async function installTauriBridge(): Promise<void> {
   // main window; the settings window carries its own `type`.
   const windowType = new URLSearchParams(window.location.search).get('type') ?? 'editor'
   installCloseGuard(dispatchLocal, windowType)
-  installTabShortcuts(dispatchLocal, boot.platform)
   installContextMenuStyles()
+
+  // Load the OS-language translations before the app mounts so the UI (menu bar,
+  // dialogs, …) renders localized from the first paint. English is bundled.
+  // Both windows need this, so it happens before the editor-only block below.
+  if (boot.locale && boot.locale !== 'en') {
+    await setLanguage(boot.locale)
+  }
+
+  // The rest belongs to the editor. The settings window shares this bundle, and
+  // menu events reach every window, so installing them there too meant Ctrl+Tab
+  // swallowed for no one, dropped files vanishing into a window with no tabs,
+  // and — the expensive one — a second full project scan running alongside the
+  // editor's whenever a folder was opened.
+  if (windowType !== 'editor') return
+
+  installTabShortcuts(dispatchLocal, boot.platform)
   installWindowEvents(dispatchLocal)
   registerEvent(
     'mt::file-changed-on-disk',
@@ -744,12 +759,6 @@ export async function installTauriBridge(): Promise<void> {
     (_event, pathname) => fire(loadProjectTree(String(pathname), dispatchLocal)),
     false
   )
-
-  // Load the OS-language translations before the app mounts so the UI (menu bar,
-  // dialogs, …) renders localized from the first paint. English is bundled.
-  if (boot.locale && boot.locale !== 'en') {
-    await setLanguage(boot.locale)
-  }
 }
 
 /** True when running under the Tauri shell rather than Electron. */
