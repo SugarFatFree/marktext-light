@@ -42,6 +42,11 @@ interface StrandedText {
 interface Report {
   surfaces: Surface[]
   stranded: StrandedText[]
+  /** Text whose contrast was judged. */
+  measured: number
+  /** Text over a backdrop that could not be determined, so it was not judged.
+   *  Reported rather than silently dropped: it is the check's blind spot. */
+  skipped: number
 }
 
 /** One pass over the page: how dark the chrome is, and any opaque text left
@@ -74,18 +79,19 @@ const inspect = (page: Page, selectors: string[], minContrast: number): Promise<
         return parsed && parsed[3] >= 0.9 ? parsed : null
       }
 
-      // The nearest ancestor that actually paints. Correct for text, which sits
-      // in normal flow inside the box painted behind it; it would NOT be correct
-      // for a fixed or absolute element whose visual backdrop is a sibling,
-      // which is why only text is measured this way.
-      const surfaceBehind = (el: Element): Rgba => {
+      // The nearest ancestor that actually paints, or null when none of them
+      // do — which happens for a fixed or absolute subtree sitting over a
+      // sibling that paints instead (the title bar is one). Guessing a default
+      // there invents a backdrop and reports contrast against something the
+      // user never sees, so callers skip those elements instead.
+      const surfaceBehind = (el: Element): Rgba | null => {
         let node: Element | null = el
         while (node) {
           const own = ownBackground(node)
           if (own) return own
           node = node.parentElement
         }
-        return [255, 255, 255, 1]
+        return null
       }
 
       const visible = (el: Element): boolean => {
@@ -109,6 +115,8 @@ const inspect = (page: Page, selectors: string[], minContrast: number): Promise<
       }
 
       const stranded: StrandedText[] = []
+      let measured = 0
+      let skipped = 0
       for (const el of Array.from(document.querySelectorAll('body *'))) {
         const rendersText = Array.from(el.childNodes).some(
           (node) => node.nodeType === 3 && (node.textContent ?? '').trim().length > 1
@@ -119,6 +127,11 @@ const inspect = (page: Page, selectors: string[], minContrast: number): Promise<
         if (!color || color[3] < 0.95) continue
 
         const background = surfaceBehind(el)
+        if (!background) {
+          skipped++
+          continue
+        }
+        measured++
         const a = luminance(color)
         const b = luminance(background)
         const contrast = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
@@ -134,7 +147,7 @@ const inspect = (page: Page, selectors: string[], minContrast: number): Promise<
       }
       stranded.sort((x, y) => x.contrast - y.contrast)
 
-      return { surfaces, stranded }
+      return { surfaces, stranded, measured, skipped }
     },
     { selectors, minContrast }
   )
@@ -184,6 +197,12 @@ test.describe('the dark theme, in a real window', () => {
   })
 
   test('leaves no hand-written colour stranded on a dark surface', () => {
+    // Without this the check passes for free the day everything gets skipped.
+    expect(
+      report.measured,
+      `nothing was judged (${report.skipped} skipped for an undeterminable backdrop)`
+    ).toBeGreaterThan(0)
+
     const detail = report.stranded
       .slice(0, 8)
       .map((t) => `  ${t.contrast}:1  ${t.tag}  ${t.color} on ${t.background}  "${t.text}"`)
