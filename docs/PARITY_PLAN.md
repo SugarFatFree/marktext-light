@@ -65,7 +65,16 @@
   **改动渲染层后要留出一轮不推送的时间让它跑完。**
 - **触发 CI 前先确认没有正在跑的 run**：`tauri-build.yml` 配了
   `concurrency: cancel-in-progress: true`，再次 `gh workflow run` 会**直接取消上一次**，
-  于是那次的验证信号就没了。用 `gh run watch <id>` 等它结束再触发下一次。
+  于是那次的验证信号就没了。等它结束再触发下一次。
+- **`gh` 命令行已不在本机**（`find /` 全盘搜不到），但 `~/.config/gh/hosts.yml` 里的 token 还在。
+  查 CI 状态改用 API，token 不要回显：
+
+  ```bash
+  TOKEN=$(grep -A5 'github.com' ~/.config/gh/hosts.yml | grep oauth_token | head -1 | sed 's/.*oauth_token: *//')
+  curl -s -H "Authorization: token $TOKEN" \
+    "https://api.github.com/repos/SugarFatFree/marktext-light/actions/runs?branch=feat/tauri-migration-phase1&per_page=8"
+  # 失败日志：.../actions/runs/<run_id>/jobs 取 job id，再 .../actions/jobs/<job_id>/logs
+  ```
 - **Rust 侧现在有测试了**：`packages/desktop/src-tauri` 的 `#[cfg(test)]` 单测在 CI 的 Linux 作业里
   以 `cargo test --release` 运行（只跑一个平台：纯逻辑，四平台是同一个答案；`--release` 复用
   构建产物，默认的 dev profile 会把所有依赖重编一遍）。本机仍跑不了——工具链损坏。
@@ -275,6 +284,20 @@ router + vue-i18n + en 语言包）+ 编辑器页 381 KB。
   侧栏面板是**选择**而非切换，应走 `mt::set-view-layout`。顺带补回上游有而本项目丢失的
   「重新加载图片」「命令面板」「行尾 LF/CRLF」四项。
 
+### 用 CI 的 E2E 做真运行时验证（第 41 轮）
+
+- **`bb5497eb`** 切进源码模式会吞掉最后一次击键。引擎把编辑批进 operation cache、下一帧才 apply；
+  源码模式的初值取自 store 上一次收到的 markdown（只在 `json-change` 时刷新，即那一帧之后），
+  退出时又把自己的内容写回文档——于是那次击键先被漏掉、再被覆盖。`flush()` 本就是为这件事存在的
+  （#2938 的标签切换），源码模式这条路径没调用。
+  **发现方式**：E2E 在 `b1548c70` 上失败，而那个提交只改了一个单测文件、零行运行时代码——
+  所以不是回归，是本就存在的偶发。日志显示输入 `' typed-token'` 读回 `' typed-toke'`，
+  轮询 5 秒都补不回来（切换时的快照已定型）。**平时那一帧多半赶在 IPC 往返之前落下，所以只偶发。**
+- **`28231b26`** 最近文件抽屉的运行时用例。要求 #3/#5 此前只有 store 层单测，
+  没验过抽屉真的渲染出条目、以及删除按钮才是唯一的移除方式。
+  **重启后仍在**这一条不放进 E2E：渲染层 `page.reload()` 看不出来——主进程用 `once` 挂
+  bootstrap 握手，重载后不再补发，侧栏根本不会渲染。那条留在单测里验存储往返。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
@@ -284,8 +307,10 @@ router + vue-i18n + en 语言包）+ 编辑器页 381 KB。
    Tauri 无对应物，要做得自带词典与算法。
 4. **pandoc 导入**（2 个通道）：`command_exists` 已有，还缺一个「跑外部进程并取输出」的 Rust 命令。
 5. **原生菜单状态回显**：自绘菜单栏已有勾选态；macOS 的原生菜单仍无，需 Rust 侧持句柄 `set_checked`。
-4. **E2E**：补「重启后标签页不恢复、最近文件仍在」的 Playwright 用例，锁住要求 #3/#4。
-5. **大文件的渲染侧**：解析已线性，但打开一个大文档还要经过 muya 建块树 + snabbdom 渲染，
+6. **E2E 覆盖要求 #4**：抽屉部分已由 `28231b26` 覆盖；「重启后标签页不恢复」还缺——
+   需要能复用同一个 `userDataDir` 重启应用，而 `launchElectron` 每次都新建临时目录，
+   得先给它开一个覆盖参数。
+7. **大文件的渲染侧**：解析已线性，但打开一个大文档还要经过 muya 建块树 + snabbdom 渲染，
    那一段尚未测过（本地无 WebView，需在真实窗口里量）。内存也仍偏高：4 MB 文档解析后堆约 600 MB。
 
 ## 复测差距的命令
