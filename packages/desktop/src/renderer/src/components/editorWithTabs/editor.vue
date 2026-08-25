@@ -553,6 +553,13 @@ watch(focus, (value) => {
 watch(sourceCode, (isSource) => {
   const windowId = window.marktext?.env?.windowId ?? -1
   if (isSource) {
+    // The engine batches edits and applies them on the next frame, so the last
+    // keystroke before this toggle is still queued. Source mode is seeded from
+    // the markdown the store last received — which only refreshes on
+    // `json-change` — and writes its own content back on exit, so an unflushed
+    // keystroke is first missed and then overwritten. Same hazard as the tab
+    // switch in #2938, and the reason `flush()` exists.
+    editor.value?.flush()
     window.electron.ipcRenderer.send('mt::set-editor-format-menus-enabled', windowId, false)
     return
   }
