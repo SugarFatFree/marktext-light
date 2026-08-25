@@ -50,6 +50,9 @@
 - 本机 **没有 `pkg-config` / webkit2gtk-4.1 / javascriptcoregtk-4.1**；`cargo` 存在但
   `cargo check` 跑满 9.5 分钟无任何输出后被超时杀掉（疑似卡在 crates 索引下载）。
   **Rust 侧一律靠 CI 验证**，本地不要再浪费时间尝试。
+- **Rust 侧现在有测试了**：`packages/desktop/src-tauri` 的 `#[cfg(test)]` 单测在 CI 的 Linux 作业里
+  以 `cargo test --release` 运行（只跑一个平台：纯逻辑，四平台是同一个答案；`--release` 复用
+  构建产物，默认的 dev profile 会把所有依赖重编一遍）。本机仍跑不了——工具链损坏。
 - 本地可验证闭环：
   - `pnpm run typecheck`
   - `npx eslint <改动文件>`（**不要**跑仓库级 `pnpm run lint`：它会去扫 `out/`、`out-tauri/`

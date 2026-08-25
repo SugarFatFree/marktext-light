@@ -88,6 +88,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
+      # Linux only: these are pure-logic tests with nothing platform-specific to
+      # say, so running them on all four runners would quadruple the cost for
+      # the same answer. `--release` reuses what the build above just compiled;
+      # the default dev profile would rebuild every dependency from scratch.
+      - name: Run Rust tests
+        if: matrix.platform == 'linux'
+        run: cargo test --release --manifest-path packages/desktop/src-tauri/Cargo.toml
+
       - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
