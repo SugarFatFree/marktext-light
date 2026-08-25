@@ -108,7 +108,6 @@ interface ContentChangePayload {
   muyaIndexCursor?: unknown
   history?: IFileState['history']
   toc?: TocItem[]
-  blocks?: unknown
 }
 
 interface AffiliationEntry {
@@ -831,7 +830,7 @@ export const useEditorStore = defineStore('editor', {
       const oldCurrentFile = this.currentFile
       let didUpdateCurrentFile = false
       if (oldCurrentFile == null || oldCurrentFile.id !== currentFile.id) {
-        const { id, markdown, cursor, history, pathname, scrollTop, blocks, muyaIndexCursor } =
+        const { id, markdown, cursor, history, pathname, scrollTop, muyaIndexCursor } =
           currentFile
         // Must run while `currentFile` still points at the outgoing tab, so its
         // flushed edit is attributed to that tab and not lost on switch (#2938).
@@ -854,8 +853,7 @@ export const useEditorStore = defineStore('editor', {
           muyaIndexCursor,
           renderCursor: true,
           history,
-          scrollTop,
-          blocks
+          scrollTop
         })
       }
 
@@ -1057,7 +1055,7 @@ export const useEditorStore = defineStore('editor', {
           this.tabs[index] ?? this.tabs[index - 1] ?? this.tabs[0] ?? null
         this.currentFile = fileState
         if (fileState && typeof fileState.markdown === 'string') {
-          const { id, markdown, cursor, history, pathname, scrollTop, blocks, muyaIndexCursor } =
+          const { id, markdown, cursor, history, pathname, scrollTop, muyaIndexCursor } =
             fileState
           window.DIRNAME = pathname ? window.path.dirname(pathname) : ''
           bus.emit('file-changed', {
@@ -1067,8 +1065,7 @@ export const useEditorStore = defineStore('editor', {
             muyaIndexCursor,
             renderCursor: true,
             history,
-            scrollTop,
-            blocks
+            scrollTop
           })
         } else {
           window.DIRNAME = ''
@@ -1148,7 +1145,7 @@ export const useEditorStore = defineStore('editor', {
         this.currentFile =
           this.tabs[tabIndex] ?? this.tabs[tabIndex - 1] ?? this.tabs[0] ?? null
         if (this.currentFile && typeof this.currentFile.markdown === 'string') {
-          const { id, markdown, cursor, history, pathname, scrollTop, blocks, muyaIndexCursor } =
+          const { id, markdown, cursor, history, pathname, scrollTop, muyaIndexCursor } =
             this.currentFile
           window.DIRNAME = pathname ? window.path.dirname(pathname) : ''
           bus.emit('file-changed', {
@@ -1158,8 +1155,7 @@ export const useEditorStore = defineStore('editor', {
             muyaIndexCursor,
             renderCursor: true,
             history,
-            scrollTop,
-            blocks
+            scrollTop
           })
         }
       }
@@ -1432,8 +1428,7 @@ export const useEditorStore = defineStore('editor', {
       cursor,
       muyaIndexCursor,
       history,
-      toc,
-      blocks
+      toc
     }: ContentChangePayload): void {
       const preferencesStore = usePreferencesStore()
       const { autoSave } = preferencesStore
@@ -1464,7 +1459,6 @@ export const useEditorStore = defineStore('editor', {
       if (cursor) tab.cursor = cursor
       if (muyaIndexCursor) tab.muyaIndexCursor = muyaIndexCursor
       if (history) tab.history = history
-      if (blocks) tab.blocks = blocks
 
       // Only update TOC if it's the current file
       if (id === this.currentFile?.id && toc && !equal(toc, this.listToc)) {

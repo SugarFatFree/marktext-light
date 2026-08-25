@@ -1506,7 +1506,6 @@ interface FileChangePayload {
   history?: unknown
   scrollTop?: number
   muyaIndexCursor?: unknown
-  blocks?: unknown
   isReload?: boolean
 }
 
@@ -1892,8 +1891,7 @@ onMounted(() => {
       // Synthetic, desktop-shaped history so the store's save/dirty tracking
       // keeps working (the engine history shape is incompatible).
       history: makeSyntheticHistory(id, markdown),
-      toc: editor.value.getTOC(),
-      blocks: editor.value.getState()
+      toc: editor.value.getTOC()
     })
   })
 
