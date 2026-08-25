@@ -61,7 +61,7 @@
 | 5 | 记录仅手动删除 | ✅ 单条 hover ✕ + 「清空最近文件」 |
 | 6 | 国际化 | ⚠️ 10 语言就位，`load_locale` 已接；新 UI 文案需同步补 |
 | 7 | 深色模式／跟随系统 | ⚠️ `tauri-bridge/theme.ts` 已有，需逐屏走查对比度 |
-| 8 | 轻量／秒启动／低占用／大文件 | ❌ 未开工 |
+| 8 | 轻量／秒启动／低占用／大文件 | ⚠️ 启动已优化（见下），大文件未开工 |
 
 ## 已完成
 
@@ -89,10 +89,27 @@
   `addDir`/`add` 事件。**只回元数据**——上游 watcher 会把每个 md 文件内容预读进事件、
   而 `treeCtrl.addFile` 转手就丢掉，省掉这次读盘正是大目录打开快的关键。
 
+### 启动性能（要求 #8 的前半）
+
+- **`518c42c8`** 首屏 eager chunk **3512 KB → 760 KB**。两处元凶：
+  `app.use(ElementPlus)` 把全部约 80 个组件钉进入口 chunk（本项目只用 25 个，改为逐个注册，
+  cascader/carousel/transfer/calendar/upload/timeline 等不再打包）；路由静态 import 了
+  编辑器与设置两棵页面树，改为 `() => import()`，一个窗口只会去其中一棵。
+  注意：**往模板里加新的 `<el-…>` 标签时，必须同步加进 `main.ts` 的注册清单**。
+- **`844bbd49`** 源码模式（CodeMirror）改 `defineAsyncComponent`：编辑器 chunk 649 → 381 KB，
+  剩下 267 KB 只有真正切到源码模式的会话才取。
+
+实测体积（`packages/desktop/out-tauri/renderer/assets/`）：
+
+| 阶段 | eager 入口 | 编辑器路由首屏合计 |
+|---|---|---|
+| 优化前 | 3512 KB | 3512 KB |
+| 现在 | 762 KB | 2428 KB |
+
 ## 下一步（按优先级）
 
-1. **启动性能**（对应要求 #8，且一直没动）：`tauri:build-renderer` 主 chunk 3.59 MB（gzip 1.07 MB），
-   另有 wardley 612 KB、mermaid 543 KB、cytoscape 443 KB、katex 261 KB。改成动态 import 按需加载。
+1. **继续瘦身**：编辑器路由首屏仍需 2428 KB，其中 1284 KB 的共享 chunk 主要是 muya（katex 已单独 255 KB）。
+   下一刀应切 muya 内部的按需加载，或把 katex 变成「文档含公式才取」。
 2. **文件 watcher**：项目树目前只在打开时扫一次。Rust 侧用 `notify` crate 监听，
    emit 与扫描同构的 `mt::update-object-tree` 事件即可（`tauri-bridge/project.ts` 已定好形状）。
 3. **重命名／删除**：`mt::rename`、`mt::fs-trash-item`（回收站需 `trash` crate 或 opener 插件）。
