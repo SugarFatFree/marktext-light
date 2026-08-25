@@ -650,6 +650,13 @@ export const useEditorStore = defineStore('editor', {
       const projectStore = useProjectStore()
       const preferencesStore = usePreferencesStore()
       window.electron.ipcRenderer.on('mt::ask-for-close', () => {
+        // Both the snapshot below and the `isSaved` test after it read the
+        // applied document. An edit still queued in the engine's frame batch is
+        // in neither — and if it is the tab's only edit, `isSaved` is still true,
+        // so the window closes with no prompt and the edit is gone. Frames stop
+        // being delivered to a hidden or occluded window, which is exactly the
+        // state a window is in when it gets closed from the taskbar.
+        this.flushActiveEditor()
         sendBufferedState()
           .catch((err) => {
             console.error('Failed to update buffered state before closing', err)

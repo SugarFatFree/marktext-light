@@ -1286,6 +1286,10 @@ const handleExport = async (options: unknown) => {
   }
 
   const extraCss = await getCssForOptions(opts as unknown as PdfCssOptions)
+  // `getTOC()`/`getMarkdown()` read the applied document, which does not yet
+  // include edits still queued in the engine's frame batch. Exporting right
+  // after a keystroke would otherwise write out a document missing it.
+  editor.value.flush()
   const htmlToc = getHtmlToc(editor.value.getTOC(), opts as unknown as HtmlTocOptions)
   const markdown = editor.value.getMarkdown()
   const header = (opts.header ?? null) as HeaderFooterPart | null
