@@ -234,6 +234,9 @@
     },
     "tree": {
       "openedFiles": "Açık dosyalar",
+      "recentFiles": "Son kullanılan dosyalar",
+      "clearRecent": "Son kullanılanları temizle",
+      "removeFromRecent": "Son kullanılanlardan kaldır",
       "saveAll": "Tümünü Kaydet",
       "closeAll": "Tümünü Kapat",
       "emptyProject": "Boş proje",

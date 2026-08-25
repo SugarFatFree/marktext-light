@@ -234,6 +234,9 @@
     },
     "tree": {
       "openedFiles": "Fichiers ouverts",
+      "recentFiles": "Fichiers récents",
+      "clearRecent": "Effacer les fichiers récents",
+      "removeFromRecent": "Retirer des fichiers récents",
       "saveAll": "Tout enregistrer",
       "closeAll": "Tout fermer",
       "emptyProject": "Projet vide",

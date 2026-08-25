@@ -19,6 +19,7 @@ import { defineStore } from 'pinia'
 import { usePreferencesStore } from './preferences'
 import { useProjectStore } from './project'
 import { useLayoutStore } from './layout'
+import { useRecentFilesStore } from './recentFiles'
 import { useMainStore } from '.'
 import { t } from '../i18n'
 import { debouncedSendBufferedState, sendBufferedState } from './bufferedState'
@@ -940,7 +941,10 @@ export const useEditorStore = defineStore('editor', {
           addBlankTab: !initialFile,
           markdownList: [],
           lineEnding: 'lf',
-          sideBarVisibility: false,
+          // The file drawer is the app's entry point here — it carries the
+          // recent-files list, which is the only navigation that survives a
+          // restart now that tabs are not restored.
+          sideBarVisibility: true,
           tabBarVisibility: true,
           sourceCodeModeEnabled: false
         })
@@ -1319,6 +1323,7 @@ export const useEditorStore = defineStore('editor', {
 
       const { currentFile, tabs } = this
       const { pathname } = markdownDocument
+      useRecentFilesStore().ADD_RECENT_FILE(pathname)
       const existingTab = tabs.find((t) =>
         window.fileUtils.isSamePathSync(t.pathname, pathname ?? '')
       )

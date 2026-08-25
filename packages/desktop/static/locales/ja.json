@@ -234,6 +234,9 @@
     },
     "tree": {
       "openedFiles": "開いているファイル",
+      "recentFiles": "最近使用したファイル",
+      "clearRecent": "最近使用したファイルをクリア",
+      "removeFromRecent": "最近使用したファイルから削除",
       "saveAll": "すべて保存",
       "closeAll": "すべて閉じる",
       "emptyProject": "空のプロジェクト",

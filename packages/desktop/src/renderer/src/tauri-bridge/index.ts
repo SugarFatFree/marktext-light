@@ -83,8 +83,31 @@ const fire = (op: Promise<unknown>): void => {
   op.catch((err) => console.warn('[tauri-bridge]', err))
 }
 
+/**
+ * Read a document off disk and hand it to the renderer's `mt::open-new-tab`
+ * listener. Under Electron the main process did this and pushed the result over
+ * IPC; here the bridge plays that role so a click in the file tree / recent list
+ * lands as another tab in the same window rather than opening a second window.
+ */
+const openFileAsTab = async(pathname: string, options: unknown): Promise<void> => {
+  if (!pathname) return
+  const markdown = await invoke('read_file', { path: pathname, encoding: 'utf8' })
+  if (typeof markdown !== 'string') {
+    console.warn(`[tauri-bridge] not a text document: ${pathname}`)
+    return
+  }
+  dispatchLocal('mt::open-new-tab', [
+    { markdown, filename: pathe.basename(pathname), pathname },
+    options ?? {},
+    true
+  ])
+}
+
 const handleSend = (channel: string, args: unknown[]): void => {
   switch (channel) {
+    case 'mt::open-file':
+      fire(openFileAsTab(String(args[0] ?? ''), args[1]))
+      return
     case 'mt::win::minimize':
       fire(win().minimize())
       return
@@ -125,24 +148,49 @@ const handleSend = (channel: string, args: unknown[]): void => {
 
 type Listener = (event: unknown, ...args: unknown[]) => void
 
+// Channels the bridge itself drives, in place of the Electron main process
+// (`mt::open-file` → `mt::open-new-tab`, …). Listeners register here as well as
+// on the Tauri bus so a Rust `emit` and a bridge-side `dispatchLocal` are
+// indistinguishable to the renderer.
+const localListeners = new Map<string, Set<Listener>>()
+
+const dispatchLocal = (channel: string, args: unknown[]): void => {
+  const listeners = localListeners.get(channel)
+  if (!listeners) return
+  // Copy first: a `once` listener removes itself from the live set.
+  for (const listener of [...listeners]) listener({}, ...args)
+}
+
 const registerEvent = (channel: string, listener: Listener, once: boolean): (() => void) => {
   let unlisten: UnlistenFn | undefined
   let disposed = false
+
+  const dispose = (): void => {
+    disposed = true
+    localListeners.get(channel)?.delete(local)
+    if (unlisten) unlisten()
+  }
+
+  const local: Listener = (event, ...args) => {
+    listener(event, ...args)
+    if (once) dispose()
+  }
+  const forChannel = localListeners.get(channel) ?? new Set<Listener>()
+  forChannel.add(local)
+  localListeners.set(channel, forChannel)
+
   fire(
     listen(channel, (evt) => {
       const payload = evt.payload
       const args = Array.isArray(payload) ? payload : [payload]
       listener({}, ...args)
-      if (once && unlisten) unlisten()
+      if (once) dispose()
     }).then((fn) => {
       unlisten = fn
       if (disposed) fn()
     })
   )
-  return () => {
-    disposed = true
-    if (unlisten) unlisten()
-  }
+  return dispose
 }
 
 const buildIpcWrapper = () => ({

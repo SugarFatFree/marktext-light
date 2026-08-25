@@ -60,6 +60,51 @@
       </div>
     </div>
 
+    <!-- Recently opened documents (survives a restart; tabs deliberately do not) -->
+    <div
+      v-if="recentFiles.length"
+      class="recent-files"
+    >
+      <div class="title">
+        <el-icon
+          class="icon-arrow"
+          :class="{ fold: !showRecentFiles }"
+          :size="12"
+          @click.stop="toggleRecentFiles()"
+        >
+          <ArrowRight />
+        </el-icon>
+        <span
+          class="default-cursor text-overflow"
+          @click.stop="toggleRecentFiles()"
+        >{{
+          t('sideBar.tree.recentFiles')
+        }}</span>
+        <a
+          href="javascript:;"
+          :title="t('sideBar.tree.clearRecent')"
+          @click.stop="clearRecentFiles"
+        >
+          <svg
+            class="icon"
+            aria-hidden="true"
+          >
+            <use xlink:href="#icon-close-all" />
+          </svg>
+        </a>
+      </div>
+      <div
+        v-show="showRecentFiles"
+        class="recent-files-list"
+      >
+        <recent-file
+          v-for="file of recentFiles"
+          :key="file.pathname"
+          :file="file"
+        />
+      </div>
+    </div>
+
     <!-- Project tree view -->
     <div
       v-if="projectTree"
@@ -154,9 +199,11 @@ import { storeToRefs } from 'pinia'
 import { useProjectStore } from '@/store/project'
 import { useEditorStore } from '@/store/editor'
 import { usePreferencesStore } from '@/store/preferences'
+import { useRecentFilesStore } from '@/store/recentFiles'
 import Folder from './treeFolder.vue'
 import File from './treeFile.vue'
 import OpenedFile from './treeOpenedTab.vue'
+import RecentFile from './treeRecentFile.vue'
 import bus from '../../bus'
 import { showContextMenu } from '../../contextMenu/sideBar'
 import { useI18n } from 'vue-i18n'
@@ -182,20 +229,24 @@ const depth = 0
 // sidebar width) so the state survives a re-mount and app restart.
 const SHOW_DIRECTORIES_KEY = 'side-bar-show-directories'
 const SHOW_OPENED_FILES_KEY = 'side-bar-show-opened-files'
+const SHOW_RECENT_FILES_KEY = 'side-bar-show-recent-files'
 const readSectionExpanded = (key: string): boolean => localStorage.getItem(key) !== 'false'
 const showDirectories = ref(readSectionExpanded(SHOW_DIRECTORIES_KEY))
 const showOpenedFiles = ref(readSectionExpanded(SHOW_OPENED_FILES_KEY))
+const showRecentFiles = ref(readSectionExpanded(SHOW_RECENT_FILES_KEY))
 const createName = ref('')
 const input = ref<HTMLInputElement | null>(null)
 
 const projectStore = useProjectStore()
 const editorStore = useEditorStore()
 const preferencesStore = usePreferencesStore()
+const recentFilesStore = useRecentFilesStore()
 
 // Computed properties
 const { createCache } = storeToRefs(projectStore)
 const { clipboard } = storeToRefs(projectStore)
 const { openedFilesInSidebar } = storeToRefs(preferencesStore)
+const { recentFiles } = storeToRefs(recentFilesStore)
 
 // The createCache state is `{ dirname, type }` while an input is shown, and
 // `{}` otherwise. Expose a typed accessor for the template so we don't have
@@ -227,6 +278,15 @@ const handleRootContextMenu = (event: MouseEvent): void => {
 const toggleOpenedFiles = (): void => {
   showOpenedFiles.value = !showOpenedFiles.value
   localStorage.setItem(SHOW_OPENED_FILES_KEY, String(showOpenedFiles.value))
+}
+
+const toggleRecentFiles = (): void => {
+  showRecentFiles.value = !showRecentFiles.value
+  localStorage.setItem(SHOW_RECENT_FILES_KEY, String(showRecentFiles.value))
+}
+
+const clearRecentFiles = (): void => {
+  recentFilesStore.CLEAR_RECENT_FILES()
 }
 
 const toggleDirectories = (): void => {
@@ -323,6 +383,7 @@ onMounted(() => {
 }
 
 .opened-files > .title,
+.recent-files > .title,
 .project-tree > .title {
   height: 30px;
   line-height: 30px;
@@ -368,6 +429,47 @@ onMounted(() => {
 }
 
 .opened-files .opened-files-list::-webkit-scrollbar:vertical {
+  width: 8px;
+}
+
+.recent-files {
+  display: flex;
+  flex-direction: column;
+}
+
+.recent-files .title {
+  padding-right: 15px;
+  display: flex;
+  align-items: center;
+}
+
+.recent-files .title > span {
+  flex: 1;
+}
+
+.recent-files .title > a {
+  display: none;
+  text-decoration: none;
+  color: var(--sideBarColor);
+  margin-left: 8px;
+}
+
+.recent-files div.title:hover > a,
+.recent-files div.title > a:hover {
+  display: block;
+}
+
+.recent-files div.title:hover > a:hover {
+  color: var(--highlightThemeColor);
+}
+
+.recent-files .recent-files-list {
+  max-height: 168px;
+  overflow: auto;
+  flex: 1;
+}
+
+.recent-files .recent-files-list::-webkit-scrollbar:vertical {
   width: 8px;
 }
 

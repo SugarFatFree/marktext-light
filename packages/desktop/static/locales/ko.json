@@ -234,6 +234,9 @@
     },
     "tree": {
       "openedFiles": "열린 파일",
+      "recentFiles": "최근 파일",
+      "clearRecent": "최근 파일 지우기",
+      "removeFromRecent": "최근 파일에서 제거",
       "saveAll": "모두 저장",
       "closeAll": "모두 닫기",
       "emptyProject": "빈 프로젝트",

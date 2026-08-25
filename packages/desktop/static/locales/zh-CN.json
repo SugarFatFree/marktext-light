@@ -236,6 +236,9 @@
     },
     "tree": {
       "openedFiles": "已打开的文件",
+      "recentFiles": "最近文件",
+      "clearRecent": "清空最近文件",
+      "removeFromRecent": "从最近文件中移除",
       "saveAll": "保存全部",
       "closeAll": "关闭全部",
       "emptyProject": "空项目",

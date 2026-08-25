@@ -234,6 +234,9 @@
     },
     "tree": {
       "openedFiles": "已開啟的檔案",
+      "recentFiles": "最近檔案",
+      "clearRecent": "清除最近檔案",
+      "removeFromRecent": "從最近檔案中移除",
       "saveAll": "全部儲存",
       "closeAll": "全部關閉",
       "emptyProject": "空專案",
