@@ -31,6 +31,7 @@ import {
   setStoredPreferences,
   setStoredUserData
 } from './preferences'
+import { renameOpenFile } from './files'
 import { askForOpenProject, loadProjectTree } from './project'
 import { closeWindow, closeWindowConfirm, installCloseGuard } from './window'
 import { resolveInitialTheme, rememberThemeChoice } from './theme'
@@ -66,7 +67,8 @@ const INVOKE_ROUTES: Record<string, CommandRoute> = {
   'mt::fs::stat': { cmd: 'stat', map: ([path]) => ({ path }) },
   'mt::paths::is-image': { cmd: 'is_image', map: ([path]) => ({ path }) },
   'mt::paths::is-same-sync': { cmd: 'is_same_path', map: ([a, b]) => ({ a, b }) },
-  'mt::cmd::exists': { cmd: 'command_exists', map: ([name]) => ({ name }) }
+  'mt::cmd::exists': { cmd: 'command_exists', map: ([name]) => ({ name }) },
+  'mt::fs-trash-item': { cmd: 'trash_item', map: ([path]) => ({ path }) }
 }
 
 const routedInvoke = async(channel: string, args: unknown[]): Promise<unknown> => {
@@ -174,6 +176,9 @@ const handleSend = (channel: string, args: unknown[]): void => {
       return
     case 'mt::ask-for-open-project-in-sidebar':
       fire(askForOpenProject(dispatchLocal))
+      return
+    case 'mt::rename':
+      fire(renameOpenFile(args[0] as Parameters<typeof renameOpenFile>[0], dispatchLocal))
       return
     case 'mt::window-initialized':
     case 'mt::window-tab-closed':

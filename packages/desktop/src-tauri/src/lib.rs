@@ -56,6 +56,7 @@ pub fn run() {
             commands::fs::copy_path,
             commands::fs::move_path,
             commands::fs::unlink,
+            commands::fs::trash_item,
             commands::fs::readdir,
             commands::fs::stat,
             // project tree

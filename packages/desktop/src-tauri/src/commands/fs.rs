@@ -145,6 +145,14 @@ pub fn unlink(path: String) -> Result<(), String> {
     fs::remove_file(&path).map_err(|e| e.to_string())
 }
 
+/// Move a file or directory to the OS trash — the recoverable delete the
+/// sidebar's context menu offers, and the counterpart of Electron's
+/// `shell.trashItem`. Distinct from `unlink`, which deletes outright.
+#[tauri::command]
+pub fn trash_item(path: String) -> Result<(), String> {
+    trash::delete(&path).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn readdir(path: String) -> Result<Vec<String>, String> {
     let mut names = Vec::new();
