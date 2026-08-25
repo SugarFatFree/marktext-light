@@ -19,6 +19,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { writeText, readText } from '@tauri-apps/plugin-clipboard-manager'
+import { open as showOpenDialog } from '@tauri-apps/plugin-dialog'
 import { openUrl, openPath, revealItemInDir } from '@tauri-apps/plugin-opener'
 import pathe from 'pathe'
 
@@ -27,6 +28,7 @@ import { saveDocument, saveAndCloseTabs, type UnsavedFile } from './save'
 import {
   initPreferenceStores,
   sendStoredPreferences,
+  getStoredPreference,
   pickFolderPreference,
   sendStoredUserData,
   setStoredPreferences,
@@ -128,6 +130,22 @@ const openFileAsTab = async(pathname: string, options: unknown): Promise<void> =
   ])
 }
 
+/** Prompt for a markdown file and open it as another tab in this window. */
+const askForOpenFile = async(): Promise<void> => {
+  const selected = await showOpenDialog({
+    filters: [{ name: 'Markdown', extensions: [...MARKDOWN_EXTENSIONS] }]
+  })
+  if (typeof selected === 'string') await openFileAsTab(selected, {})
+}
+
+/** Flip a boolean preference and let the settings UI hear about it. */
+const toggleBooleanPreference = async(key: string): Promise<void> => {
+  const current = await getStoredPreference(key)
+  const next = !current
+  await setStoredPreferences({ [key]: next })
+  dispatchLocal('mt::user-preference', [{ [key]: next }])
+}
+
 // Boot values `handleSend` needs long after the handshake has run. `handleSend`
 // is module-scoped and cannot take them as arguments without threading them
 // through every call site.
@@ -207,7 +225,23 @@ const handleSend = (channel: string, args: unknown[]): void => {
       fire(closeWindowConfirm((args[0] as UnsavedFile[]) ?? [], dispatchLocal))
       return
     case 'mt::ask-for-open-project-in-sidebar':
+    case 'mt::cmd-open-folder':
       fire(askForOpenProject(dispatchLocal))
+      return
+    case 'mt::cmd-open-file':
+      fire(askForOpenFile())
+      return
+    case 'mt::cmd-toggle-autosave':
+      fire(toggleBooleanPreference('autoSave'))
+      return
+    case 'mt::cmd-close-window':
+      dispatchLocal('mt::ask-for-close', [])
+      return
+    case 'mt::cmd-new-editor-window':
+      // This build is deliberately one window with many tabs, so "New Window"
+      // gives a new tab. Opening a second window would contradict the whole
+      // point of the single-instance handler.
+      dispatchLocal('mt::open-new-tab', [null, {}, true])
       return
     case 'mt::rename':
       fire(renameOpenFile(args[0] as Parameters<typeof renameOpenFile>[0], dispatchLocal))
