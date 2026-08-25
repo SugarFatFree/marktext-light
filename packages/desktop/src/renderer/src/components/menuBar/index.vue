@@ -21,6 +21,10 @@
               :command="item.id"
               :divided="item.divided"
             >
+              <span
+                class="mb-check"
+                aria-hidden="true"
+              >{{ isChecked(item.id) ? '✓' : '' }}</span>
               <span class="mb-label">{{ label(item.labelKey) }}</span>
               <span
                 v-if="item.accel"
@@ -75,15 +79,64 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { invoke } from '@tauri-apps/api/core'
 import { t } from '@/i18n'
 import { isTauri } from '@/tauri-bridge'
+import { useLayoutStore } from '@/store/layout'
+import { usePreferencesStore } from '@/store/preferences'
 import { closePath, restorePath, maximizePath, minimizePath } from '@/assets/window-controls'
 import { MENU_STRUCTURE } from './structure'
 
 const isTauriEnv = isTauri()
 const sections = MENU_STRUCTURE
 const isMaximized = ref(false)
+
+const { sourceCode, typewriter, focus, theme } = storeToRefs(usePreferencesStore())
+const { showSideBar, showTabBar, rightColumn } = storeToRefs(useLayoutStore())
+
+/** Mirrors `tauri-bridge/theme.ts`; importing the shim from a component would
+ *  drag the whole bridge into this chunk. */
+const themeChoice = (): string => {
+  try {
+    return localStorage.getItem('mt-tauri-theme-choice') || 'system'
+  } catch {
+    return 'system'
+  }
+}
+
+/**
+ * Whether a menu entry is currently active.
+ *
+ * The stores are the authority. A native menu would hold its own checked flag
+ * and could drift from them; reading the state each time it renders cannot.
+ * Ids not listed here are plain commands with no state to show.
+ */
+const isChecked = (id: string): boolean => {
+  switch (id) {
+    case 'viewmode:sourceCode':
+      return sourceCode.value
+    case 'viewmode:typewriter':
+      return typewriter.value
+    case 'viewmode:focus':
+      return focus.value
+    case 'viewlayout:showSideBar':
+      return showSideBar.value
+    case 'viewlayout:showTabBar':
+      return showTabBar.value
+    case 'viewlayout:toc':
+      return showSideBar.value && rightColumn.value === 'toc'
+    default:
+      // `theme:system` is the follow-the-OS choice rather than a theme id, so
+      // it is ticked by the stored choice, not by the theme in effect.
+      if (id.startsWith('theme:')) {
+        const choice = id.slice('theme:'.length)
+        if (choice === 'system') return themeChoice() === 'system'
+        return themeChoice() !== 'system' && theme.value === choice
+      }
+      return false
+  }
+}
 
 // Locale strings carry a Windows access-key mnemonic — '&Theme' (Latin) or
 // '主题(&T)' (CJK). Native menus consume it; strip it for the HTML menu bar.
@@ -96,12 +149,15 @@ const dispatchMenu = (id: string): void => {
   invoke('dispatch_menu', { id }).catch((err) => console.error('[menu-bar]', err))
 }
 
-const refreshMaximized = async (): Promise<void> => {
-  try {
-    isMaximized.value = await window.electron.windowControl.isMaximized()
-  } catch {
-    /* ignore */
-  }
+const refreshMaximized = (): void => {
+  window.electron.windowControl
+    .isMaximized()
+    .then((maximized) => {
+      isMaximized.value = maximized
+    })
+    .catch(() => {
+      /* window state unavailable; leave the icon as it is */
+    })
 }
 
 const minimize = (): void => window.electron.windowControl.minimize()
@@ -113,7 +169,7 @@ const toggleMaximize = (): void => {
 }
 
 onMounted(() => {
-  if (isTauriEnv) void refreshMaximized()
+  if (isTauriEnv) refreshMaximized()
 })
 </script>
 
@@ -214,6 +270,13 @@ onMounted(() => {
 .tauri-menu-dropdown .el-dropdown-menu__item:not(.is-disabled):focus {
   background-color: var(--floatHoverColor, #f2f6fc) !important;
   color: var(--themeColor, #409eff) !important;
+}
+
+.tauri-menu-dropdown .mb-check {
+  display: inline-block;
+  width: 14px;
+  flex-shrink: 0;
+  color: var(--themeColor);
 }
 
 .tauri-menu-dropdown .mb-accel {
