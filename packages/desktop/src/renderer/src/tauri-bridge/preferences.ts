@@ -10,6 +10,7 @@
 // `mt::user-preference` on top of it.
 
 import { invoke } from '@tauri-apps/api/core'
+import { open as showOpenDialog } from '@tauri-apps/plugin-dialog'
 import pathe from 'pathe'
 
 type Bag = Record<string, unknown>
@@ -99,3 +100,31 @@ export const setStoredUserData = (patch: unknown): Promise<void> => merge(userDa
 /** Read one preference without waiting for a round trip through the store. */
 export const getStoredPreference = async(key: string): Promise<unknown> =>
   (await read(preferences))[key]
+
+/**
+ * Pick a folder and store it under `key`, then push the new value back so the
+ * settings UI reflects it — the store learns about preference changes only
+ * through `mt::user-preference`.
+ *
+ * `preset` short-circuits the dialog: the image-folder setting can be typed in
+ * as well as browsed for, and Electron accepted both on the same channel.
+ */
+export const pickFolderPreference = async(
+  key: string,
+  dispatchLocal: DispatchLocal,
+  preset?: string
+): Promise<void> => {
+  let chosen = preset
+  if (!chosen) {
+    const current = await getStoredPreference(key)
+    const selected = await showOpenDialog({
+      directory: true,
+      defaultPath: typeof current === 'string' && current ? current : undefined
+    })
+    if (typeof selected !== 'string') return
+    chosen = selected
+  }
+
+  await setStoredPreferences({ [key]: chosen })
+  dispatchLocal('mt::user-preference', [{ [key]: chosen }])
+}

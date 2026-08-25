@@ -27,11 +27,12 @@ import { saveDocument, saveAndCloseTabs, type UnsavedFile } from './save'
 import {
   initPreferenceStores,
   sendStoredPreferences,
+  pickFolderPreference,
   sendStoredUserData,
   setStoredPreferences,
   setStoredUserData
 } from './preferences'
-import { renameOpenFile } from './files'
+import { askForImagePath, moveOpenFileTo, renameOpenFile } from './files'
 import { askForOpenProject, loadProjectTree } from './project'
 import { broadcastLanguage, openSettingsWindow, sendCurrentLanguage } from './settings'
 import { installTabShortcuts } from './shortcuts'
@@ -73,7 +74,16 @@ const INVOKE_ROUTES: Record<string, CommandRoute> = {
   'mt::fs-trash-item': { cmd: 'trash_item', map: ([path]) => ({ path }) }
 }
 
+// Invoke channels the bridge answers itself rather than routing to Rust.
+const LOCAL_INVOKES: Record<string, (args: unknown[]) => Promise<unknown>> = {
+  'mt::ask-for-image-path': () => askForImagePath()
+}
+
 const routedInvoke = async(channel: string, args: unknown[]): Promise<unknown> => {
+  const local = LOCAL_INVOKES[channel]
+  if (local) {
+    return local(args)
+  }
   const route = INVOKE_ROUTES[channel]
   if (route) {
     return invoke(route.cmd, route.map(args))
@@ -200,6 +210,18 @@ const handleSend = (channel: string, args: unknown[]): void => {
       return
     case 'mt::rename':
       fire(renameOpenFile(args[0] as Parameters<typeof renameOpenFile>[0], dispatchLocal))
+      return
+    case 'mt::response-file-move-to':
+      fire(moveOpenFileTo(args[0] as Parameters<typeof moveOpenFileTo>[0], dispatchLocal))
+      return
+    case 'mt::ask-for-modify-image-folder-path':
+      fire(pickFolderPreference('imageFolderPath', dispatchLocal, args[0] as string | undefined))
+      return
+    case 'mt::select-default-directory-to-open':
+      fire(pickFolderPreference('defaultDirectoryToOpen', dispatchLocal))
+      return
+    case 'mt::window-toggle-always-on-top':
+      fire(win().isAlwaysOnTop().then((on) => win().setAlwaysOnTop(!on)))
       return
     case 'mt::window-initialized':
     case 'mt::window-tab-closed':

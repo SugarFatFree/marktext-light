@@ -1,15 +1,21 @@
-// Renaming the file behind an open tab, in place of the Electron main
-// process's `mt::rename` handler (src/main/menu/actions/file.ts).
+// File dialogs that used to live in the Electron main process: renaming or
+// moving the file behind an open tab, and picking an image
+// (src/main/menu/actions/file.ts, src/main/dataCenter/index.ts).
 //
 // `mt::fs-trash-item` needs no code here: it is a plain request/response and
 // goes through the invoke routing table in ./index.ts.
 
 import { invoke } from '@tauri-apps/api/core'
-import { ask } from '@tauri-apps/plugin-dialog'
+import { ask, open as showOpenDialog, save as showSaveDialog } from '@tauri-apps/plugin-dialog'
 import pathe from 'pathe'
 
 import { t } from '@/i18n'
 import type { DispatchLocal } from './save'
+
+// Mirrors `common/filesystem/paths`, which cannot be imported here: that module
+// pulls in Node's `fs`, and this bundle runs in a WebView. The bridge inlines
+// its markdown list for the same reason.
+const IMAGE_EXTENSIONS = ['jpeg', 'jpg', 'png', 'gif', 'svg', 'webp'] as const
 
 interface RenamePayload {
   id: string
@@ -51,4 +57,40 @@ export const renameOpenFile = async(
   dispatchLocal('mt::set-pathname', [
     { id, pathname: newPathname, filename: pathe.basename(newPathname) }
   ])
+}
+
+/**
+ * Move the file behind an open tab somewhere else, then point the tab at it.
+ *
+ * A save dialog rather than a folder picker, because the move may rename: it is
+ * the same gesture Electron offered under a "Move to" button label.
+ */
+export const moveOpenFileTo = async(
+  payload: { id: string; pathname: string },
+  dispatchLocal: DispatchLocal
+): Promise<void> => {
+  const { id, pathname } = payload ?? {}
+  if (!pathname) return
+
+  const destination = await showSaveDialog({ defaultPath: pathname })
+  if (!destination || destination === pathname) return
+
+  try {
+    await invoke('move_path', { src: pathname, dest: destination })
+  } catch (err) {
+    console.error(`[tauri-bridge] cannot move ${pathname}:`, err)
+    return
+  }
+
+  dispatchLocal('mt::set-pathname', [
+    { id, pathname: destination, filename: pathe.basename(destination) }
+  ])
+}
+
+/** Pick an image to insert. Resolves to '' when the dialog is dismissed. */
+export const askForImagePath = async(): Promise<string> => {
+  const selected = await showOpenDialog({
+    filters: [{ name: 'Images', extensions: [...IMAGE_EXTENSIONS] }]
+  })
+  return typeof selected === 'string' ? selected : ''
 }
