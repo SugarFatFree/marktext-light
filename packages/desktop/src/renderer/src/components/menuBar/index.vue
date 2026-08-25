@@ -83,6 +83,7 @@ import { storeToRefs } from 'pinia'
 import { invoke } from '@tauri-apps/api/core'
 import { t } from '@/i18n'
 import { isTauri } from '@/tauri-bridge'
+import { useEditorStore } from '@/store/editor'
 import { useLayoutStore } from '@/store/layout'
 import { usePreferencesStore } from '@/store/preferences'
 import { closePath, restorePath, maximizePath, minimizePath } from '@/assets/window-controls'
@@ -94,6 +95,7 @@ const isMaximized = ref(false)
 
 const { sourceCode, typewriter, focus, theme } = storeToRefs(usePreferencesStore())
 const { showSideBar, showTabBar, rightColumn } = storeToRefs(useLayoutStore())
+const { currentFile } = storeToRefs(useEditorStore())
 
 /** Mirrors `tauri-bridge/theme.ts`; importing the shim from a component would
  *  drag the whole bridge into this chunk. */
@@ -126,6 +128,10 @@ const isChecked = (id: string): boolean => {
       return showTabBar.value
     case 'viewlayout:toc':
       return showSideBar.value && rightColumn.value === 'toc'
+    case 'lineending:lf':
+      return currentFile.value?.lineEnding === 'lf'
+    case 'lineending:crlf':
+      return currentFile.value?.lineEnding === 'crlf'
     default:
       // `theme:system` is the follow-the-OS choice rather than a theme id, so
       // it is ticked by the stored choice, not by the theme in effect.

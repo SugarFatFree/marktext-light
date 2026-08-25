@@ -33,7 +33,19 @@ pub fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, id: &str) {
         "para" => emit(app, "mt::editor-paragraph-action", json!({ "type": arg })),
         "fmt" => emit(app, "mt::editor-format-action", json!({ "type": arg })),
         "viewmode" => emit(app, "mt::toggle-view-mode-entry", json!(arg)),
-        "viewlayout" => emit(app, "mt::toggle-view-layout-entry", json!(arg)),
+        // The sidebar's panels are selected, not toggled: the renderer's
+        // `TOGGLE_LAYOUT_ENTRY` only understands `showSideBar` and `showTabBar`
+        // and silently ignores anything else, so routing a panel through it
+        // made the menu entry do nothing at all.
+        "viewlayout" => match arg {
+            "toc" | "files" | "search" => {
+                emit(app, "mt::set-view-layout", json!({ "rightColumn": arg }))
+            }
+            _ => emit(app, "mt::toggle-view-layout-entry", json!(arg)),
+        },
+        "images" if arg == "reload" => emit(app, "mt::invalidate-image-cache", json!(null)),
+        "palette" => emit(app, "mt::show-command-palette", json!(null)),
+        "lineending" => emit(app, "mt::set-line-ending", json!(arg)),
         "theme" => emit(app, "mt::set-theme", json!(arg)),
         "cmd" => emit(app, "mt::execute-command-by-id", json!(arg)),
 

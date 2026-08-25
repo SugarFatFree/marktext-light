@@ -55,7 +55,9 @@ export const MENU_STRUCTURE: MenuBarSection[] = [
       { id: 'edit:findNext', labelKey: 'menu.edit.findNext' },
       { id: 'edit:findPrev', labelKey: 'menu.edit.findPrevious' },
       { id: 'edit:replace', labelKey: 'menu.edit.replace', accel: `${mod}+Alt+F` },
-      { id: 'edit:findInFolder', labelKey: 'menu.edit.findInFolder' }
+      { id: 'edit:findInFolder', labelKey: 'menu.edit.findInFolder' },
+      { id: 'lineending:lf', labelKey: 'menu.edit.lineEndingLf', divided: true },
+      { id: 'lineending:crlf', labelKey: 'menu.edit.lineEndingCrlf' }
     ]
   },
   {
@@ -107,6 +109,8 @@ export const MENU_STRUCTURE: MenuBarSection[] = [
       { id: 'viewlayout:showSideBar', labelKey: 'menu.view.toggleSidebar', accel: `${mod}+J`, divided: true },
       { id: 'viewlayout:showTabBar', labelKey: 'menu.view.toggleTabbar' },
       { id: 'viewlayout:toc', labelKey: 'menu.view.toggleTableOfContents' },
+      { id: 'images:reload', labelKey: 'menu.view.reloadImages' },
+      { id: 'palette:show', labelKey: 'menu.view.commandPalette', accel: `${mod}+Shift+P` },
       { id: 'cmd:view.command-palette', labelKey: 'menu.view.commandPalette', accel: `${mod}+Shift+P`, divided: true }
     ]
   },

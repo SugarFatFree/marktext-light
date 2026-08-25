@@ -106,6 +106,9 @@ fn edit_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::Res
         .item(&item(app, "edit:findPrev", &tr.t("menu.edit.findPrevious"), None)?)
         .item(&item(app, "edit:replace", &tr.t("menu.edit.replace"), Some("CmdOrCtrl+Alt+F"))?)
         .item(&item(app, "edit:findInFolder", &tr.t("menu.edit.findInFolder"), None)?)
+        .item(&PredefinedMenuItem::separator(app)?)
+        .item(&item(app, "lineending:lf", &tr.t("menu.edit.lineEndingLf"), None)?)
+        .item(&item(app, "lineending:crlf", &tr.t("menu.edit.lineEndingCrlf"), None)?)
         .build()
 }
 
@@ -164,6 +167,8 @@ fn view_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::Res
         .item(&item(app, "viewlayout:showSideBar", &tr.t("menu.view.toggleSidebar"), Some("CmdOrCtrl+J"))?)
         .item(&item(app, "viewlayout:showTabBar", &tr.t("menu.view.toggleTabbar"), None)?)
         .item(&item(app, "viewlayout:toc", &tr.t("menu.view.toggleTableOfContents"), None)?)
+        .item(&item(app, "images:reload", &tr.t("menu.view.reloadImages"), None)?)
+        .item(&item(app, "palette:show", &tr.t("menu.view.commandPalette"), Some("CmdOrCtrl+Shift+P"))?)
         .item(&PredefinedMenuItem::separator(app)?)
         .item(&item(app, "cmd:view.command-palette", &tr.t("menu.view.commandPalette"), Some("CmdOrCtrl+Shift+P"))?)
         .item(&PredefinedMenuItem::separator(app)?)
