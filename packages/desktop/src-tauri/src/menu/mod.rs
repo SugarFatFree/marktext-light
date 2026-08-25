@@ -62,7 +62,7 @@ fn app_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::Resu
 }
 
 fn file_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::Result<Submenu<R>> {
-    SubmenuBuilder::new(app, tr.t("menu.file.file"))
+    let builder = SubmenuBuilder::new(app, tr.t("menu.file.file"))
         .item(&item(app, "file:new-tab", &tr.t("menu.file.newTab"), Some("CmdOrCtrl+N"))?)
         .item(&item(app, "cmd:file.new-window", &tr.t("menu.file.newWindow"), Some("CmdOrCtrl+Shift+N"))?)
         .item(&PredefinedMenuItem::separator(app)?)
@@ -72,6 +72,7 @@ fn file_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::Res
         .item(&item(app, "file:save", &tr.t("menu.file.save"), Some("CmdOrCtrl+S"))?)
         .item(&item(app, "file:save-as", &tr.t("menu.file.saveAs"), Some("CmdOrCtrl+Shift+S"))?)
         .item(&PredefinedMenuItem::separator(app)?)
+        .item(&item(app, "cmd:file.import-file", &tr.t("menu.file.import"), None)?)
         .item(&item(app, "cmd:file.export-file", &tr.t("menu.file.export"), None)?)
         .item(&item(app, "cmd:file.print", &tr.t("menu.file.print"), Some("CmdOrCtrl+P"))?)
         .item(&PredefinedMenuItem::separator(app)?)
@@ -79,8 +80,20 @@ fn file_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::Res
         .item(&item(app, "file:move", &tr.t("menu.file.moveTo"), None)?)
         .item(&PredefinedMenuItem::separator(app)?)
         .item(&item(app, "file:close-tab", &tr.t("menu.file.closeTab"), Some("CmdOrCtrl+W"))?)
-        .item(&item(app, "cmd:file.close-window", &tr.t("menu.file.closeWindow"), Some("CmdOrCtrl+Shift+W"))?)
-        .build()
+        .item(&item(app, "cmd:file.close-window", &tr.t("menu.file.closeWindow"), Some("CmdOrCtrl+Shift+W"))?);
+
+    // Preferences lives in the application menu on macOS. There is no such menu
+    // anywhere else, and it was in no other one either — so on Windows and Linux
+    // settings had no menu entry at all. Upstream puts it here for the same
+    // reason. No accelerator: the macOS item carries `CmdOrCtrl+,`, and matching
+    // it wants a runtime check first, since an accelerator that fails to parse
+    // takes the whole menu with it.
+    #[cfg(not(target_os = "macos"))]
+    let builder = builder
+        .item(&PredefinedMenuItem::separator(app)?)
+        .item(&item(app, "cmd:file.preferences", &tr.t("menu.marktext.preferences"), None)?);
+
+    builder.build()
 }
 
 fn edit_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::Result<Submenu<R>> {
@@ -120,6 +133,12 @@ fn paragraph_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri
         .item(&item(app, "cmd:paragraph.heading-4", &tr.t("menu.paragraph.heading4"), Some("CmdOrCtrl+4"))?)
         .item(&item(app, "cmd:paragraph.heading-5", &tr.t("menu.paragraph.heading5"), Some("CmdOrCtrl+5"))?)
         .item(&item(app, "cmd:paragraph.heading-6", &tr.t("menu.paragraph.heading6"), Some("CmdOrCtrl+6"))?)
+        // No accelerator, though upstream binds Ctrl+Plus / Ctrl+-. An
+        // accelerator string that fails to parse does so at runtime, where
+        // neither the compiler nor CI would catch it, and it takes the whole
+        // menu down with it. Worth adding once someone can run the build.
+        .item(&item(app, "cmd:paragraph.upgrade-heading", &tr.t("menu.paragraph.promoteHeading"), None)?)
+        .item(&item(app, "cmd:paragraph.degrade-heading", &tr.t("menu.paragraph.demoteHeading"), None)?)
         .item(&PredefinedMenuItem::separator(app)?)
         .item(&item(app, "para:table", &tr.t("menu.paragraph.table"), None)?)
         .item(&item(app, "para:pre", &tr.t("menu.paragraph.codeFences"), None)?)

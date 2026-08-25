@@ -31,12 +31,17 @@ export const MENU_STRUCTURE: MenuBarSection[] = [
       { id: 'file:open-folder', labelKey: 'menu.file.openFolder', accel: `${mod}+Shift+O` },
       { id: 'file:save', labelKey: 'menu.file.save', accel: `${mod}+S`, divided: true },
       { id: 'file:save-as', labelKey: 'menu.file.saveAs', accel: `${mod}+Shift+S` },
-      { id: 'cmd:file.export-file', labelKey: 'menu.file.export', divided: true },
+      { id: 'cmd:file.import-file', labelKey: 'menu.file.import', divided: true },
+      { id: 'cmd:file.export-file', labelKey: 'menu.file.export' },
       { id: 'cmd:file.print', labelKey: 'menu.file.print', accel: `${mod}+P` },
       { id: 'file:rename', labelKey: 'menu.file.rename', divided: true },
       { id: 'file:move', labelKey: 'menu.file.moveTo' },
       { id: 'file:close-tab', labelKey: 'menu.file.closeTab', accel: `${mod}+W`, divided: true },
-      { id: 'cmd:file.close-window', labelKey: 'menu.file.closeWindow', accel: `${mod}+Shift+W` }
+      { id: 'cmd:file.close-window', labelKey: 'menu.file.closeWindow', accel: `${mod}+Shift+W` },
+      // This bar only ever renders on Windows/Linux, where there is no
+      // application menu to hold Preferences — so it belongs here, matching
+      // where the native menu now puts it off macOS.
+      { id: 'cmd:file.preferences', labelKey: 'menu.marktext.preferences', divided: true }
     ]
   },
   {
@@ -69,6 +74,8 @@ export const MENU_STRUCTURE: MenuBarSection[] = [
       { id: 'cmd:paragraph.heading-4', labelKey: 'menu.paragraph.heading4', accel: `${mod}+4` },
       { id: 'cmd:paragraph.heading-5', labelKey: 'menu.paragraph.heading5', accel: `${mod}+5` },
       { id: 'cmd:paragraph.heading-6', labelKey: 'menu.paragraph.heading6', accel: `${mod}+6` },
+      { id: 'cmd:paragraph.upgrade-heading', labelKey: 'menu.paragraph.promoteHeading' },
+      { id: 'cmd:paragraph.degrade-heading', labelKey: 'menu.paragraph.demoteHeading' },
       { id: 'para:table', labelKey: 'menu.paragraph.table', divided: true },
       { id: 'para:pre', labelKey: 'menu.paragraph.codeFences' },
       { id: 'para:blockquote', labelKey: 'menu.paragraph.quoteBlock' },
