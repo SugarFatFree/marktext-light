@@ -4,7 +4,9 @@
 // which is the rule reproduced here: a pattern with no separator matches a
 // path's final component, and one with a separator matches the whole path.
 // Supported wildcards are `*`, `**` and `?` — not character classes, brace
-// expansion or negation.
+// expansion or negation. Matching is case-sensitive, as minimatch is without
+// `nocase`; the expected results below were taken from minimatch itself rather
+// than assumed.
 
 use regex::Regex;
 use std::path::Path;
@@ -18,15 +20,18 @@ pub struct Exclusion {
 }
 
 fn to_regex(glob: &str) -> Option<Regex> {
-    let mut pattern = String::from("(?i)^");
+    let mut pattern = String::from("^");
     let mut chars = glob.chars().peekable();
     while let Some(ch) = chars.next() {
         match ch {
             '*' => {
                 if chars.peek() == Some(&'*') {
                     chars.next();
-                    // Swallow a following separator so `docs/**` also matches
-                    // `docs` itself, as minimatch does.
+                    // Swallow a following separator so a leading `**/` is
+                    // optional: minimatch matches `foo` against `**/foo`.
+                    // It does not make `docs/**` match `docs` — the separator
+                    // before `**` is already in the pattern by then, and
+                    // minimatch does not match that either.
                     if matches!(chars.peek(), Some('/') | Some('\\')) {
                         chars.next();
                     }
@@ -81,6 +86,9 @@ pub fn is_excluded(path: &Path, exclusions: &[Exclusion]) -> bool {
 mod tests {
     use super::*;
 
+    // Every expectation here was checked against
+    // `minimatch(path, pattern, { matchBase: true })`, the implementation the
+    // Electron build used, rather than reasoned about.
     fn excluded(patterns: &[&str], path: &str) -> bool {
         let owned: Vec<String> = patterns.iter().map(|p| p.to_string()).collect();
         is_excluded(Path::new(path), &compile(&owned))
@@ -88,17 +96,26 @@ mod tests {
 
     #[test]
     fn a_pattern_without_a_separator_tests_the_name() {
-        // minimatch's `matchBase`: depth is irrelevant to such a pattern.
         assert!(excluded(&["*.tmp"], "/project/deep/notes.tmp"));
         assert!(excluded(&["draft.md"], "/project/draft.md"));
+        assert!(excluded(&["sub"], "/project/sub"));
         assert!(!excluded(&["*.tmp"], "/project/notes.md"));
+        // `sub` names a component, so it does not stand in for the path to one.
+        assert!(!excluded(&["sub"], "/project/sub/x.md"));
     }
 
     #[test]
     fn a_pattern_with_a_separator_tests_the_whole_path() {
         assert!(excluded(&["/project/build/**"], "/project/build/out.md"));
-        // Same trailing name, different place: not a match.
         assert!(!excluded(&["/project/build/**"], "/other/build2/out.md"));
+        // Not anchored at the root, so it matches nothing absolute.
+        assert!(!excluded(&["sub/**"], "/project/sub/x.md"));
+    }
+
+    #[test]
+    fn a_leading_double_star_is_optional() {
+        assert!(excluded(&["**/foo"], "/a/b/foo"));
+        assert!(excluded(&["**/foo"], "foo"));
     }
 
     #[test]
@@ -108,10 +125,10 @@ mod tests {
     }
 
     #[test]
-    fn a_double_star_matches_the_directory_itself() {
-        // `docs/**` is expected to hide `docs`, not only what is inside it.
-        assert!(excluded(&["/project/docs/**"], "/project/docs"));
+    fn a_trailing_double_star_does_not_match_the_directory_itself() {
         assert!(excluded(&["/project/docs/**"], "/project/docs/a/b.md"));
+        // minimatch says false here; it wants something under `docs`.
+        assert!(!excluded(&["/project/docs/**"], "/project/docs"));
     }
 
     #[test]
@@ -121,8 +138,10 @@ mod tests {
     }
 
     #[test]
-    fn matching_ignores_case() {
-        assert!(excluded(&["*.TMP"], "/project/notes.tmp"));
+    fn matching_is_case_sensitive() {
+        // minimatch without `nocase`, which is how upstream called it.
+        assert!(!excluded(&["*.TMP"], "/project/notes.tmp"));
+        assert!(excluded(&["*.tmp"], "/project/notes.tmp"));
     }
 
     #[test]
@@ -132,9 +151,10 @@ mod tests {
     }
 
     #[test]
-    fn a_literal_dot_is_not_a_wildcard() {
-        // Escaping matters: `.` must not match an arbitrary character.
+    fn regex_metacharacters_stay_literal() {
         assert!(excluded(&["a.md"], "/project/a.md"));
         assert!(!excluded(&["a.md"], "/project/axmd"));
+        assert!(excluded(&["a+b.md"], "/project/a+b.md"));
+        assert!(excluded(&["a-b.md"], "/project/a-b.md"));
     }
 }
