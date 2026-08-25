@@ -597,6 +597,16 @@ macOS 的 showAll / bringAllToFront。
 **取舍写在注释和用例里**:它比 `deep-equal` 更严格,结构相同但引用不同的嵌套值会被判为"不同"。
 这个方向是安全的——误判"变了"只多算一次 TOC,误判"没变"才会让侧栏留在旧状态。
 
+**效果(真实窗口)**:10 次击键(带 profiler)**1673 → 796 ms**;
+5 次击键 **596 → 451 ms**(约 90 ms/击键)。新 profile 里 `deep-equal` 已完全消失,
+`deepClone` 升为最大的 JS 项(12.9%)——第 55 轮已砍掉它的一半
+(`dispatch` 里那份没人读的 `doc`)。
+
+**一个读数陷阱**:同一次运行里渲染耗时从 2214 变成 3313 ms,看着像回归,**其实不是**。
+E2E 用 2 个 worker 并行,而当时 profiling 探针和渲染计时是**两个文件**、各自打开 210 KB,
+**互相抢 CPU**。已把探针并入 `large-document-render.spec.ts`——同文件内串行,
+顺带省掉重复打开。**以后加性能用例要留意这一点。**
+
 **遗留**:`deep-equal` 已无源码引用(未 import 的依赖不进打包,运行时收益已拿到),
 但 `package.json` 里的声明还在。清理要动 lockfile,而本机 `pnpm install` 会触发
 下载 Electron 的 postinstall,不值得在这里冒险。

@@ -15,6 +15,17 @@ import { expect, test } from '@playwright/test'
 import type { ElectronApplication, Page } from 'playwright'
 import { launchWithMarkdown, sendIpcToRenderer } from './helpers'
 
+interface CallFrame {
+  functionName: string
+  url: string
+  lineNumber: number
+}
+interface ProfileNode {
+  id: number
+  callFrame: CallFrame
+  hitCount?: number
+}
+
 // 300, not the 1200 first tried. At ~850 KB the renderer stayed saturated past
 // a 105s timeout — `page.evaluate` could not even get a turn to count, and
 // closing the window timed out too. That limit is recorded in
@@ -124,5 +135,52 @@ test.describe('a large document', () => {
 
     console.log(`five keystrokes in a large document: ${elapsed} ms`)
     expect(elapsed).toBeLessThan(5000)
+  })
+
+  // A probe, not a guard: it asserts only that the profiler attached, and
+  // prints where the time went. It lives in this file so it runs after the
+  // cases above rather than beside them — with two Playwright workers, two
+  // specs each opening 210 KB and timing it were measuring each other's CPU
+  // contention as much as their own work.
+  test('reports where a keystroke spends its time', async() => {
+    test.setTimeout(120_000)
+
+    const rendered = await page.evaluate(
+      () => document.querySelectorAll('.editor-component h2').length
+    )
+    expect(rendered, 'no large document to profile').toBeGreaterThanOrEqual(SECTIONS)
+
+    const client = await page.context().newCDPSession(page)
+    await client.send('Profiler.enable')
+    // 100 microseconds: fine enough to separate callees that each take a
+    // millisecond or two out of a keystroke.
+    await client.send('Profiler.setSamplingInterval', { interval: 100 })
+    await client.send('Profiler.start')
+
+    const started = Date.now()
+    await page.keyboard.type('abcdefghij', { delay: 0 })
+    const elapsed = Date.now() - started
+
+    const { profile } = (await client.send('Profiler.stop')) as {
+      profile: { nodes: ProfileNode[] }
+    }
+    await client.detach()
+
+    const self = new Map<string, number>()
+    for (const node of profile.nodes) {
+      const { functionName, url, lineNumber } = node.callFrame
+      const where = `${functionName || '(anonymous)'}  ${String(url).split('/').slice(-1)[0]}:${lineNumber + 1}`
+      self.set(where, (self.get(where) ?? 0) + (node.hitCount ?? 0))
+    }
+    const total = [...self.values()].reduce((a, b) => a + b, 0)
+
+    console.log(`ten keystrokes while profiling: ${elapsed} ms, ${total} samples`)
+    for (const [where, hits] of [...self].sort((a, b) => b[1] - a[1]).slice(0, 15)) {
+      console.log(`  ${((hits / total) * 100).toFixed(1)}%  ${where}`)
+    }
+
+    // A profile that failed to attach would print an empty ranking, which reads
+    // like a finding.
+    expect(total, 'the profiler collected no samples').toBeGreaterThan(0)
   })
 })
