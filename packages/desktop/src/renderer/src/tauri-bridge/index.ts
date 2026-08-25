@@ -33,6 +33,7 @@ import {
 } from './preferences'
 import { renameOpenFile } from './files'
 import { askForOpenProject, loadProjectTree } from './project'
+import { installTabShortcuts } from './shortcuts'
 import { closeWindow, closeWindowConfirm, installCloseGuard } from './window'
 import { resolveInitialTheme, rememberThemeChoice } from './theme'
 import { setLanguage } from '@/i18n'
@@ -552,6 +553,7 @@ export async function installTauriBridge(): Promise<void> {
   applyGlobals(boot)
   initPreferenceStores(boot.paths?.userData ?? '')
   installCloseGuard(dispatchLocal)
+  installTabShortcuts(dispatchLocal, boot.platform)
 
   // Whoever announces an opened folder — the sidebar button or the native Open
   // Folder menu — the tree is filled in from here.
