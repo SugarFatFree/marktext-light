@@ -83,7 +83,19 @@ const LOCAL_INVOKES: Record<string, (args: unknown[]) => Promise<unknown>> = {
   'mt::ask-for-image-path': () => askForImagePath()
 }
 
+// Invoke channels answered by doing nothing, on purpose. Kept separate from the
+// unhandled-channel warning below so a genuine gap stays visible.
+const IGNORED_INVOKES = new Set([
+  // Tabs are deliberately not restored across launches — the left drawer's
+  // recent-files list is what survives instead (see store/recentFiles.ts). The
+  // main process persisted this snapshot; dropping it is the mechanism.
+  'update-buffer-state'
+])
+
 const routedInvoke = async(channel: string, args: unknown[]): Promise<unknown> => {
+  if (IGNORED_INVOKES.has(channel)) {
+    return undefined
+  }
   const local = LOCAL_INVOKES[channel]
   if (local) {
     return local(args)
@@ -273,6 +285,19 @@ const handleSend = (channel: string, args: unknown[]): void => {
     case 'mt::window-tab-closed':
       // Main-process bookkeeping (window registry, file watchers) with no
       // counterpart here yet. Intentionally dropped, not missing.
+      return
+    case 'mt::editor-selection-changed':
+    case 'mt::update-format-menu':
+    case 'mt::update-line-ending-menu':
+    case 'mt::update-sidebar-menu':
+    case 'mt::view-layout-changed':
+    case 'mt::set-editor-format-menus-enabled':
+    case 'mt::format-link-click':
+      // Menu state: Electron pushed these so the native menu could tick the
+      // active format, line ending and layout. The Tauri menu does not reflect
+      // state yet, so there is nothing to update — and `editor-selection-changed`
+      // fires on every cursor move, so warning here would flood the console and
+      // cost real time on a large document.
       return
     case 'mt::win::minimize':
       fire(win().minimize())
