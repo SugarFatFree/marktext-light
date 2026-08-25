@@ -23,7 +23,7 @@ import { openUrl, openPath, revealItemInDir } from '@tauri-apps/plugin-opener'
 import pathe from 'pathe'
 
 import type { BootInfo } from '@shared/types/ipc'
-import { saveDocument, type UnsavedFile } from './save'
+import { saveDocument, saveAndCloseTabs, type UnsavedFile } from './save'
 import { resolveInitialTheme } from './theme'
 import { setLanguage } from '@/i18n'
 
@@ -131,6 +131,9 @@ const handleSend = (channel: string, args: unknown[]): void => {
           ((args[0] as UnsavedFile[]) ?? []).map((file) => saveDocument(file, dispatchLocal))
         )
       )
+      return
+    case 'mt::save-and-close-tabs':
+      fire(saveAndCloseTabs((args[0] as UnsavedFile[]) ?? [], dispatchLocal))
       return
     case 'mt::win::minimize':
       fire(win().minimize())

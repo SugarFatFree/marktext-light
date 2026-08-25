@@ -11,6 +11,8 @@ import { invoke } from '@tauri-apps/api/core'
 import { save as showSaveDialog } from '@tauri-apps/plugin-dialog'
 import pathe from 'pathe'
 
+import bus from '@/bus'
+
 export interface SaveEncoding {
   encoding?: string
   isBom?: boolean
@@ -146,4 +148,61 @@ export const saveDocument = async(
     ])
   }
   return filePath
+}
+
+// -----------------------------------------------------------------------------
+// Closing tabs that still have unsaved changes
+// -----------------------------------------------------------------------------
+
+export type UnsavedFilesChoice = 'save' | 'dontSave' | 'cancel'
+
+export interface UnsavedFilesRequest {
+  files: UnsavedFile[]
+  respond: (choice: UnsavedFilesChoice) => void
+}
+
+/** Bus event that `components/unsavedFilesDialog` answers. */
+export const UNSAVED_FILES_ASK_EVENT = 'unsaved-files::ask'
+
+/**
+ * Electron used a native three-button message box here. A Tauri dialog only has
+ * two, so the prompt lives in the renderer instead — which also keeps it
+ * localized and themed like the rest of the UI.
+ */
+const askAboutUnsavedFiles = (files: UnsavedFile[]): Promise<UnsavedFilesChoice> =>
+  new Promise((resolve) => {
+    // No dialog mounted (a window still booting) — treat it as "cancel" rather
+    // than leaving the caller, and the tab close, hanging forever.
+    if (!bus.all.get(UNSAVED_FILES_ASK_EVENT)?.length) {
+      console.warn('[tauri-bridge] no unsaved-files dialog mounted; cancelling close')
+      resolve('cancel')
+      return
+    }
+    const request: UnsavedFilesRequest = { files, respond: resolve }
+    bus.emit(UNSAVED_FILES_ASK_EVENT, request)
+  })
+
+/**
+ * Ask, then close only what the answer allows: everything on "don't save", the
+ * documents that actually reached disk on "save", nothing on "cancel". The tabs
+ * stay open until `mt::force-close-tabs-by-id` names them.
+ */
+export const saveAndCloseTabs = async(
+  files: UnsavedFile[],
+  dispatchLocal: DispatchLocal
+): Promise<void> => {
+  if (!files.length) return
+
+  const choice = await askAboutUnsavedFiles(files)
+  if (choice === 'cancel') return
+
+  if (choice === 'dontSave') {
+    dispatchLocal('mt::force-close-tabs-by-id', [files.map((file) => file.id)])
+    return
+  }
+
+  const saved = await Promise.all(
+    files.map((file) => saveDocument(file, dispatchLocal).then((path) => (path ? file.id : null)))
+  )
+  dispatchLocal('mt::force-close-tabs-by-id', [saved.filter((id): id is string => !!id)])
 }
