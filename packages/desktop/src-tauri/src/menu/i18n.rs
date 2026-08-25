@@ -88,3 +88,72 @@ fn read_locale<R: Runtime>(app: &AppHandle<R>, locale: &str) -> Option<Value> {
     let text = std::fs::read_to_string(path).ok()?;
     serde_json::from_str(&text).ok()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn translations(tree: Value, fallback: Value) -> Translations {
+        Translations { tree, fallback }
+    }
+
+    #[test]
+    fn the_active_locale_wins() {
+        let t = translations(
+            json!({ "menu": { "file": { "save": "保存" } } }),
+            json!({ "menu": { "file": { "save": "Save" } } }),
+        );
+
+        assert_eq!(t.t("menu.file.save"), "保存");
+    }
+
+    #[test]
+    fn a_missing_translation_falls_back_to_english() {
+        // How a half-translated locale behaves — and why the parity spec on the
+        // renderer side asserts every locale carries the English key set: this
+        // degrades so quietly that nothing would otherwise report it.
+        let t = translations(
+            json!({ "menu": { "file": {} } }),
+            json!({ "menu": { "file": { "save": "Save" } } }),
+        );
+
+        assert_eq!(t.t("menu.file.save"), "Save");
+    }
+
+    #[test]
+    fn a_key_missing_everywhere_degrades_to_its_last_segment() {
+        let t = translations(json!({}), json!({}));
+
+        assert_eq!(t.t("menu.file.saveAs"), "saveAs");
+        assert_eq!(t.t("standalone"), "standalone");
+    }
+
+    #[test]
+    fn a_key_naming_a_subtree_is_not_a_translation() {
+        let t = translations(json!({ "menu": { "file": { "save": "Save" } } }), json!({}));
+
+        assert_eq!(t.t("menu.file"), "file");
+    }
+
+    #[test]
+    fn access_key_mnemonics_are_stripped() {
+        let t = translations(
+            json!({ "latin": "&Theme", "cjk": "主题(&T)", "plain": "Theme" }),
+            json!({}),
+        );
+
+        assert_eq!(t.t("latin"), "Theme");
+        assert_eq!(t.t("cjk"), "主题");
+        assert_eq!(t.t("plain"), "Theme");
+    }
+
+    #[test]
+    fn an_ampersand_that_is_not_a_mnemonic_still_goes() {
+        // Matches the renderer's menu bar, which strips the same way; leaving
+        // one form in and not the other is how the two menus drift apart.
+        let t = translations(json!({ "k": "Cut && Paste" }), json!({}));
+
+        assert_eq!(t.t("k"), "Cut  Paste");
+    }
+}
