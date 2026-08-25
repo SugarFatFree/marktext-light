@@ -91,7 +91,9 @@ fn parse_max_file_size(raw: &Option<String>) -> Option<u64> {
         'G' | 'g' => (&text[..text.len() - 1], 1024 * 1024 * 1024),
         _ => (text, 1),
     };
-    digits.parse::<u64>().ok().map(|n| n * scale)
+    // `checked_mul`, not `*`: a release build wraps on overflow, so a huge value
+    // would come back as a tiny limit and exclude every file instead of none.
+    digits.parse::<u64>().ok().and_then(|n| n.checked_mul(scale))
 }
 
 fn build_matcher(pattern: &str, options: &SearchOptions) -> Result<Regex, String> {
@@ -306,5 +308,106 @@ pub fn rg_cancel(search_id: String) {
         if let Some(flag) = map.get_mut(&search_id) {
             *flag = true;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn options(pattern_is_regexp: bool, whole_word: bool, case_sensitive: bool) -> SearchOptions {
+        SearchOptions {
+            is_regexp: pattern_is_regexp,
+            is_whole_word: whole_word,
+            is_case_sensitive: case_sensitive,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn file_size_suffixes_scale() {
+        assert_eq!(parse_max_file_size(&Some("512".into())), Some(512));
+        assert_eq!(parse_max_file_size(&Some("2K".into())), Some(2 * 1024));
+        assert_eq!(parse_max_file_size(&Some("3M".into())), Some(3 * 1024 * 1024));
+        assert_eq!(parse_max_file_size(&Some("1G".into())), Some(1024 * 1024 * 1024));
+        // The settings schema writes uppercase; accepting either costs nothing.
+        assert_eq!(parse_max_file_size(&Some("2k".into())), Some(2 * 1024));
+    }
+
+    #[test]
+    fn an_absent_or_unusable_size_means_no_limit() {
+        assert_eq!(parse_max_file_size(&None), None);
+        assert_eq!(parse_max_file_size(&Some("".into())), None);
+        assert_eq!(parse_max_file_size(&Some("   ".into())), None);
+        assert_eq!(parse_max_file_size(&Some("big".into())), None);
+        // Overflowing must read as "no limit", never as a very small one.
+        assert_eq!(parse_max_file_size(&Some("18446744073709551G".into())), None);
+    }
+
+    #[test]
+    fn a_plain_search_treats_the_pattern_literally() {
+        let matcher = build_matcher("a.c", &options(false, false, true)).unwrap();
+        assert!(matcher.is_match("a.c"));
+        assert!(!matcher.is_match("abc"));
+    }
+
+    #[test]
+    fn a_regexp_search_does_not() {
+        let matcher = build_matcher("a.c", &options(true, false, true)).unwrap();
+        assert!(matcher.is_match("abc"));
+    }
+
+    #[test]
+    fn whole_word_needs_a_boundary() {
+        let matcher = build_matcher("cat", &options(false, true, true)).unwrap();
+        assert!(matcher.is_match("a cat sat"));
+        assert!(!matcher.is_match("concatenate"));
+    }
+
+    #[test]
+    fn case_sensitivity_is_the_caller_s_choice() {
+        assert!(build_matcher("Cat", &options(false, false, false))
+            .unwrap()
+            .is_match("cat"));
+        assert!(!build_matcher("Cat", &options(false, false, true))
+            .unwrap()
+            .is_match("cat"));
+    }
+
+    #[test]
+    fn an_invalid_regexp_is_reported_rather_than_panicking() {
+        assert!(build_matcher("(unclosed", &options(true, false, true)).is_err());
+    }
+
+    #[test]
+    fn match_positions_are_counted_in_characters() {
+        // The renderer indexes into a JS string to highlight the hit, so a byte
+        // offset would land in the wrong place after any non-ASCII text.
+        let matcher = build_matcher("cat", &options(false, false, true)).unwrap();
+        let found = matches_in("日本語 cat here", &matcher);
+
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].range, [[0, 4], [0, 7]]);
+    }
+
+    #[test]
+    fn every_line_and_every_hit_is_reported() {
+        let matcher = build_matcher("x", &options(false, false, true)).unwrap();
+        let found = matches_in("x\nno\nx x", &matcher);
+
+        assert_eq!(found.len(), 3);
+        assert_eq!(found[0].range[0][0], 0);
+        assert_eq!(found[1].range[0][0], 2);
+        assert_eq!(found[2].range, [[2, 2], [2, 3]]);
+    }
+
+    #[test]
+    fn inclusions_filter_by_extension() {
+        let markdown = vec!["md".to_string(), "txt".to_string()];
+        assert!(has_included_extension("notes.md", &markdown));
+        assert!(has_included_extension("NOTES.MD", &markdown));
+        assert!(!has_included_extension("image.png", &markdown));
+        // An empty list means every readable file.
+        assert!(has_included_extension("image.png", &[]));
     }
 }
