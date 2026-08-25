@@ -37,6 +37,10 @@ import {
 import { exportDocument, printDocument, type ExportPayload } from './export'
 import { askForImagePath, moveOpenFileTo, renameOpenFile } from './files'
 import { sendKeybindings } from './keybindings'
+import {
+  installContextMenuStyles,
+  popupContextMenu as showContextMenu
+} from './context-menu'
 import { handleDiskChange, trackOpenFile, untrackOpenFile } from './open-files'
 import { askForOpenProject, loadProjectTree } from './project'
 import { broadcastLanguage, openSettingsWindow, sendCurrentLanguage } from './settings'
@@ -501,11 +505,12 @@ const buildGlobals = (boot: BootInfo, ipc: ReturnType<typeof buildIpcWrapper>) =
       toggleFullScreen: () => handleSend('mt::win::toggle-fullscreen', []),
       isMaximized: () => win().isMaximized(),
       isFullScreen: () => win().isFullscreen(),
-      // The application menu is now a native Tauri menu set on the window
-      // (see src-tauri/src/menu). Context-menu popup and the frameless-titlebar
-      // app-menu popup still need wiring alongside the custom titlebar (phase 3).
-      popupMenu: () => console.warn('[tauri-bridge] context-menu popup pending phase 3'),
-      popupApplicationMenu: () => console.warn('[tauri-bridge] menu popup pending phase 3')
+      // The application menu is a native Tauri menu set on the window (see
+      // src-tauri/src/menu), plus the custom bar for frameless platforms.
+      popupMenu: (template: unknown, position: unknown) =>
+        showContextMenu(template, position, dispatchLocal),
+      // The frameless title bar shows the menu itself; there is nothing to pop.
+      popupApplicationMenu: () => {}
     }
   }
 
@@ -696,6 +701,7 @@ export async function installTauriBridge(): Promise<void> {
   const windowType = new URLSearchParams(window.location.search).get('type') ?? 'editor'
   installCloseGuard(dispatchLocal, windowType)
   installTabShortcuts(dispatchLocal, boot.platform)
+  installContextMenuStyles()
   installWindowEvents(dispatchLocal)
   registerEvent(
     'mt::file-changed-on-disk',
