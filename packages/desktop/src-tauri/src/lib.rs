@@ -67,6 +67,7 @@ pub fn run() {
             // filesystem watching for the sidebar tree
             commands::watcher::watch_project,
             commands::watcher::unwatch_project,
+            commands::watcher::watch_open_files,
             // paths::*
             commands::paths::is_image,
             commands::paths::is_same_path,

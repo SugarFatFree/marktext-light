@@ -37,6 +37,7 @@ import {
 import { exportDocument, printDocument, type ExportPayload } from './export'
 import { askForImagePath, moveOpenFileTo, renameOpenFile } from './files'
 import { sendKeybindings } from './keybindings'
+import { handleDiskChange, trackOpenFile, untrackOpenFile } from './open-files'
 import { askForOpenProject, loadProjectTree } from './project'
 import { broadcastLanguage, openSettingsWindow, sendCurrentLanguage } from './settings'
 import { installTabShortcuts } from './shortcuts'
@@ -137,6 +138,7 @@ const openFileAsTab = async(pathname: string, options: unknown): Promise<void> =
     console.warn(`[tauri-bridge] not a text document: ${pathname}`)
     return
   }
+  trackOpenFile(pathname)
   dispatchLocal('mt::open-new-tab', [
     { markdown, filename: pathe.basename(pathname), pathname },
     options ?? {},
@@ -286,8 +288,10 @@ const handleSend = (channel: string, args: unknown[]): void => {
       // Dropped paths arrive through the window's own drag-drop event (see
       // window-events.ts); the DOM drop event in a WebView carries no paths.
       return
-    case 'mt::window-initialized':
     case 'mt::window-tab-closed':
+      untrackOpenFile(args[0] as string)
+      return
+    case 'mt::window-initialized':
       // Main-process bookkeeping (window registry, file watchers) with no
       // counterpart here yet. Intentionally dropped, not missing.
       return
@@ -351,6 +355,10 @@ type Listener = (event: unknown, ...args: unknown[]) => void
 const localListeners = new Map<string, Set<Listener>>()
 
 const dispatchLocal = (channel: string, args: unknown[]): void => {
+  if (channel === 'mt::set-pathname') {
+    // Save-as, rename and move all land here with the document's new home.
+    trackOpenFile((args[0] as { pathname?: string })?.pathname)
+  }
   const listeners = localListeners.get(channel)
   if (!listeners) return
   // Copy first: a `once` listener removes itself from the live set.
@@ -689,6 +697,11 @@ export async function installTauriBridge(): Promise<void> {
   installCloseGuard(dispatchLocal, windowType)
   installTabShortcuts(dispatchLocal, boot.platform)
   installWindowEvents(dispatchLocal)
+  registerEvent(
+    'mt::file-changed-on-disk',
+    (_event, payload) => fire(handleDiskChange(payload, dispatchLocal)),
+    false
+  )
   installFileDrop((path) => openFileAsTab(path, {}))
 
   // Whoever announces an opened folder — the sidebar button or the native Open

@@ -31,6 +31,12 @@ fn active_watcher() -> &'static Mutex<Option<RecommendedWatcher>> {
     WATCHER.get_or_init(|| Mutex::new(None))
 }
 
+/// Watches the files behind open tabs, which may live outside the project.
+fn open_file_watcher() -> &'static Mutex<Option<RecommendedWatcher>> {
+    static WATCHER: OnceLock<Mutex<Option<RecommendedWatcher>>> = OnceLock::new();
+    WATCHER.get_or_init(|| Mutex::new(None))
+}
+
 fn is_markdown(path: &Path) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
@@ -201,4 +207,64 @@ pub fn unwatch_project() {
     if let Ok(mut active) = active_watcher().lock() {
         *active = None;
     }
+}
+
+
+/// Watch the files behind open tabs and report changes to them.
+///
+/// Only a signal goes out — `pathname` and what happened. Turning that into a
+/// document is the bridge's job, and it already does exactly that when opening
+/// a file, so re-implementing encoding and line-ending detection here would be
+/// a second, divergent copy.
+///
+/// The whole set is re-watched on every call rather than diffed: a tab list is
+/// a handful of paths, and tracking additions and removals separately would be
+/// more state than the saving is worth.
+#[tauri::command]
+pub fn watch_open_files(app: AppHandle, paths: Vec<String>) -> Result<(), String> {
+    if paths.is_empty() {
+        if let Ok(mut active) = open_file_watcher().lock() {
+            *active = None;
+        }
+        return Ok(());
+    }
+
+    let handle = app.clone();
+    let mut watcher = notify::recommended_watcher(move |result: notify::Result<Event>| {
+        let Ok(event) = result else { return };
+        let kind = match event.kind {
+            EventKind::Remove(_) => "unlink",
+            EventKind::Modify(_) | EventKind::Create(_) => "change",
+            _ => return,
+        };
+        for path in &event.paths {
+            if let Err(err) = handle.emit(
+                "mt::file-changed-on-disk",
+                json!({ "pathname": path.to_string_lossy(), "kind": kind }),
+            ) {
+                eprintln!("[watcher] failed to emit file change: {err}");
+            }
+        }
+    })
+    .map_err(|e| e.to_string())?;
+
+    watcher
+        .configure(notify::Config::default().with_poll_interval(DEBOUNCE))
+        .map_err(|e| e.to_string())?;
+
+    for path in &paths {
+        let file = Path::new(path);
+        if !file.is_file() {
+            continue;
+        }
+        // NonRecursive: these are files, and a directory slipping in should not
+        // pull its whole subtree into the watch.
+        if let Err(err) = watcher.watch(file, RecursiveMode::NonRecursive) {
+            eprintln!("[watcher] cannot watch {path}: {err}");
+        }
+    }
+
+    let mut active = open_file_watcher().lock().map_err(|e| e.to_string())?;
+    *active = Some(watcher);
+    Ok(())
 }
