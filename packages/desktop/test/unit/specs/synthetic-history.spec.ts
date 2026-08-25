@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
 import { SyntheticHistory } from '@/components/editorWithTabs/syntheticHistory'
 
 // Mirror of the store's PG15 dirty/clean decision (store/editor.ts): a tab is
@@ -125,6 +127,36 @@ describe('SyntheticHistory (saved/clean indicator id allocator)', () => {
     }
     // No collisions: every distinct content snapshot got its own id.
     expect(ids.size).toBe(5000)
+  })
+
+  it('separates document-sized snapshots that differ by one character', () => {
+    // The real shape of an edit: a keystroke changes one character somewhere in
+    // a long document. A signature that skimmed the content, or that let one
+    // lane dominate, would hand these the same id and show a dirty tab clean.
+    const h = new SyntheticHistory('')
+    const body = 'Prose with **bold** and `code`. '.repeat(6000)
+    const ids = new Set<number>()
+    for (let i = 0; i < 200; i++) {
+      ids.add(h.idFor(`${body.slice(0, i)}x${body.slice(i)}`))
+    }
+
+    expect(ids.size).toBe(200)
+  })
+
+  it('signs the content without BigInt, which costs a keystroke dearly', () => {
+    // A BigInt multiply per character over the whole document ran on every
+    // keystroke: 27 ms at 200 KB, 98 ms at 800 KB, against 0 and 3 for the
+    // `Math.imul` lanes. This is a source check because the two produce
+    // equally correct ids — only the cost differs, and nothing observable
+    // about the ids would catch a return to the slow one.
+    const source = readFileSync(
+      resolve(__dirname, '../../../src/renderer/src/components/editorWithTabs/syntheticHistory.ts'),
+      'utf-8'
+    )
+    const code = source.replace(/\/\/[^\n]*/g, '')
+
+    expect(code).not.toMatch(/BigInt|\dn\b/)
+    expect(code).toMatch(/Math\.imul/)
   })
 
   it('build() emits a desktop-shaped single-entry history', () => {

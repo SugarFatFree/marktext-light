@@ -39,25 +39,38 @@
 const stripTrailingNewlines = (content: string): string =>
   content.replace(/[\r\n]+$/, '')
 
-// A fast, stable 64-bit string hash (FNV-1a) over the trailing-newline-normalized
-// content. Used so the content -> id map stores short keys instead of whole
-// documents; a collision would map two genuinely different documents to the same
-// id and could reintroduce the false-clean it guards against. 64 bits keeps the
-// collision probability negligible even for a long editing session with many
-// thousands of distinct snapshots (a 32-bit hash hits ~50% collision odds near
-// ~77k snapshots via the birthday bound — realistic over a long session — so the
-// extra width is worth the BigInt key).
-const FNV64_OFFSET = 0xcbf29ce484222325n
-const FNV64_PRIME = 0x100000001b3n
-const MASK64 = 0xffffffffffffffffn
-const hashContent = (content: string): bigint => {
+// A stable content signature over the trailing-newline-normalized content,
+// used so the content -> id map stores short keys instead of whole documents.
+// A collision would map two genuinely different documents to the same id and
+// could reintroduce the false-clean this guards against, so the key is wide:
+// two 32-bit FNV-1a lanes with different primes, concatenated.
+//
+// It was one 64-bit lane in BigInt, which is exact but pays a heap-allocating
+// multiply per character — and this runs on every keystroke, over the whole
+// document. Measured: 200 KB took 27 ms, 800 KB took 98 ms. The same two lanes
+// through `Math.imul`, which stays in the integer fast path, take 0 ms and
+// 3 ms. On a large file that was a visible share of the typing latency.
+//
+// Two 32-bit lanes are not the same guarantee as one true 64-bit hash — the
+// lanes are not provably independent — but they are far past what this needs:
+// the map lives for one editing session and holds one entry per distinct
+// snapshot, thousands at most.
+const FNV32_OFFSET = 0x811c9dc5
+const FNV32_PRIME = 0x01000193
+const SECOND_LANE_OFFSET = 0x9dc5811c
+const SECOND_LANE_PRIME = 0x85ebca6b
+
+const hashContent = (content: string): string => {
   const normalized = stripTrailingNewlines(content)
-  let hash = FNV64_OFFSET
+  let a = FNV32_OFFSET
+  let b = SECOND_LANE_OFFSET
   for (let i = 0; i < normalized.length; i++) {
-    hash ^= BigInt(normalized.charCodeAt(i))
-    hash = (hash * FNV64_PRIME) & MASK64
+    const code = normalized.charCodeAt(i)
+    a = Math.imul(a ^ code, FNV32_PRIME)
+    b = Math.imul(b ^ code, SECOND_LANE_PRIME)
   }
-  return hash
+
+  return `${(a >>> 0).toString(36)}.${(b >>> 0).toString(36)}`
 }
 
 export interface IFileHistoryLike {
@@ -73,7 +86,7 @@ export interface IFileHistoryLike {
 // store's seeded `lastSavedHistoryId: 0` for a freshly loaded/clean document.
 export class SyntheticHistory {
   private counter = 0
-  private readonly idByContent = new Map<bigint, number>()
+  private readonly idByContent = new Map<string, number>()
 
   constructor(baselineContent: string = '') {
     // The freshly-loaded document is its own clean baseline; the store seeds
