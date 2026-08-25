@@ -61,6 +61,9 @@ pub fn run() {
             commands::fs::stat,
             // project tree
             commands::project::scan_project,
+            // project-wide search (replaces the bundled ripgrep binary)
+            commands::search::rg_start,
+            commands::search::rg_cancel,
             // paths::*
             commands::paths::is_image,
             commands::paths::is_same_path,

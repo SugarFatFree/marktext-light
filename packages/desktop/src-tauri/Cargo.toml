@@ -31,6 +31,8 @@ serde_json = "1"
 sys-locale = "0.3"
 # Recoverable delete for the sidebar's context menu (Electron's shell.trashItem).
 trash = "5"
+# Pattern matching for project-wide search; Tauri ships no ripgrep binary.
+regex = "1"
 
 [features]
 # Enabled by tauri when building for production; forwarded from tauri.conf.json.

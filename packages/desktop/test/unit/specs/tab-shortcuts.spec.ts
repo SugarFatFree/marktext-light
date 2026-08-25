@@ -8,7 +8,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { installTabShortcuts } from '../../../src/renderer/src/tauri-bridge/shortcuts'
 
-type Dispatch = ReturnType<typeof vi.fn>
+type Dispatch = ReturnType<typeof makeDispatch>
+
+const makeDispatch = () => vi.fn<(channel: string, args: unknown[]) => void>()
 
 const press = (init: KeyboardEventInit): void => {
   window.dispatchEvent(new KeyboardEvent('keydown', { ...init, cancelable: true }))
@@ -18,7 +20,7 @@ describe('tab shortcuts', () => {
   let dispatch: Dispatch
 
   beforeEach(() => {
-    dispatch = vi.fn()
+    dispatch = makeDispatch()
     installTabShortcuts(dispatch, 'linux')
   })
 
@@ -69,7 +71,7 @@ describe('tab shortcuts', () => {
 
 describe('tab shortcuts on macOS', () => {
   it('uses Cmd for the page keys and Ctrl for cycling', () => {
-    const dispatch = vi.fn()
+    const dispatch = makeDispatch()
     installTabShortcuts(dispatch, 'darwin')
 
     press({ key: 'PageDown', metaKey: true })

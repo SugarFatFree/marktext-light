@@ -435,29 +435,39 @@ const buildGlobals = (boot: BootInfo, ipc: ReturnType<typeof buildIpcWrapper>) =
   return { electron, fileUtils, path, processShim, boot }
 }
 
-// Channels for search/upload/i18n/fonts that still need a Rust home; stubbed so
-// imports resolve and the app boots.
-const stubbedExtras = () => {
-  const noopUnsub = () => () => {}
+// Search results stream back on the same `mt::rg::*` events the Electron
+// bridge used, each carrying the `searchId` the caller filters on, so
+// `renderer/src/node/ripgrepSearcher.ts` is unchanged.
+const buildRipgrep = () => {
+  type Handler = (payload: unknown) => void
+  const subscribe = (channel: string) => (handler: Handler) =>
+    registerEvent(channel, (_event, payload) => handler(payload), false)
+
   return {
-    commandExists: { exists: (name: string) => routedInvoke('mt::cmd::exists', [name]) },
-    i18nUtils: {
-      loadTranslations: (language: string) =>
-        invoke('load_locale', { lang: language }).then((v) => (v as Record<string, unknown>) ?? {})
+    start: (req: unknown) => invoke('rg_start', { req }),
+    cancel: (searchId: string) => {
+      fire(invoke('rg_cancel', { searchId }))
     },
-    ripgrep: {
-      start: async() => ({ searchId: '' }),
-      cancel: () => {},
-      onMatch: noopUnsub(),
-      onProgress: noopUnsub(),
-      onDone: noopUnsub(),
-      onError: noopUnsub(),
-      onCancelled: noopUnsub()
-    },
-    uploader: { uploadImage: async() => ({}) },
-    fonts: { list: async() => [] as string[] }
+    onMatch: subscribe('mt::rg::match'),
+    onProgress: subscribe('mt::rg::progress'),
+    onDone: subscribe('mt::rg::done'),
+    onError: subscribe('mt::rg::error'),
+    onCancelled: subscribe('mt::rg::cancelled')
   }
 }
+
+// Channels for upload/fonts that still need a Rust home; stubbed so imports
+// resolve and the app boots.
+const stubbedExtras = () => ({
+  commandExists: { exists: (name: string) => routedInvoke('mt::cmd::exists', [name]) },
+  i18nUtils: {
+    loadTranslations: (language: string) =>
+      invoke('load_locale', { lang: language }).then((v) => (v as Record<string, unknown>) ?? {})
+  },
+  ripgrep: buildRipgrep(),
+  uploader: { uploadImage: async() => ({}) },
+  fonts: { list: async() => [] as string[] }
+})
 
 let installed = false
 
