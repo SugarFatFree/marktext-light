@@ -10,7 +10,7 @@ import { ask, open as showOpenDialog, save as showSaveDialog } from '@tauri-apps
 import pathe from 'pathe'
 
 import { t } from '@/i18n'
-import { untrackOpenFile } from './open-files'
+import { trackOpenFile, untrackOpenFile } from './open-files'
 import type { DispatchLocal } from './save'
 
 // Mirrors `common/filesystem/paths`, which cannot be imported here: that module
@@ -55,9 +55,11 @@ export const renameOpenFile = async(
     return
   }
 
-  // The tab follows the file, so the old path is no longer open. Left tracked,
-  // it would keep a watch alive and report changes for a tab that has moved on.
+  // The tab follows the file: watch where it went, and stop watching where it
+  // was. Left tracked, the old path would keep a watch alive and report changes
+  // for a tab that has moved on.
   untrackOpenFile(pathname)
+  trackOpenFile(newPathname)
   dispatchLocal('mt::set-pathname', [
     { id, pathname: newPathname, filename: pathe.basename(newPathname) }
   ])
@@ -87,6 +89,7 @@ export const moveOpenFileTo = async(
   }
 
   untrackOpenFile(pathname)
+  trackOpenFile(destination)
   dispatchLocal('mt::set-pathname', [
     { id, pathname: destination, filename: pathe.basename(destination) }
   ])

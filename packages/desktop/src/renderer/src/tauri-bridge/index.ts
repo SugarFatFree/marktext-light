@@ -381,10 +381,6 @@ type Listener = (event: unknown, ...args: unknown[]) => void
 const localListeners = new Map<string, Set<Listener>>()
 
 const dispatchLocal = (channel: string, args: unknown[]): void => {
-  if (channel === 'mt::set-pathname') {
-    // Save-as, rename and move all land here with the document's new home.
-    trackOpenFile((args[0] as { pathname?: string })?.pathname)
-  }
   const listeners = localListeners.get(channel)
   if (!listeners) return
   // Copy first: a `once` listener removes itself from the live set.
