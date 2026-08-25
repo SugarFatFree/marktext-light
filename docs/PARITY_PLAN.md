@@ -47,9 +47,18 @@
 
 ## 环境限制（重要）
 
-- 本机 **没有 `pkg-config` / webkit2gtk-4.1 / javascriptcoregtk-4.1**；`cargo` 存在但
-  `cargo check` 跑满 9.5 分钟无任何输出后被超时杀掉（疑似卡在 crates 索引下载）。
-  **Rust 侧一律靠 CI 验证**，本地不要再浪费时间尝试。
+- 本机 **没有 `pkg-config` / webkit2gtk-4.1 / javascriptcoregtk-4.1**；`~/.rustup/toolchains` 是空目录
+  （工具链损坏，连 `rustfmt` 都跑不了）。**Rust 侧一律靠 CI 验证**，本地不要再浪费时间尝试。
+- **本地无法运行任何 GUI**，三条路都堵死，已逐一验证过，不要再试：
+  1. Tauri：缺 webkit2gtk，装它要 sudo（需密码）。
+  2. Electron：**没有 gcc/g++/make**，`electron-rebuild` 建不出原生模块（`ced` 等），
+     应用在主进程加载阶段就抛错。
+  3. 即便前两条解决，也**没有 X server 也没有 Xvfb**（`DISPLAY` 未设置）。
+- **但 CI 一直在跑真实运行时验证**，只是之前没去看：`e2e.yml` 每次推 PR 都会用
+  Playwright + 真实 Electron 跑 desktop E2E 套件；`test.yml` / `lint.yml` / `muya-*.yml`
+  同样自动运行。**推送后应当一并检查这些，而不是只看手动触发的 tauri-build。**
+- `website-deploy.yml` 在本 fork 上**必然失败**：缺 `CLOUDFLARE_API_TOKEN` secret。
+  与代码无关，PR diff 含 `pnpm-lock.yaml` 才命中它的路径过滤。
 - **触发 CI 前先确认没有正在跑的 run**：`tauri-build.yml` 配了
   `concurrency: cancel-in-progress: true`，再次 `gh workflow run` 会**直接取消上一次**，
   于是那次的验证信号就没了。用 `gh run watch <id>` 等它结束再触发下一次。
