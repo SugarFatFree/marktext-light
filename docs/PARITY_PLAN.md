@@ -61,7 +61,7 @@
 | 5 | 记录仅手动删除 | ✅ 单条 hover ✕ + 「清空最近文件」 |
 | 6 | 国际化 | ⚠️ 10 语言就位，`load_locale` 已接；新 UI 文案需同步补 |
 | 7 | 深色模式／跟随系统 | ⚠️ `tauri-bridge/theme.ts` 已有，需逐屏走查对比度 |
-| 8 | 轻量／秒启动／低占用／大文件 | ⚠️ 启动已优化（见下），大文件未开工 |
+| 8 | 轻量／秒启动／低占用／大文件 | ⚠️ 启动与大文件均已大幅改善（见下），仍未到线性 |
 
 ## 已完成
 
@@ -117,14 +117,43 @@
 router + vue-i18n + en 语言包）+ 编辑器页 381 KB。
 语言包本来就是按需的：只有 en 静态打包，其余走 Rust 的 `load_locale`。
 
+### 大文件（要求 #8 的后半）
+
+**`c866a62b`** —— 建基准时直接撞出两类真问题：
+
+1. **1 MB 文档根本打不开**：`lexBlock` 与 `markdownToState` 都用
+   `push(...tokens)` / `unshift(...tokens)` 展开 token 列表，实参个数超引擎上限 →
+   `RangeError: Maximum call stack size exceeded`。改为不展开地逐个追加。
+2. **解析是二次的**（0.25 MB 0.6 s，2 MB **101 s**）。两处元凶都是「每个 token 重新分配一次数组」：
+   - marked 自己的 `walkTokens` 每访问一个节点就 `values = values.concat(callback(...))`。
+     muya 根本不读这个累积数组，改为自己线性遍历（768 KB 文档的 `lexBlock`：9.7 s → 0.46 s）。
+   - `markdownToState` 把数组当队列用，`shift()` 消费、`unshift()` 展开容器，两者在大数组上都是 O(n)。
+     改为反向持有 token，两者都变成 `push`/`pop`。
+
+实测（同一台机器）：
+
+| 文档大小 | 修复前 | 修复后 |
+|---|---|---|
+| 0.25 MB | 610 ms | 90 ms |
+| 1 MB | 24.7 s | 0.85 s |
+| 2 MB | **101.5 s** | **3.0 s** |
+| 8 MB | 直接崩溃 | 43.4 s |
+
+**仍未到线性**：1→8 MB（8×）要 51× 时间，还有第三处热点待查。
+
+回归防护：`packages/muya/src/state/__tests__/largeDocumentParse.spec.ts`（只断言 2 MB 能解析成功——
+崩溃是硬性通过/失败；耗时不做断言，阈值紧到能抓回归就会在负载高的 CI 上误报）。
+改动已由 muya 自己的 1439 个单测 + 1347 个 CommonMark/GFM 一致性用例验证。
+
 复测：`pnpm -C packages/desktop run tauri:build-renderer && pnpm run bundle-size`
 （脚本 `scripts/bundle-size.ts` 算的是**静态闭包**，不是最大 chunk——动态 import 后面的东西
 不该计入首屏）。
 
 ## 下一步（按优先级）
 
-1. **大文件基准**（要求 #8 的后半，仍未开工）：先用 Vitest 建 5/20/50 MB 文档的解析耗时基准，
-   有数字再谈优化。muya 引擎 1284 KB 已是首屏最大块，继续切它风险高、收益需先由基准证明。
+1. **大文件仍未到线性**：`c866a62b` 拿掉两处二次热点后，1→8 MB（8×）仍要 51× 时间
+   （854 ms → 43.4 s），说明还有第三处。下一步用 `--cpu-prof` 或分段计时继续定位
+   （已知 `lexBlock` 本身在 128→768 KB 上是 33→464 ms，也超线性）。
 2. **文件 watcher**：项目树目前只在打开时扫一次。Rust 侧用 `notify` crate 监听，
    emit 与扫描同构的 `mt::update-object-tree` 事件即可（`tauri-bridge/project.ts` 已定好形状）。
 3. **重命名／删除**：`mt::rename`、`mt::fs-trash-item`（回收站需 `trash` crate 或 opener 插件）。
