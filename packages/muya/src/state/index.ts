@@ -246,7 +246,13 @@ class JSONState {
     }
 
     getMarkdown() {
-        return this.getMarkdownFromState(this.getState());
+        // Serialization only reads, so it gets the live state rather than
+        // `getState()`'s copy. This runs on every keystroke — the desktop asks
+        // for the markdown on each `json-change` to drive save state — and the
+        // copy was a whole extra pass over the document for a consumer that
+        // never writes to it. `getMarkdownLeavesStateUntouched` in
+        // `__tests__/getMarkdownNoClone.spec.ts` holds the serializer to that.
+        return this.getMarkdownFromState(this._state);
     }
 
     getTOC() {

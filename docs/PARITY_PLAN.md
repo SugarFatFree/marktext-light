@@ -607,6 +607,19 @@ E2E 用 2 个 worker 并行,而当时 profiling 探针和渲染计时是**两个
 **互相抢 CPU**。已把探针并入 `large-document-render.spec.ts`——同文件内串行,
 顺带省掉重复打开。**以后加性能用例要留意这一点。**
 
+**第 56 轮**:移除 `doc` 后 `deepClone` 由 12.9% 降到 **9.2%**(墙钟仍在噪声内,
+因为它只占整体一小块)。顺着 profile 又找到一处纯浪费:
+`getMarkdown()` 是 `getMarkdownFromState(this.getState())`——**先克隆全文档再序列化,而序列化只读**。
+改为直接读内部状态。
+
+**这是碰序列化核心路径的改动,所以用测试来证明而不是靠肉眼**:
+`getMarkdownNoClone.spec.ts` 拿一份含 front matter、嵌套列表、任务列表、表格、
+引用、代码块的文档,序列化后断言状态逐字节未变,并断言重复调用结果一致。
+全量 1452 单测 + 1347 条一致性用例通过。
+
+**击键路径上现在只剩 `prevDoc` 一次克隆**——撤销要拿"当时的文档"求逆操作,这一次是必需的。
+editor 里其余三处 `getState()` 分别在错误恢复、撤销重做、文档加载路径上,不在击键路径。
+
 **遗留**:`deep-equal` 已无源码引用(未 import 的依赖不进打包,运行时收益已拿到),
 但 `package.json` 里的声明还在。清理要动 lockfile,而本机 `pnpm install` 会触发
 下载 Electron 的 postinstall,不值得在这里冒险。
