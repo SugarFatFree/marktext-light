@@ -10,7 +10,8 @@
 // pretended away:
 //   - `.gitignore` is not read. `node_modules`, `.git` and (unless asked for)
 //     dot-entries are skipped, which covers what the sidebar search needs.
-//   - Exclusion patterns support `*`, `**` and `?`, not the full glob syntax.
+//   - Exclusion patterns cover `*`, `**` and `?` (see commands/glob.rs), not
+//     the character classes and brace expansion minimatch also accepts.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -20,6 +21,8 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tauri::{AppHandle, Emitter};
+
+use super::glob::{self, Exclusion};
 
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
@@ -91,28 +94,6 @@ fn parse_max_file_size(raw: &Option<String>) -> Option<u64> {
     digits.parse::<u64>().ok().map(|n| n * scale)
 }
 
-/// Translate the subset of glob syntax the exclusion list uses into a regex.
-fn glob_to_regex(glob: &str) -> Option<Regex> {
-    let mut pattern = String::from("(?i)^");
-    let mut chars = glob.chars().peekable();
-    while let Some(ch) = chars.next() {
-        match ch {
-            '*' => {
-                if chars.peek() == Some(&'*') {
-                    chars.next();
-                    pattern.push_str(".*");
-                } else {
-                    pattern.push_str("[^/\\\\]*");
-                }
-            }
-            '?' => pattern.push('.'),
-            other => pattern.push_str(&regex::escape(&other.to_string())),
-        }
-    }
-    pattern.push('$');
-    Regex::new(&pattern).ok()
-}
-
 fn build_matcher(pattern: &str, options: &SearchOptions) -> Result<Regex, String> {
     let body = if options.is_regexp {
         pattern.to_string()
@@ -142,13 +123,6 @@ fn has_included_extension(name: &str, inclusions: &[String]) -> bool {
         .any(|ext| lower.ends_with(&format!(".{}", ext.trim_start_matches('.').to_ascii_lowercase())))
 }
 
-fn is_excluded(path: &Path, name: &str, exclusions: &[Regex]) -> bool {
-    let full = path.to_string_lossy();
-    exclusions
-        .iter()
-        .any(|rule| rule.is_match(name) || rule.is_match(&full))
-}
-
 /// Every line of `content` that matches, as the renderer's `SearchMatch` shape.
 fn matches_in(content: &str, matcher: &Regex) -> Vec<Match> {
     let mut found = Vec::new();
@@ -173,7 +147,7 @@ struct Walker<'a> {
     files_mode: bool,
     matcher: &'a Regex,
     options: &'a SearchOptions,
-    exclusions: &'a [Regex],
+    exclusions: &'a [Exclusion],
     max_bytes: Option<u64>,
     hits: usize,
 }
@@ -213,7 +187,7 @@ impl Walker<'_> {
 
             if meta.is_dir() {
                 if ALWAYS_SKIPPED.contains(&name.as_str())
-                    || is_excluded(&path, &name, self.exclusions)
+                    || glob::is_excluded(&path, self.exclusions)
                 {
                     continue;
                 }
@@ -224,7 +198,7 @@ impl Walker<'_> {
             }
 
             if !meta.is_file()
-                || is_excluded(&path, &name, self.exclusions)
+                || glob::is_excluded(&path, self.exclusions)
                 || !has_included_extension(&name, &self.options.inclusions)
             {
                 continue;
@@ -288,12 +262,7 @@ pub fn rg_start(app: AppHandle, req: SearchRequest) -> Result<(), String> {
         .insert(req.search_id.clone(), false);
 
     std::thread::spawn(move || {
-        let exclusions: Vec<Regex> = req
-            .options
-            .exclusions
-            .iter()
-            .filter_map(|glob| glob_to_regex(glob))
-            .collect();
+        let exclusions = glob::compile(&req.options.exclusions);
         let max_bytes = parse_max_file_size(&req.options.max_file_size);
         let mut walker = Walker {
             app: &app,

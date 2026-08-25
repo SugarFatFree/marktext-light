@@ -18,6 +18,8 @@ use notify::event::{CreateKind, ModifyKind, RemoveKind};
 use serde_json::json;
 use tauri::{AppHandle, Emitter};
 
+use super::glob::{self, Exclusion};
+
 const MARKDOWN_EXTENSIONS: [&str; 11] = [
     "markdown", "mdown", "mkdn", "md", "mkd", "mdwn", "mdtxt", "mdtext", "mdx", "text", "txt",
 ];
@@ -29,6 +31,13 @@ const DEBOUNCE: Duration = Duration::from_millis(250);
 fn active_watcher() -> &'static Mutex<Option<RecommendedWatcher>> {
     static WATCHER: OnceLock<Mutex<Option<RecommendedWatcher>>> = OnceLock::new();
     WATCHER.get_or_init(|| Mutex::new(None))
+}
+
+/// Patterns the user excluded from the tree. Held beside the watcher so event
+/// filtering agrees with what `scan_project` was told to skip.
+fn tree_exclusions() -> &'static Mutex<Vec<Exclusion>> {
+    static EXCLUSIONS: OnceLock<Mutex<Vec<Exclusion>>> = OnceLock::new();
+    EXCLUSIONS.get_or_init(|| Mutex::new(Vec::new()))
 }
 
 /// Watches the files behind open tabs, which may live outside the project.
@@ -50,10 +59,17 @@ fn is_markdown(path: &Path) -> bool {
 /// Events from paths the tree never shows. Must agree with `scan_project`'s
 /// skip list, or the watcher would add entries the initial scan left out.
 fn is_ignored(path: &Path) -> bool {
-    path.components().any(|component| {
+    let in_skipped_dir = path.components().any(|component| {
         let name = component.as_os_str().to_string_lossy();
         name == "node_modules" || name == ".git" || name.ends_with(".asar")
-    })
+    });
+    if in_skipped_dir {
+        return true;
+    }
+    tree_exclusions()
+        .lock()
+        .map(|exclusions| glob::is_excluded(path, &exclusions))
+        .unwrap_or(false)
 }
 
 fn epoch_ms(time: std::io::Result<std::time::SystemTime>) -> f64 {
@@ -178,11 +194,17 @@ fn handle_event(app: &AppHandle, event: Event) {
 
 /// Watch `path` recursively, replacing any previous watch.
 #[tauri::command]
-pub fn watch_project(app: AppHandle, path: String) -> Result<(), String> {
+pub fn watch_project(
+    app: AppHandle,
+    path: String,
+    exclusions: Vec<String>,
+) -> Result<(), String> {
     let root = std::path::PathBuf::from(&path);
     if !root.is_dir() {
         return Err(format!("Not a directory: {path}"));
     }
+
+    *tree_exclusions().lock().map_err(|e| e.to_string())? = glob::compile(&exclusions);
 
     let handle = app.clone();
     let mut watcher = notify::recommended_watcher(move |result: notify::Result<Event>| match result

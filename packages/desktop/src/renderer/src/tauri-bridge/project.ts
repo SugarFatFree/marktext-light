@@ -5,10 +5,14 @@
 // events rather than one listing, so the scan is replayed as the same
 // `addDir` / `add` events the watcher used to send. Once the scan is done a
 // Rust watcher takes over and emits the same shapes for later changes.
+//
+// Both are given the `treePathExcludePatterns` preference, matched the way
+// upstream did with minimatch's `matchBase` (see src-tauri/src/commands/glob.rs).
 
 import { invoke } from '@tauri-apps/api/core'
 import { open as showOpenDialog } from '@tauri-apps/plugin-dialog'
 
+import { getStoredPreference } from './preferences'
 import type { DispatchLocal } from './save'
 
 interface ProjectEntry {
@@ -44,16 +48,22 @@ export const loadProjectTree = async(
   pathname: string,
   dispatchLocal: DispatchLocal
 ): Promise<void> => {
+  // The tree honours the user's exclusion globs, and the scan and the watch
+  // have to be told the same list or the watcher would add back what the scan
+  // left out.
+  const stored = await getStoredPreference('treePathExcludePatterns')
+  const exclusions = Array.isArray(stored) ? stored.map(String) : []
+
   let entries: ProjectEntry[]
   try {
-    entries = (await invoke('scan_project', { path: pathname })) as ProjectEntry[]
+    entries = (await invoke('scan_project', { path: pathname, exclusions })) as ProjectEntry[]
   } catch (err) {
     console.error(`[tauri-bridge] cannot scan ${pathname}:`, err)
     return
   }
 
   // Watch before replaying, so a file created during the replay is not missed.
-  invoke('watch_project', { path: pathname }).catch((err) =>
+  invoke('watch_project', { path: pathname, exclusions }).catch((err) =>
     console.warn(`[tauri-bridge] cannot watch ${pathname}:`, err)
   )
 

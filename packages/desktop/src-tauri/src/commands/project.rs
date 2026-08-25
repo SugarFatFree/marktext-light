@@ -12,6 +12,8 @@
 
 use serde::Serialize;
 use std::path::Path;
+
+use super::glob::{self, Exclusion};
 use std::time::UNIX_EPOCH;
 
 const MARKDOWN_EXTENSIONS: [&str; 11] = [
@@ -57,7 +59,7 @@ pub struct ProjectEntry {
 /// stray symlink into `/` cannot hang the scan.
 const MAX_DEPTH: usize = 12;
 
-fn walk(dir: &Path, depth: usize, out: &mut Vec<ProjectEntry>) {
+fn walk(dir: &Path, depth: usize, exclusions: &[Exclusion], out: &mut Vec<ProjectEntry>) {
     if depth > MAX_DEPTH {
         return;
     }
@@ -73,6 +75,9 @@ fn walk(dir: &Path, depth: usize, out: &mut Vec<ProjectEntry>) {
             continue;
         };
         let path = entry.path();
+        if glob::is_excluded(&path, exclusions) {
+            continue;
+        }
         let is_directory = meta.is_dir();
         if is_directory && is_ignored_dir(&name) {
             continue;
@@ -100,18 +105,18 @@ fn walk(dir: &Path, depth: usize, out: &mut Vec<ProjectEntry>) {
         });
 
         if is_directory {
-            walk(&path, depth + 1, out);
+            walk(&path, depth + 1, exclusions, out);
         }
     }
 }
 
 #[tauri::command]
-pub fn scan_project(path: String) -> Result<Vec<ProjectEntry>, String> {
+pub fn scan_project(path: String, exclusions: Vec<String>) -> Result<Vec<ProjectEntry>, String> {
     let root = Path::new(&path);
     if !root.is_dir() {
         return Err(format!("Not a directory: {path}"));
     }
     let mut entries = Vec::new();
-    walk(root, 0, &mut entries);
+    walk(root, 0, &glob::compile(&exclusions), &mut entries);
     Ok(entries)
 }
