@@ -23,12 +23,17 @@
 </template>
 
 <script setup lang="ts">
+import { defineAsyncComponent } from 'vue'
 import { useLayoutStore } from '@/store/layout'
 import { storeToRefs } from 'pinia'
 import Tabs from './tabs.vue'
 import Editor from './editor.vue'
-import SourceCode from './sourceCode.vue'
 import TabNotifications from './notifications.vue'
+
+// Source-code mode brings CodeMirror and its modes with it, and the `v-if`
+// below means most sessions never render it. Load it the first time it is
+// switched on rather than on every editor start.
+const SourceCode = defineAsyncComponent(() => import('./sourceCode.vue'))
 
 defineProps<{
   markdown: string
