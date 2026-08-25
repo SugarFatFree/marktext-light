@@ -59,6 +59,10 @@
   同样自动运行。**推送后应当一并检查这些，而不是只看手动触发的 tauri-build。**
 - `website-deploy.yml` 在本 fork 上**必然失败**：缺 `CLOUDFLARE_API_TOKEN` secret。
   与代码无关，PR diff 含 `pnpm-lock.yaml` 才命中它的路径过滤。
+- **E2E 会被下一次推送掐掉**：`e2e.yml` 每次推 PR 自动触发、约需 13 分钟，且同样是
+  `cancel-in-progress`。以每 10 分钟一次的节奏推送时，**它永远跑不完**——本会话曾连续 6 次被取消，
+  唯一跑完的那次是失败的，而那个失败是编辑器窗口永久空白的真回归。
+  **改动渲染层后要留出一轮不推送的时间让它跑完。**
 - **触发 CI 前先确认没有正在跑的 run**：`tauri-build.yml` 配了
   `concurrency: cancel-in-progress: true`，再次 `gh workflow run` 会**直接取消上一次**，
   于是那次的验证信号就没了。用 `gh run watch <id>` 等它结束再触发下一次。
