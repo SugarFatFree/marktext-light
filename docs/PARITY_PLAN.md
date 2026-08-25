@@ -1,61 +1,108 @@
-# marktext-light — 对标 marktext-plus 的功能与体验计划
+# marktext-light — 对标上游 MarkText 的功能与体验计划
 
 工作跟踪文档。每轮迭代先读本文件，再按「下一步」继续。
 
 ## 上下文
 
 - **本项目**：`marktext-light`，Electron 版 MarkText 正在迁移到 **Tauri 2**（分支 `feat/tauri-migration-phase1`）。
-  渲染层仍是原来的 Vue 3 + Pinia + muya，Tauri 侧通过 `src/renderer/src/tauri-bridge/` 重建 Electron preload 的 `window.*` 接口。
-- **源项目**：`../marktext-plus`，是 **Flutter** 重写的 MarkText（v1.2.3）。它自己的
-  `docs/FEATURE_GAP_ANALYSIS.md` 声明相对原版 MarkText 完成度约 40%。
-  → 因此「实现源项目全部功能」≈ 保住 MarkText 原有能力 + 补齐 plus 独有的取舍（轻量、秒启动、低占用）。
+  渲染层仍是原来的 Vue 3 + Pinia + muya，Tauri 侧通过 `src/renderer/src/tauri-bridge/` 重建
+  Electron preload 的 `window.*` 接口，让渲染层零改动。
+- **源项目**：`../marktext`，即**上游 MarkText 原仓库**（同一 monorepo 结构，本项目的 fork 源）。
+  因此「实现源项目全部功能」＝**Electron 版有的能力，Tauri 版必须一个不少**，同时兑现轻量／秒启动／低占用／大文件。
+
+## 差距的量化口径
+
+渲染层与主进程之间的一切能力都走 `mt::*` IPC 通道。因此「离上游还差多少」可以直接测：
+统计 `src/renderer` 里 `ipcRenderer.{send,sendSync,invoke,on,once}` 用到的通道，
+再看 `tauri-bridge/index.ts` 与 `src-tauri/src/**` 是否实现。
+
+**2026-08-25 基线：渲染层用到 116 个通道，已实现 18 个，缺 98 个。**
+（复测命令见本文件末尾）
+
+缺口按功能域分组：
+
+| 优先级 | 功能域 | 代表通道 | 影响 |
+|---|---|---|---|
+| ~~P0~~ ✅ | 文件保存 | `mt::response-file-save(-as)`、`mt::save-tabs`、`mt::tab-saved`、`mt::set-pathname` | 已接通 |
+| **P0** | 关闭前保存提示 | `mt::save-and-close-tabs` → `mt::force-close-tabs-by-id` | 脏标签页关不掉 |
+| **P0** | 偏好持久化 | `mt::ask-for-user-preference`、`mt::set-user-preference`、`mt::user-preference`、`mt::ask-for-user-data`、`mt::set-user-data` | 主题／字体／语言等所有设置重启即丢 |
+| **P1** | 窗口与标签生命周期 | `mt::window-initialized`、`mt::close-window`、`mt::app-try-quit`、`mt::ask-for-close`、`mt::switch-tab-by-index`、`mt::tabs-cycle-left/right` | 关窗、切标签快捷键失效 |
+| **P1** | 侧栏项目树 | `mt::ask-for-open-project-in-sidebar`、`mt::update-object-tree`、`mt::rename`、`mt::fs-trash-item` | 打开文件夹后无文件树 |
+| **P1** | 全文搜索 | `ripgrep.*`（桥内 stub） | 侧栏搜索面板空转 |
+| P2 | 导出／打印 | `mt::response-export`、`mt::response-print`、`mt::show-export-dialog`、`mt::export-success` | 无法导出 HTML/PDF |
+| P2 | 图片上传与路径 | `mt::ask-for-image-path`、`uploader.*` | 粘贴图片失效 |
+| P2 | 拼写检查 | `mt::spellchecker-*` | 硬缺口，Electron 专有 API |
+| P2 | 快捷键自定义 | `mt::request-keybindings`、`mt::keybinding-save-user-keybindings` | 用默认键位可用 |
+| P3 | 自动更新 | `mt::UPDATE_*`、`mt::check-for-update` | 可最后做 |
+| P3 | pandoc 导入、截图、always-on-top | `mt::cmd-import-file`、`mt::make-screenshot`、`mt::window-toggle-always-on-top` | 边缘功能 |
 
 ## 环境限制（重要）
 
-- 本机 **没有 `pkg-config` / webkit2gtk-4.1 / javascriptcoregtk-4.1**，`cargo` 存在但
-  `tauri build` / `cargo check` 无法在本地跑通（需要 root 装系统依赖）。
-- 因此本地可验证的闭环是：
+- 本机 **没有 `pkg-config` / webkit2gtk-4.1 / javascriptcoregtk-4.1**；`cargo` 存在但
+  `cargo check` 跑满 9.5 分钟无任何输出后被超时杀掉（疑似卡在 crates 索引下载）。
+  **Rust 侧一律靠 CI 验证**，本地不要再浪费时间尝试。
+- 本地可验证闭环：
   - `pnpm run typecheck`
-  - `npx eslint <改动文件>`（仓库级 `pnpm run lint` 会去扫 `out/`、`out-tauri/` 等构建产物，
-    在干净树上就有约 138 万条报错，属于既有问题，不要当成本次改动引入）
+  - `npx eslint <改动文件>`（**不要**跑仓库级 `pnpm run lint`：它会去扫 `out/`、`out-tauri/`
+    构建产物，干净树上就有约 138 万条报错，属既有问题）
   - `pnpm -C packages/desktop run tauri:build-renderer`
   - `pnpm -C packages/desktop exec vitest run <spec>`
-- Rust 侧改动只能靠 CI（`.github/workflows/` 里的 tauri 工作流，手动触发）验证。
 
 ## 用户明确要求的验收点
 
 | # | 要求 | 状态 |
 |---|---|---|
-| 1 | 多文件在**同一窗口以标签页**打开，不新开窗口 | ✅ 已打通（见下） |
-| 2 | 默认显示左侧抽屉菜单页 | ✅ Tauri 自举时 `sideBarVisibility: true` |
-| 3 | 打开过的文件在左侧抽屉**持久留存**，下次启动仍可见 | ✅ `store/recentFiles.ts` + 侧栏「最近文件」区块 |
-| 4 | 标签页**不**持久化 | ✅ Tauri 下无 buffered-state 通道，天然不恢复（需补 E2E 保证） |
-| 5 | 记录仅手动删除 | ✅ 单条 hover ✕ + 区块标题「清空最近文件」 |
-| 6 | 国际化 | ⚠️ 10 种语言已就位，新增文案已补齐；Tauri 侧 `load_locale` 已接 |
-| 7 | 深色模式 / 跟随系统 | ⚠️ 已有 `tauri-bridge/theme.ts`，需逐屏走查对比度 |
-| 8 | 轻量 / 秒启动 / 低占用 / 大文件 | ❌ 未开工，见下方「性能」 |
+| 1 | 多文件在**同一窗口以标签页**打开 | ✅ 桥内 `mt::open-file` + 单实例插件（Rust 待 CI 验证） |
+| 2 | 默认显示左侧抽屉菜单页 | ✅ Tauri 自举 `sideBarVisibility: true` |
+| 3 | 打开过的文件在左侧抽屉**持久留存** | ✅ `store/recentFiles.ts` + 侧栏「最近文件」区块 |
+| 4 | 标签页**不**持久化 | ✅ Tauri 下无 buffered-state 通道，天然不恢复（待补 E2E） |
+| 5 | 记录仅手动删除 | ✅ 单条 hover ✕ + 「清空最近文件」 |
+| 6 | 国际化 | ⚠️ 10 语言就位，`load_locale` 已接；新 UI 文案需同步补 |
+| 7 | 深色模式／跟随系统 | ⚠️ `tauri-bridge/theme.ts` 已有，需逐屏走查对比度 |
+| 8 | 轻量／秒启动／低占用／大文件 | ❌ 未开工 |
 
-## 已完成（本轮）
+## 已完成
 
-- `src/renderer/src/store/recentFiles.ts`：localStorage 持久化的最近文件列表（上限 50，按最近打开排序）。
-- `src/renderer/src/components/sideBar/treeRecentFile.vue` + `tree.vue` 的「最近文件」区块：
-  点击打开为标签页，hover ✕ 删除单条，标题栏一键清空，折叠状态同样持久化。
-- `store/editor.ts` `NEW_TAB_WITH_CONTENT` 里登记最近文件（唯一的开文件入口，复用已开标签页时也刷新时间）。
-- `tauri-bridge/index.ts`：
-  - 新增**桥内本地事件总线** `dispatchLocal`，让桥自己合成的「主进程行为」能触发既有渲染层监听器；
-  - 实现 `mt::open-file` → 读盘 → `mt::open-new-tab`，这是要求 #1 在 Tauri 下真正成立的关键
-    （此前该通道只会打印 unhandled 警告，侧栏点文件没反应）。
-- 10 个 locale 补 `sideBar.tree.recentFiles / clearRecent / removeFromRecent`。
+- **`994917fa`** 最近文件抽屉：`store/recentFiles.ts`（localStorage，上限 50）+
+  `sideBar/treeRecentFile.vue` + `tree.vue` 区块；`mt::open-file` 在桥内落地为「读盘 →
+  `mt::open-new-tab`」；新增**桥内本地事件总线** `dispatchLocal`，让桥代主进程合成的事件
+  能触发渲染层既有监听器；10 语言补文案。
+- **`7119e075`** 保存链路 `tauri-bridge/save.ts`：`mt::response-file-save(-as)`、`mt::save-tabs`，
+  写盘后回发 `mt::set-pathname` / `mt::tab-saved` / `mt::tab-save-failure`；行尾转换与 BOM 对齐
+  `writeMarkdownFile`；非 UTF-8 编码**明确报错而非静默转码**。同 commit 注册
+  `tauri-plugin-single-instance`，二次启动聚焦已有窗口并开成新标签页。
 
 ## 下一步（按优先级）
 
-1. **单实例 + 二次启动送文件**：现在第二次 `marktext-light a.md` 会开新窗口。需要
-   `tauri-plugin-single-instance`，把新进程的参数 `emit` 给已有窗口 → `mt::open-new-tab`。（Rust 改动，CI 验证）
-2. **性能**：`tauri:build-renderer` 主 chunk 3.59 MB（gzip 1.07 MB）。mermaid / cytoscape / katex / wardley
-   应改为动态 import 按需加载，直接决定「秒启动、加载快」。
-3. **大文件**：源码模式 CodeMirror 与 muya 在 >5 MB 文档上的表现需要实测基准；
-   marktext-plus v1.2.2 修过 "large file freeze"，可参考其做法。
-4. **未接通的桥通道**：`ripgrep`（侧栏全文搜索）、`uploader`、`fonts`、watcher、菜单弹出。
-   逐个补，缺一个就少一块 plus 已有的功能。
-5. **深色模式走查**：新增的「最近文件」区块已复用 `--sideBar*` 变量，其余新 UI 同样要用主题变量。
-6. **E2E**：补一条「重启后标签页不恢复、最近文件仍在」的 Playwright 用例，锁住要求 #3/#4。
+1. **`mt::save-and-close-tabs`**：需要「保存／不保存／取消」三按钮提示。Tauri dialog 插件只有两按钮，
+   改用渲染层 `ElMessageBox`（i18n key `dialog.save` / `dontSave` / `cancel` / `saveChanges` /
+   `changesWillBeLost` 已存在）。保存成功后回发 `mt::force-close-tabs-by-id`。
+2. **偏好持久化**：`tauri-plugin-store` 或直接写 `userData/preferences.json`，
+   接 `mt::ask-for-user-preference` / `mt::set-user-preference` / `mt::user-preference`。
+3. **启动性能**：`tauri:build-renderer` 主 chunk 3.59 MB（gzip 1.07 MB），另有 mermaid 543 KB、
+   cytoscape 443 KB、wardley 612 KB、katex 261 KB。改成动态 import 按需加载，直接决定「秒启动、加载快」。
+4. **大文件**：先建基准（5/20/50 MB 文档的打开耗时与内存），再定优化点。
+5. **侧栏项目树 + ripgrep 搜索**：`readdir` 已有，缺 `mt::update-object-tree` 的目录扫描与 watcher。
+6. **E2E**：补「重启后标签页不恢复、最近文件仍在」的 Playwright 用例，锁住要求 #3/#4。
+
+## 复测差距的命令
+
+```bash
+cd packages/desktop && python3 - <<'PY'
+import re, os, collections
+used = collections.defaultdict(set)
+pat = re.compile(r"ipcRenderer\.(send|sendSync|invoke|on|once)\(\s*['\"]([^'\"]+)['\"]")
+for dp, _, fns in os.walk('src/renderer'):
+    for f in fns:
+        if f.endswith(('.ts', '.vue', '.js')):
+            for kind, ch in pat.findall(open(os.path.join(dp, f), encoding='utf-8').read()):
+                used[ch].add(kind)
+bridge = open('src/renderer/src/tauri-bridge/index.ts', encoding='utf-8').read()
+bridge += open('src/renderer/src/tauri-bridge/save.ts', encoding='utf-8').read()
+rust = ''.join(open(os.path.join(dp, f), encoding='utf-8').read()
+               for dp, _, fns in os.walk('src-tauri/src') for f in fns if f.endswith('.rs'))
+miss = [c for c in sorted(used) if f"'{c}'" not in bridge and f'"{c}"' not in rust]
+print(f'总数 {len(used)}  已实现 {len(used) - len(miss)}  缺 {len(miss)}')
+for c in miss: print(' ', c)
+PY
+```
