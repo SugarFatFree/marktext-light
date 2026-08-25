@@ -77,12 +77,28 @@ const buildDocument = (sections: number): string => {
   return parts.join('')
 }
 
-/** Chromium exposes this in the renderer; null elsewhere. */
-const heapMb = async(page: Page): Promise<number | null> =>
-  page.evaluate(() => {
-    const memory = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory
-    return memory ? Math.round(memory.usedJSHeapSize / (1024 * 1024)) : null
-  })
+/**
+ * Live JS heap in MB, after a forced collection.
+ *
+ * Through CDP rather than `performance.memory`, which is bucketed to resist
+ * fingerprinting and reported 17 MB both before and after loading 139 KB of
+ * markdown — a number precise enough to be quoted and too coarse to mean
+ * anything. Collecting first makes the reading about what is retained rather
+ * than what has not been swept yet.
+ */
+const heapMb = async(page: Page): Promise<number | null> => {
+  const client = await page.context().newCDPSession(page)
+  try {
+    await client.send('HeapProfiler.enable')
+    await client.send('HeapProfiler.collectGarbage')
+    const usage = (await client.send('Runtime.getHeapUsage')) as { usedSize: number }
+    return Math.round((usage.usedSize / (1024 * 1024)) * 10) / 10
+  } catch {
+    return null
+  } finally {
+    await client.detach()
+  }
+}
 
 test.describe('a large document', () => {
   let app: ElectronApplication
@@ -198,7 +214,7 @@ test.describe('a large document', () => {
     test.skip(blankHeapMb === null, 'this build exposes no heap statistics')
     const loaded = await heapMb(page)
 
-    console.log(`heap: ${blankHeapMb} MB blank, ${loaded} MB holding the document`)
+    console.log(`heap after GC: ${blankHeapMb} MB blank, ${loaded} MB holding the document`)
 
     // The document is ~0.2 MB of text; rendering it as blocks and DOM costs a
     // multiple of that unavoidably. A hundredfold would mean something is
