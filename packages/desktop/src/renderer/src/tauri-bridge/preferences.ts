@@ -18,11 +18,12 @@ type Bag = Record<string, unknown>
 interface Store {
   path: string
   values: Bag
-  loaded: boolean
+  /** The in-flight read, shared by every caller so the file is read once. */
+  loading: Promise<Bag> | null
   writeTimer: ReturnType<typeof setTimeout> | null
 }
 
-const createStore = (): Store => ({ path: '', values: {}, loaded: false, writeTimer: null })
+const createStore = (): Store => ({ path: '', values: {}, loading: null, writeTimer: null })
 
 const preferences = createStore()
 const userData = createStore()
@@ -37,15 +38,16 @@ export const initPreferenceStores = (userDataDir: string): void => {
   userData.path = pathe.join(userDataDir, 'dataCenter.json')
 }
 
-const read = async(store: Store): Promise<Bag> => {
-  if (store.loaded || !store.path) return store.values
-  store.loaded = true
+const loadFromDisk = async(store: Store): Promise<Bag> => {
   try {
-    if (!(await invoke('path_exists', { path: store.path }))) return store.values
-    const raw = await invoke('read_file', { path: store.path, encoding: 'utf8' })
-    const parsed: unknown = JSON.parse(String(raw))
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      store.values = parsed as Bag
+    if (await invoke('path_exists', { path: store.path })) {
+      const raw = await invoke('read_file', { path: store.path, encoding: 'utf8' })
+      const parsed: unknown = JSON.parse(String(raw))
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        // Stored values fill in what is not already set. Anything written while
+        // this read was in flight is newer than the file and must survive it.
+        store.values = { ...(parsed as Bag), ...store.values }
+      }
     }
   } catch (err) {
     // A hand-edited file with a syntax error must not stop the app from
@@ -53,6 +55,22 @@ const read = async(store: Store): Promise<Bag> => {
     console.error(`[tauri-bridge] cannot read ${store.path}:`, err)
   }
   return store.values
+}
+
+/**
+ * The stored values, reading the file at most once.
+ *
+ * The in-flight promise is shared rather than a `loaded` flag being set up
+ * front: a flag flips before the `await` resolves, so a concurrent caller got
+ * an empty bag, wrote its patch into that, and either lost the patch when the
+ * read landed or — if its debounced write fired first — replaced the file with
+ * the patch alone. Both happen on an ordinary launch, where the preferences
+ * request and the first layout write are microseconds apart.
+ */
+const read = (store: Store): Promise<Bag> => {
+  if (!store.path) return Promise.resolve(store.values)
+  store.loading ??= loadFromDisk(store)
+  return store.loading
 }
 
 // Preference edits arrive one key at a time (every toggle in the settings
