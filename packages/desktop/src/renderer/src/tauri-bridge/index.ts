@@ -40,6 +40,7 @@ import { askForOpenProject, loadProjectTree } from './project'
 import { broadcastLanguage, openSettingsWindow, sendCurrentLanguage } from './settings'
 import { installTabShortcuts } from './shortcuts'
 import { closeWindow, closeWindowConfirm, installCloseGuard } from './window'
+import { installFileDrop, installWindowEvents } from './window-events'
 import { resolveInitialTheme, rememberThemeChoice } from './theme'
 import { setLanguage } from '@/i18n'
 
@@ -263,6 +264,10 @@ const handleSend = (channel: string, args: unknown[]): void => {
       return
     case 'mt::window-toggle-always-on-top':
       fire(win().isAlwaysOnTop().then((on) => win().setAlwaysOnTop(!on)))
+      return
+    case 'mt::window::drop':
+      // Dropped paths arrive through the window's own drag-drop event (see
+      // window-events.ts); the DOM drop event in a WebView carries no paths.
       return
     case 'mt::window-initialized':
     case 'mt::window-tab-closed':
@@ -652,6 +657,8 @@ export async function installTauriBridge(): Promise<void> {
   const windowType = new URLSearchParams(window.location.search).get('type') ?? 'editor'
   installCloseGuard(dispatchLocal, windowType)
   installTabShortcuts(dispatchLocal, boot.platform)
+  installWindowEvents(dispatchLocal)
+  installFileDrop((path) => openFileAsTab(path, {}))
 
   // Whoever announces an opened folder — the sidebar button or the native Open
   // Folder menu — the tree is filled in from here.
