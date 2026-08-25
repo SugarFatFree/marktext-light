@@ -174,7 +174,9 @@
       "tokyoNight": "Tokyo Night",
       "tokyoNightLight": "Tokyo Night Claro",
       "tokyoNightStorm": "Tokyo Night Storm",
-      "ulyssesLight": "Ulises Claro"
+      "ulyssesLight": "Ulises Claro",
+      "followSystem": "Seguir al sistema",
+      "light": "Claro"
     }
   },
   "contextMenu": {

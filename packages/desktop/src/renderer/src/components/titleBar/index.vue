@@ -465,6 +465,7 @@ div.title > span {
   display: block;
   width: 46px;
   height: var(--titleBarHeight);
+  color: var(--sideBarColor);
 }
 .frameless-titlebar-button > div {
   position: absolute;
@@ -483,8 +484,11 @@ div.title > span {
 .frameless-titlebar-toggle:hover {
   background-color: rgba(0, 0, 0, 0.1);
 }
+/* Follow the theme's text colour rather than a fixed black, which disappeared
+   into the titlebar on every dark theme. The close button keeps white icons
+   because its hover fill is a saturated red under both. */
 .frameless-titlebar-button svg {
-  fill: #000000;
+  fill: currentColor;
 }
 .frameless-titlebar-close:hover svg {
   fill: #ffffff;
