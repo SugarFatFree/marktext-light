@@ -59,8 +59,8 @@
 | 3 | 打开过的文件在左侧抽屉**持久留存** | ✅ `store/recentFiles.ts` + 侧栏「最近文件」区块 |
 | 4 | 标签页**不**持久化 | ✅ Tauri 下无 buffered-state 通道，天然不恢复（待补 E2E） |
 | 5 | 记录仅手动删除 | ✅ 单条 hover ✕ + 「清空最近文件」 |
-| 6 | 国际化 | ⚠️ 10 语言就位，`load_locale` 已接；新 UI 文案需同步补 |
-| 7 | 深色模式／跟随系统 | ⚠️ `tauri-bridge/theme.ts` 已有，需逐屏走查对比度 |
+| 6 | 国际化 | ✅ 10 语言键集完全一致，`locale-parity.spec.ts` 锁死 |
+| 7 | 深色模式／跟随系统 | ⚠️ 已扫全部组件硬编码色并修掉两处真 bug；仍缺真实窗口目视验收 |
 | 8 | 轻量／秒启动／低占用／大文件 | ✅ 启动首屏 −78%；大文件解析已回到**线性**（见下） |
 
 ## 已完成
@@ -116,6 +116,24 @@
 剩下 2469 KB 的构成：muya 引擎 1284 KB + 入口 762 KB（Vue + 25 个 Element Plus 组件 + pinia +
 router + vue-i18n + en 语言包）+ 编辑器页 381 KB。
 语言包本来就是按需的：只有 en 静态打包，其余走 Rust 的 `load_locale`。
+
+### 国际化与深色模式（要求 #6 / #7）
+
+- **`cf0254f5`** —— 脚本化审查后发现两类真问题：
+  - **8 种语言各缺 2 个键**（`menu.theme.followSystem` / `light`，Tauri 主题菜单新增时只补了
+    en 与 zh-CN）。缺键在渲染层和 Rust 原生菜单里都会静默回退到英文，所以表现为
+    「一个已翻译的菜单里混着两条英文」而无人报错。已补齐，并加
+    `test/unit/specs/locale-parity.spec.ts` 断言**每种语言的键集与英文完全相等**
+    （多出的键同样失败：要么是永远读不到的拼写错误，要么是英文删了这边没删）。
+  - **两处 frameless 标题栏把窗口控制图标写死 `#000000`**
+    （`components/titleBar` 与 `prefComponents/common/titlebar`）。标题栏背景跟随主题、图标不跟，
+    深色主题下就是近黑底上的黑图标。改成 `fill: currentColor` + 主题色，与 Tauri 菜单栏的
+    窗口控制按钮做法一致。关闭按钮保留白图标——它 hover 时是饱和红，两种主题下都成立。
+- 已核对：新增组件用到的 `--sideBarColor` / `--sideBarItemHoverBgColor` / `--highlightThemeColor` /
+  `--editorColor50` 在 32 个主题或基础样式里均有定义。
+- 扫描发现的其余 159 处硬编码色多为合理：主题预览色板（100 处）、Windows 关闭按钮红、
+  `var(--x, fallback)` 的兜底值。
+- **仍缺**：真实窗口里的目视验收（本地无 WebView）。
 
 ### 大文件（要求 #8 的后半）
 
