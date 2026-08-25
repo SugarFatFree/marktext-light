@@ -16,7 +16,7 @@
 统计 `src/renderer` 里 `ipcRenderer.{send,sendSync,invoke,on,once}` 用到的通道，
 再看 `tauri-bridge/index.ts` 与 `src-tauri/src/**` 是否实现。
 
-**基线 2026-08-25：116 个通道，实现 18 → 当前 39，缺 77。**
+**基线 2026-08-25：116 个通道，实现 18 → 当前 44，缺 72。**
 （复测命令见本文件末尾）
 
 缺口按功能域分组：
@@ -28,8 +28,8 @@
 | ~~P0~~ ✅ | 偏好持久化 | `mt::ask-for-user-preference`、`mt::set-user-preference`、`mt::user-preference`、`mt::ask-for-user-data`、`mt::set-user-data` | 已接通 |
 | ~~P1~~ ✅ | 关窗握手 | `mt::ask-for-close`、`mt::close-window(-confirm)`、`mt::app-try-quit` | 已接通 |
 | ~~P1~~ ✅ | 侧栏项目树（首次扫描） | `mt::ask-for-open-project-in-sidebar`、`mt::update-object-tree` | 已接通；**watcher 未接**，树不随磁盘变化更新 |
-| **P1** | 标签切换快捷键 | `mt::switch-tab-by-index`、`mt::tabs-cycle-left/right`、`mt::switch-tab-by-file_path` | 需 Rust 菜单加对应菜单项并 emit |
-| **P1** | 文件重命名／删除 | `mt::rename`、`mt::fs-trash-item` | 侧栏右键菜单失效 |
+| ~~P1~~ ✅ | 标签切换快捷键 | `mt::switch-tab-by-index`、`mt::tabs-cycle-left/right` | 已在渲染层识别键位（`mt::switch-tab-by-file_path` 无触发方，暂不需要） |
+| ~~P1~~ ✅ | 文件重命名／删除 | `mt::rename`、`mt::fs-trash-item` | 已接通（trash 用 Rust `trash` crate） |
 | **P1** | 全文搜索 | `ripgrep.*`（桥内 stub） | 侧栏搜索面板空转 |
 | P2 | 导出／打印 | `mt::response-export`、`mt::response-print`、`mt::show-export-dialog`、`mt::export-success` | 无法导出 HTML/PDF |
 | P2 | 图片上传与路径 | `mt::ask-for-image-path`、`uploader.*` | 粘贴图片失效 |
@@ -49,6 +49,8 @@
     构建产物，干净树上就有约 138 万条报错，属既有问题）
   - `pnpm -C packages/desktop run tauri:build-renderer`
   - `pnpm -C packages/desktop exec vitest run <spec>`
+- `test/unit/specs/watcher-await-write-finish.spec.ts` 在本机**必然失败**：它要加载 Electron 二进制，
+  而本机网络装不上（`Electron failed to install correctly`）。属环境问题，不是回归。
 
 ## 用户明确要求的验收点
 
@@ -135,6 +137,18 @@ router + vue-i18n + en 语言包）+ 编辑器页 381 KB。
   `var(--x, fallback)` 的兜底值。
 - **仍缺**：真实窗口里的目视验收（本地无 WebView）。
 
+### 标签与文件操作
+
+- **`19b6b0a3`** 重命名与删除：`mt::rename` 在桥内改名并回发 `mt::set-pathname` 让标签页跟上，
+  保留「目标已存在 → 替换／取消」两按钮提示（默认取消，替换是破坏性的那个）。
+  `mt::fs-trash-item` 用 Rust `trash` crate 进回收站，对齐 Electron 的 `shell.trashItem` 而非直接删除。
+  侧栏自身的重命名本来就能用——它走 `fileUtils.move` 而不是 IPC。
+- **`a5e1c7db`** 标签快捷键：Ctrl+Tab、Ctrl+PageUp/PageDown、Ctrl+1…0 原本是主进程加速器。
+  Tauri 对「非菜单项的加速器」没有对应机制，与其往原生菜单塞十几个隐藏项，不如在渲染层识键、
+  派发到渲染层本来就监听的通道。键位对齐 `src/main/keyboard/keybindings*.ts`（含 macOS 用 Cmd 管
+  PageUp/Down、Ctrl 管循环）。`test/unit/specs/tab-shortcuts.spec.ts` 锁死映射，
+  特别是 **Ctrl+0 是第十个标签**、**Ctrl+Alt+数字 要留给标题快捷键**。
+
 ### 大文件（要求 #8 的后半）
 
 **`c866a62b`** —— 建基准时直接撞出两类真问题：
@@ -183,8 +197,7 @@ router + vue-i18n + en 语言包）+ 编辑器页 381 KB。
 
 1. **文件 watcher**：项目树目前只在打开时扫一次。Rust 侧用 `notify` crate 监听，
    emit 与扫描同构的 `mt::update-object-tree` 事件即可（`tauri-bridge/project.ts` 已定好形状）。
-2. **重命名／删除**：`mt::rename`、`mt::fs-trash-item`（回收站需 `trash` crate 或 opener 插件）。
-3. **ripgrep 全文搜索**：桥内目前是 stub，侧栏搜索面板空转。
+2. **ripgrep 全文搜索**：桥内目前是 stub，侧栏搜索面板空转。
 4. **E2E**：补「重启后标签页不恢复、最近文件仍在」的 Playwright 用例，锁住要求 #3/#4。
 5. **大文件的渲染侧**：解析已线性，但打开一个大文档还要经过 muya 建块树 + snabbdom 渲染，
    那一段尚未测过（本地无 WebView，需在真实窗口里量）。内存也仍偏高：4 MB 文档解析后堆约 600 MB。
