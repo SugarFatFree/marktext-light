@@ -38,6 +38,7 @@ import {
 import { exportDocument, printDocument, type ExportPayload } from './export'
 import { askForImagePath, moveOpenFileTo, renameOpenFile } from './files'
 import { askForImageAutoPath } from './image-path'
+import { askForImportFile, canImportWithPandoc, importWithPandoc } from './import'
 import { sendKeybindings } from './keybindings'
 import {
   installContextMenuStyles,
@@ -269,6 +270,9 @@ const handleSend = (channel: string, args: unknown[]): void => {
     case 'mt::ask-for-open-project-in-sidebar':
     case 'mt::cmd-open-folder':
       fire(askForOpenProject(dispatchLocal))
+      return
+    case 'mt::cmd-import-file':
+      fire(askForImportFile(dispatchLocal))
       return
     case 'mt::cmd-open-file':
       fire(askForOpenFile())
@@ -727,7 +731,11 @@ export async function installTauriBridge(): Promise<void> {
     (_event, payload) => fire(handleDiskChange(payload, dispatchLocal)),
     false
   )
-  installFileDrop((path) => openFileAsTab(path, {}))
+  installFileDrop(async(path) => {
+    // Dropping a .docx is an import, not an open; anything else is neither.
+    if (hasMarkdownExtension(path)) return openFileAsTab(path, {})
+    if (canImportWithPandoc(path)) return importWithPandoc(path, dispatchLocal)
+  })
 
   // Whoever announces an opened folder — the sidebar button or the native Open
   // Folder menu — the tree is filled in from here.

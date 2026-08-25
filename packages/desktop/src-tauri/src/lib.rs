@@ -74,6 +74,7 @@ pub fn run() {
             commands::paths::is_same_path,
             // cmd::*
             commands::cmd::command_exists,
+            commands::cmd::pandoc_to_markdown,
             // boot
             commands::boot::boot_info,
             commands::boot::load_locale,

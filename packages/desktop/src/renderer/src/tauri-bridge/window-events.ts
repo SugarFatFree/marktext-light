@@ -11,23 +11,6 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 
 import type { DispatchLocal } from './save'
 
-const MARKDOWN_EXTENSIONS = [
-  'markdown',
-  'mdown',
-  'mkdn',
-  'md',
-  'mkd',
-  'mdwn',
-  'mdtxt',
-  'mdtext',
-  'mdx',
-  'text',
-  'txt'
-]
-
-const isMarkdown = (path: string): boolean =>
-  MARKDOWN_EXTENSIONS.some((ext) => path.toLowerCase().endsWith(`.${ext}`))
-
 const fire = (op: Promise<unknown>): void => {
   op.catch((err) => console.warn('[tauri-bridge]', err))
 }
@@ -73,19 +56,20 @@ export const installWindowEvents = (dispatchLocal: DispatchLocal): void => {
 }
 
 /**
- * Open markdown files dropped onto the window as tabs.
+ * Handle files dropped onto the window.
  *
  * Electron reported dropped paths through the DOM's drop event; a Tauri WebView
  * does not expose them there, so the paths come from the window's own drag-drop
- * event instead. Non-markdown files are ignored — Electron offered to import
- * them through pandoc, which this build has no equivalent for.
+ * event instead. Deciding what a path deserves — opened, imported, or ignored —
+ * belongs with the code that knows both file-type lists, so `accept` gets every
+ * dropped path and makes that call.
  */
-export const installFileDrop = (openFile: (path: string) => Promise<void>): void => {
+export const installFileDrop = (accept: (path: string) => Promise<void>): void => {
   fire(
     getCurrentWindow().onDragDropEvent((event) => {
       if (event.payload.type !== 'drop') return
       for (const path of event.payload.paths) {
-        if (isMarkdown(path)) fire(openFile(path))
+        fire(accept(path))
       }
     })
   )
