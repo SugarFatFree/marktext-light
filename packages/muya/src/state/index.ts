@@ -51,9 +51,24 @@ class JSONState {
     private _rafId: number | null = null;
 
     private _state: TState[] = [];
+    private _version = 0;
 
     constructor(private _muya: Muya, stateOrMarkdown: TState[] | string) {
         this.setContent(stateOrMarkdown);
+    }
+
+    /**
+     * Bumped on every change to the document.
+     *
+     * Lets a consumer cache something derived from the whole document — the
+     * inline renderer's link reference definitions — and notice when it has
+     * gone stale. A `json-change` subscription cannot do that job: the tree is
+     * rebuilt and repainted before the event is emitted, so a cache keyed on
+     * the event still serves the previous document during the repaint that
+     * matters.
+     */
+    get version() {
+        return this._version;
     }
 
     private _apply(op: JSONOp) {
@@ -63,6 +78,7 @@ class JSONState {
         if (op === null)
             return;
         this._state = asState(json1.type.apply(asDoc(this._state), op));
+        this._version++;
     }
 
     setContent(content: TState[] | string) {
@@ -84,10 +100,12 @@ class JSONState {
 
     private _setState(state: TState[]) {
         this._state = state;
+        this._version++;
     }
 
     private _setMarkdown(markdown: string) {
         this._state = this.markdownToState(markdown);
+        this._version++;
     }
 
     // Parse markdown into a block-state array with the editor's current

@@ -7,24 +7,29 @@
 // tree, then rendering it. That second half had never been measured, and it is
 // the expensive one.
 //
-// Measured here, on one machine, in happy-dom (slower than a browser in
-// absolute terms — the ratios are the point, not the milliseconds):
+// It was quadratic, and the cause was `patch` re-collecting link reference
+// definitions for every content block it painted — a whole-document deepClone
+// and walk, once per block. Measured here, on one machine, in happy-dom (slower
+// than a browser in absolute terms; the ratios are the point):
 //
-//   headings + paragraphs   200 -> 1331 ms    400 -> 2710 ms    (2.0x, linear)
-//   blockquotes             200 ->  428 ms    400 -> 1330 ms    (3.1x)
-//   bullet lists            200 -> 1839 ms    400 -> 6255 ms    (3.4x)
+//                       before            after
+//   paragraphs x100     832 ms            729 ms
+//   paragraphs x200    1103 ms            844 ms
+//   lists x100          545 ms            133 ms
+//   lists x200         1699 ms            183 ms
 //
-// So the excess is specific to container blocks, lists worst of all — 400
-// sections of a three-item list is 15 KB of markdown and takes seconds. A real
-// window agrees: ~850 KB of mixed prose left the renderer unresponsive past a
-// 105 s timeout in CI.
+// Lists were worst because they are container blocks, so a section of three
+// list items paints several blocks rather than one — 400 sections is 15 KB of
+// markdown and took over six seconds. In CI, ~850 KB of mixed prose left a real
+// window unresponsive past a 105 s timeout.
 //
-// Three suspects were measured and cleared, so they need not be re-checked:
+// Three other suspects were measured and cleared, so they need not be
+// re-checked:
 //   - parsing: 52 ms for 782 KB
 //   - the two whole-document `deepClone`s per `dispatch`: 42 ms for 782 KB
 //   - `path` / `LinkedList.offset`, which is O(siblings): called 5 times total
 //
-// Nothing here asserts a duration. A threshold tight enough to catch the
+// Nothing here asserts a duration. A threshold tight enough to catch a
 // regression would fire on a loaded runner instead; the numbers are logged so a
 // change in shape is visible when someone looks.
 
