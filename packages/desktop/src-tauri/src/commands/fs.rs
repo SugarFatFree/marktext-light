@@ -153,6 +153,47 @@ pub fn trash_item(path: String) -> Result<(), String> {
     trash::delete(&path).map_err(|e| e.to_string())
 }
 
+#[derive(Serialize)]
+pub struct DirEntryKind {
+    file: String,
+    /// `directory`, `image`, or empty for anything else.
+    #[serde(rename = "type")]
+    kind: String,
+}
+
+const IMAGE_EXTENSIONS: [&str; 6] = ["jpeg", "jpg", "png", "gif", "svg", "webp"];
+
+/// List a directory, tagging each entry as a directory or an image.
+///
+/// Image-path completion needs both the names and their kinds. Asking through
+/// `readdir` and then `is_directory` / `is_image` per entry would be one round
+/// trip per file for something the OS already told us while reading the
+/// directory.
+#[tauri::command]
+pub fn readdir_kinds(path: String) -> Result<Vec<DirEntryKind>, String> {
+    let mut entries = Vec::new();
+    for entry in fs::read_dir(&path).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let file = entry.file_name().to_string_lossy().into_owned();
+        let Ok(meta) = entry.metadata() else { continue };
+        let kind = if meta.is_dir() {
+            "directory"
+        } else if meta.is_file()
+            && Path::new(&file)
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| IMAGE_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()))
+                .unwrap_or(false)
+        {
+            "image"
+        } else {
+            ""
+        };
+        entries.push(DirEntryKind { file, kind: kind.to_string() });
+    }
+    Ok(entries)
+}
+
 #[tauri::command]
 pub fn readdir(path: String) -> Result<Vec<String>, String> {
     let mut names = Vec::new();

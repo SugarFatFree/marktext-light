@@ -37,6 +37,7 @@ import {
 } from './preferences'
 import { exportDocument, printDocument, type ExportPayload } from './export'
 import { askForImagePath, moveOpenFileTo, renameOpenFile } from './files'
+import { askForImageAutoPath } from './image-path'
 import { sendKeybindings } from './keybindings'
 import {
   installContextMenuStyles,
@@ -236,6 +237,9 @@ const handleSend = (channel: string, args: unknown[]): void => {
     }
     case 'mt::open-setting-window':
       fire(openSettingsWindow((args[0] as string) ?? null, bootUserData))
+      return
+    case 'mt::ask-for-image-auto-path':
+      fire(askForImageAutoPath(args[0], dispatchLocal))
       return
     case 'mt::request-keybindings':
       sendKeybindings(dispatchLocal, bootPlatform)

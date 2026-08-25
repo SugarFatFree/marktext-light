@@ -58,6 +58,7 @@ pub fn run() {
             commands::fs::unlink,
             commands::fs::trash_item,
             commands::fs::readdir,
+            commands::fs::readdir_kinds,
             commands::fs::stat,
             // project tree
             commands::project::scan_project,
