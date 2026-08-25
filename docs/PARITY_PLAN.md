@@ -16,7 +16,7 @@
 统计 `src/renderer` 里 `ipcRenderer.{send,sendSync,invoke,on,once}` 用到的通道，
 再看 `tauri-bridge/index.ts` 与 `src-tauri/src/**` 是否实现。
 
-**基线 2026-08-25：116 个通道，实现 18 → 当前 78，缺 38。**
+**基线 2026-08-25：116 个通道，实现 18 → 当前 88，缺 28。**
 （复测命令见本文件末尾）
 
 **计数口径的局限**：脚本只统计 `ipcRenderer.*` 调用点。像 `window.ripgrep.*`、`window.uploader.*`、
@@ -34,10 +34,14 @@
 | ~~P1~~ ✅ | 标签切换快捷键 | `mt::switch-tab-by-index`、`mt::tabs-cycle-left/right` | 已在渲染层识别键位（`mt::switch-tab-by-file_path` 无触发方，暂不需要） |
 | ~~P1~~ ✅ | 文件重命名／删除 | `mt::rename`、`mt::fs-trash-item` | 已接通（trash 用 Rust `trash` crate） |
 | ~~P1~~ ✅ | 全文搜索 | `ripgrep.*` → Rust `rg_start`/`rg_cancel` | 已接通（不读 .gitignore，见下） |
+| ~~P1~~ ✅ | 右键菜单 | `mt::menu::click/closed` + 编辑器右键 | 侧栏／标签栏／编辑器三处均已接通 |
+| ~~P1~~ ✅ | 文件 watcher | `mt::update-object-tree`、`mt::update-file` | 项目树与打开中文档都会跟随磁盘变化 |
+| ~~P2~~ ✅ | 设置窗口 | `mt::open-setting-window`、语言同步 | 第二个 Tauri 窗口 |
+| ~~P2~~ ✅ | 缩放 | `webFrame.setZoomFactor` | 接到 WebView 缩放 |
 | ~~P2~~ ✅ | 导出／打印 | `mt::response-export`、`mt::response-print` | HTML 已通；**PDF 降级为系统打印对话框的「另存为 PDF」** |
 | ⚠️ P2 | 图片 | `mt::ask-for-image-path` ✅；`uploader.*`（图床上传）仍是 stub | 本地图片可选，上传不可用 |
-| P2 | 拼写检查 | `mt::spellchecker-*` | 硬缺口，Electron 专有 API |
-| P2 | 快捷键自定义 | `mt::request-keybindings`、`mt::keybinding-save-user-keybindings` | 用默认键位可用 |
+| P2 | 拼写检查 | `mt::spellchecker-*` | **硬缺口**：依赖 Electron 专有 API，无 Tauri 对应物 |
+| ~~P2~~ ✅ | 快捷键显示 | `mt::request-keybindings` | 命令面板已显示默认键位；**自定义键位未接** |
 | P3 | 自动更新 | `mt::UPDATE_*`、`mt::check-for-update` | 可最后做 |
 | P3 | pandoc 导入、截图、always-on-top | `mt::cmd-import-file`、`mt::make-screenshot`、`mt::window-toggle-always-on-top` | 边缘功能 |
 
@@ -226,17 +230,37 @@ router + vue-i18n + en 语言包）+ 编辑器页 381 KB。
 （脚本 `scripts/bundle-size.ts` 算的是**静态闭包**，不是最大 chunk——动态 import 后面的东西
 不该计入首屏）。
 
+### 桥接面收尾（第 15–24 轮）
+
+- **`f9442c7d`** 命令面板显示快捷键。三张键位表从 `src/main/keyboard/` 移到
+  `src/common/keybindings/`（纯数据、零 import、原本只有一个引用方），两个进程都能用。
+  **只有默认键位**：用户自定义的键位存在 Electron `Keybindings` 类管理的文件里，尚未读写。
+- **`196c0c48`** 打开中的文档被外部修改时会察觉：Rust 只报「某路径变了」，文档在桥里组装
+  （桥打开文件时本来就在做这件事，在 Rust 里再实现一遍编码/行尾探测等于养两份会漂移的实现）。
+  必须读取内容而非只报告变化——渲染层要拿新内容比对，相同则静默跳过，这样自身的保存不会打扰用户。
+- **`9fbc3192`** 自绘菜单栏（Windows/Linux 实际看到的那个）加勾选态。状态**每次渲染时从 store 读**，
+  而不是同步进菜单——原生菜单自持 checked 标志正是它会漂移的原因。
+- **`adb610d5` / `f46161c6`** 右键菜单。Tauri 不提供「在坐标弹出原生菜单并回报选中项」，所以画在页面里。
+  编辑器那套在上游完全由主进程的 `webContents` 钩子构建，这里改为从 DOM 选区组装、直接派发到
+  `mt::cm-*` 监听器所喂的 bus 事件。**粘贴不能用 `execCommand`**（WebView 必然拒绝），改为
+  经桥读剪贴板 + 合成 `paste` 事件走 muya 自己的处理器；Ctrl+V 不走这条路、不受影响。
+- **`4b0517cc`** 图片路径补全。匹配走 `fuzzaldrin`（渲染层已在用，排序与上游一致）；
+  一次 Rust 调用拿到带类型的目录条目；**不做缓存**——上游的缓存挡的是本不存在的开销，
+  而缓存过期正是刚加进去的图片显示不出来的原因。
+- **`d1b87e97`** 修掉一个静默失效：View 菜单的「目录」派发 `mt::toggle-view-layout-entry('toc')`，
+  而 `TOGGLE_LAYOUT_ENTRY` 只认 `showSideBar`/`showTabBar`，其余一声不吭地丢掉。
+  侧栏面板是**选择**而非切换，应走 `mt::set-view-layout`。顺带补回上游有而本项目丢失的
+  「重新加载图片」「命令面板」「行尾 LF/CRLF」四项。
+
 ## 下一步（按优先级）
 
-0. **CI 验证（阻塞中）**：8 个改了 Rust 的提交已推送但**从未编译过**。本机 rustup 工具链损坏、
-   无 webkit2gtk，`gh` token 已失效导致无法触发 workflow。需要在本机终端跑一次
-   `gh auth login -h github.com`（token 需 `repo` + `workflow` 权限）。
-1. **文件 watcher**：项目树目前只在打开时扫一次。Rust 侧用 `notify` crate 监听，
-   emit 与扫描同构的 `mt::update-object-tree` 事件即可（`tauri-bridge/project.ts` 已定好形状）。
-2. **原生菜单状态回显**：`mt::update-format-menu` 等目前是显式空操作，Tauri 菜单不显示
-   粗体/斜体/行尾/布局的勾选状态。需要 Rust 侧持有菜单项句柄并 set_checked。
-3. **快捷键表**：`mt::request-keybindings` 未接，命令面板不显示快捷键。
-   键位表在 `src/main/keyboard/keybindings*.ts`，是纯数据，但跨进程目录导入需先想清楚边界。
+1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
+   静态审查已做尽（见下）。需在有 webkit2gtk 的机器上跑 CI 产物的安装包人工确认。
+2. **自动更新**（6 个通道）：需 `tauri-plugin-updater` + 签名密钥 + 更新服务器，属发布基建。
+3. **拼写检查**（5 个通道）：**硬缺口**。Electron 的拼写检查是 Chromium 内置 API，
+   Tauri 无对应物，要做得自带词典与算法。
+4. **pandoc 导入**（2 个通道）：`command_exists` 已有，还缺一个「跑外部进程并取输出」的 Rust 命令。
+5. **原生菜单状态回显**：自绘菜单栏已有勾选态；macOS 的原生菜单仍无，需 Rust 侧持句柄 `set_checked`。
 4. **E2E**：补「重启后标签页不恢复、最近文件仍在」的 Playwright 用例，锁住要求 #3/#4。
 5. **大文件的渲染侧**：解析已线性，但打开一个大文档还要经过 muya 建块树 + snabbdom 渲染，
    那一段尚未测过（本地无 WebView，需在真实窗口里量）。内存也仍偏高：4 MB 文档解析后堆约 600 MB。

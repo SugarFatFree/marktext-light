@@ -13,7 +13,6 @@
 // to show up.
 
 import { invoke } from '@tauri-apps/api/core'
-import { filter } from 'fuzzaldrin'
 import pathe from 'pathe'
 
 import type { DispatchLocal } from './save'
@@ -69,5 +68,14 @@ export const askForImageAutoPath = async(
       (entry.type === 'directory' || entry.type === 'image')
   )
 
-  reply(searchKey ? filter(candidates, searchKey, { key: 'file' }) : candidates)
+  if (!searchKey) {
+    reply(candidates)
+    return
+  }
+
+  // Loaded on demand: this is the only eager path that wanted fuzzaldrin, and
+  // pulling a matcher into the startup bundle for a feature most sessions never
+  // touch is exactly what the first-paint work was undoing.
+  const { filter } = await import('fuzzaldrin')
+  reply(filter(candidates, searchKey, { key: 'file' }))
 }
