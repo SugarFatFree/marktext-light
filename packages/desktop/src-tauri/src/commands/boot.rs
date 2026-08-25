@@ -47,7 +47,15 @@ pub struct BootInfo {
 /// `marktext-light path/to/file.md`, and Windows/Linux file associations, which
 /// also pass the path as an argument).
 fn initial_file_from_args() -> Option<InitialFile> {
-    for arg in std::env::args().skip(1) {
+    file_from_args(std::env::args().skip(1))
+}
+
+/// The argument scan itself, over an arbitrary argument list. A second launch
+/// is funnelled into the running instance rather than starting a new process,
+/// so the single-instance handler needs to run this over *that* process's argv
+/// (already stripped of argv[0]) instead of this one's.
+pub fn file_from_args(args: impl Iterator<Item = String>) -> Option<InitialFile> {
+    for arg in args {
         if arg.starts_with('-') {
             continue;
         }

@@ -23,6 +23,7 @@ import { openUrl, openPath, revealItemInDir } from '@tauri-apps/plugin-opener'
 import pathe from 'pathe'
 
 import type { BootInfo } from '@shared/types/ipc'
+import { saveDocument, type UnsavedFile } from './save'
 import { resolveInitialTheme } from './theme'
 import { setLanguage } from '@/i18n'
 
@@ -103,10 +104,33 @@ const openFileAsTab = async(pathname: string, options: unknown): Promise<void> =
   ])
 }
 
+/** Positional `mt::response-file-save(-as)` args → the `UnsavedFile` save.ts takes. */
+const unsavedFileFromArgs = (args: unknown[]): UnsavedFile => ({
+  id: String(args[0] ?? ''),
+  filename: String(args[1] ?? ''),
+  pathname: (args[2] as string) || undefined,
+  markdown: String(args[3] ?? ''),
+  options: args[4] as UnsavedFile['options'],
+  defaultPath: (args[5] as string) || undefined
+})
+
 const handleSend = (channel: string, args: unknown[]): void => {
   switch (channel) {
     case 'mt::open-file':
       fire(openFileAsTab(String(args[0] ?? ''), args[1]))
+      return
+    case 'mt::response-file-save':
+      fire(saveDocument(unsavedFileFromArgs(args), dispatchLocal))
+      return
+    case 'mt::response-file-save-as':
+      fire(saveDocument(unsavedFileFromArgs(args), dispatchLocal, true))
+      return
+    case 'mt::save-tabs':
+      fire(
+        Promise.all(
+          ((args[0] as UnsavedFile[]) ?? []).map((file) => saveDocument(file, dispatchLocal))
+        )
+      )
       return
     case 'mt::win::minimize':
       fire(win().minimize())
