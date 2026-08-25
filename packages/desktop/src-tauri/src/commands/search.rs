@@ -19,7 +19,7 @@ use std::sync::{Mutex, OnceLock};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tauri::{AppHandle, Emitter, Runtime};
+use tauri::{AppHandle, Emitter};
 
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
@@ -161,8 +161,8 @@ fn matches_in(content: &str, matcher: &Regex) -> Vec<Match> {
     found
 }
 
-struct Walker<'a, R: Runtime> {
-    app: &'a AppHandle<R>,
+struct Walker<'a> {
+    app: &'a AppHandle,
     search_id: &'a str,
     files_mode: bool,
     matcher: &'a Regex,
@@ -172,7 +172,7 @@ struct Walker<'a, R: Runtime> {
     hits: usize,
 }
 
-impl<R: Runtime> Walker<'_, R> {
+impl Walker<'_> {
     fn emit(&self, event: &str, body: serde_json::Value) {
         if let Err(err) = self.app.emit(event, body) {
             eprintln!("[search] failed to emit {event}: {err}");
@@ -271,7 +271,7 @@ impl<R: Runtime> Walker<'_, R> {
 /// Start a search. Returns as soon as the walk is running; results arrive as
 /// events, and the renderer's promise settles on `done` / `error` / `cancelled`.
 #[tauri::command]
-pub fn rg_start<R: Runtime>(app: AppHandle<R>, req: SearchRequest) -> Result<(), String> {
+pub fn rg_start(app: AppHandle, req: SearchRequest) -> Result<(), String> {
     let matcher = build_matcher(&req.pattern, &req.options)?;
 
     std::thread::spawn(move || {

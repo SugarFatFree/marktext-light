@@ -2,7 +2,11 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Core capabilities for the main editor window.",
-  "windows": ["main", "editor-*", "settings"],
+  "windows": [
+    "main",
+    "editor-*",
+    "settings"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-minimize",
@@ -11,6 +15,8 @@
     "core:window:allow-toggle-maximize",
     "core:window:allow-close",
     "core:window:allow-destroy",
+    "core:window:allow-set-focus",
+    "core:webview:allow-create-webview-window",
     "core:window:allow-set-fullscreen",
     "core:window:allow-is-maximized",
     "core:window:allow-is-fullscreen",

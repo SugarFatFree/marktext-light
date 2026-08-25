@@ -33,6 +33,7 @@ import {
 } from './preferences'
 import { renameOpenFile } from './files'
 import { askForOpenProject, loadProjectTree } from './project'
+import { broadcastLanguage, openSettingsWindow, sendCurrentLanguage } from './settings'
 import { installTabShortcuts } from './shortcuts'
 import { closeWindow, closeWindowConfirm, installCloseGuard } from './window'
 import { resolveInitialTheme, rememberThemeChoice } from './theme'
@@ -116,6 +117,12 @@ const openFileAsTab = async(pathname: string, options: unknown): Promise<void> =
   ])
 }
 
+// Boot values `handleSend` needs long after the handshake has run. `handleSend`
+// is module-scoped and cannot take them as arguments without threading them
+// through every call site.
+let bootUserData = ''
+let bootLocale = 'en'
+
 /** Positional `mt::response-file-save(-as)` args → the `UnsavedFile` save.ts takes. */
 const unsavedFileFromArgs = (args: unknown[]): UnsavedFile => ({
   id: String(args[0] ?? ''),
@@ -158,9 +165,22 @@ const handleSend = (channel: string, args: unknown[]): void => {
       // The settings window writes the theme through this channel; mirror it to
       // the sync store `resolveInitialTheme` reads on the next launch.
       if (typeof patch?.theme === 'string') rememberThemeChoice(patch.theme)
+      // Language is changed in the settings window but has to reach the editor.
+      if (typeof patch?.language === 'string') broadcastLanguage(patch.language)
       fire(setStoredPreferences(patch))
       return
     }
+    case 'mt::open-setting-window':
+      fire(openSettingsWindow((args[0] as string) ?? null, bootUserData))
+      return
+    case 'mt::get-current-language':
+      fire(sendCurrentLanguage(dispatchLocal, bootLocale))
+      return
+    case 'mt::handle-renderer-error':
+      // The main process wrote these to its log file; there is no such log
+      // here, so the WebView console is where they go.
+      console.error('[renderer]', ...args)
+      return
     case 'mt::set-user-data':
       fire(setStoredUserData(args[0]))
       return
@@ -494,6 +514,8 @@ function synthesizeEditorUrlArgs(boot: BootInfo): void {
 }
 
 function applyGlobals(boot: BootInfo): void {
+  bootUserData = boot.paths?.userData ?? ''
+  bootLocale = boot.locale || 'en'
   const ipc = buildIpcWrapper()
   const { electron, fileUtils, path, processShim } = buildGlobals(boot, ipc)
   const extras = stubbedExtras()
@@ -562,7 +584,10 @@ export async function installTauriBridge(): Promise<void> {
   synthesizeEditorUrlArgs(boot)
   applyGlobals(boot)
   initPreferenceStores(boot.paths?.userData ?? '')
-  installCloseGuard(dispatchLocal)
+  // `synthesizeEditorUrlArgs` has already defaulted this to `editor` for the
+  // main window; the settings window carries its own `type`.
+  const windowType = new URLSearchParams(window.location.search).get('type') ?? 'editor'
+  installCloseGuard(dispatchLocal, windowType)
   installTabShortcuts(dispatchLocal, boot.platform)
 
   // Whoever announces an opened folder — the sidebar button or the native Open

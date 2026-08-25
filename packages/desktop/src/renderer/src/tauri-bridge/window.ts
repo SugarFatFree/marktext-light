@@ -21,7 +21,15 @@ import {
 // `onCloseRequested` is allowed through instead of asking again.
 let closeConfirmed = false
 
-export const installCloseGuard = (dispatchLocal: DispatchLocal): void => {
+/**
+ * Only the editor answers `mt::ask-for-close` — it is the editor store that
+ * collects unsaved tabs and replies. Guarding any other window would veto its
+ * close and wait for an answer that never comes, so the settings window closes
+ * the ordinary way.
+ */
+export const installCloseGuard = (dispatchLocal: DispatchLocal, windowType: string): void => {
+  if (windowType !== 'editor') return
+
   getCurrentWindow()
     .onCloseRequested((event) => {
       if (closeConfirmed) return
