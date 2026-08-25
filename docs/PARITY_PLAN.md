@@ -254,6 +254,9 @@ router + vue-i18n + en 语言包）+ 编辑器页 381 KB。
 
 ## 下一步（按优先级）
 
+0. **`treePathExcludePatterns` 偏好未实现**：设置里存在、默认 `[]`，但 Rust 的
+   `scan_project` / `watch_project` 都不读它，所以填了也没用。要么接上（需把 glob 传进两个命令，
+   `search.rs` 里已有 `glob_to_regex` 可复用），要么在设置界面标注为暂不支持——**不要让它继续静默无效**。
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
    静态审查已做尽（见下）。需在有 webkit2gtk 的机器上跑 CI 产物的安装包人工确认。
 2. **自动更新**（6 个通道）：需 `tauri-plugin-updater` + 签名密钥 + 更新服务器，属发布基建。

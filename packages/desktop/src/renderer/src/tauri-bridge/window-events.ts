@@ -22,30 +22,48 @@ const fire = (op: Promise<unknown>): void => {
  * restore button keeps showing the maximise icon after a double-click on the
  * titlebar or a window-manager shortcut.
  */
+// A resize drag raises a continuous stream of events, and each answer costs two
+// round trips to ask the window what it now is. Only where the drag stops
+// matters — nothing here reacts to an intermediate size.
+const RESIZE_SETTLE = 120
+
 export const installWindowEvents = (dispatchLocal: DispatchLocal): void => {
   const win = getCurrentWindow()
+  let settleTimer: ReturnType<typeof setTimeout> | null = null
+  // The last state reported, so a resize that changed neither says nothing.
+  let wasMaximized: boolean | null = null
+  let wasFullscreen: boolean | null = null
+
+  const reportWindowState = (): void => {
+    fire(
+      Promise.all([win.isMaximized(), win.isFullscreen()]).then(([maximized, fullscreen]) => {
+        if (maximized !== wasMaximized) {
+          wasMaximized = maximized
+          dispatchLocal(maximized ? 'mt::window-maximize' : 'mt::window-unmaximize', [])
+        }
+        if (fullscreen !== wasFullscreen) {
+          wasFullscreen = fullscreen
+          dispatchLocal(
+            fullscreen ? 'mt::window-enter-full-screen' : 'mt::window-leave-full-screen',
+            []
+          )
+        }
+      })
+    )
+  }
 
   fire(
     win.onResized(() => {
-      fire(
-        win
-          .isMaximized()
-          .then((maximized) =>
-            dispatchLocal(maximized ? 'mt::window-maximize' : 'mt::window-unmaximize', [])
-          )
-      )
-      fire(
-        win
-          .isFullscreen()
-          .then((full) =>
-            dispatchLocal(
-              full ? 'mt::window-enter-full-screen' : 'mt::window-leave-full-screen',
-              []
-            )
-          )
-      )
+      if (settleTimer) clearTimeout(settleTimer)
+      settleTimer = setTimeout(() => {
+        settleTimer = null
+        reportWindowState()
+      }, RESIZE_SETTLE)
     })
   )
+
+  // The titlebar renders before any resize happens, so tell it where it stands.
+  reportWindowState()
 
   fire(
     win.onFocusChanged(({ payload: focused }) => {

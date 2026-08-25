@@ -47,12 +47,12 @@ fn is_markdown(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-/// Entries the tree never shows, so their events are noise: hidden files, and
-/// anything inside a directory the scan also skips.
+/// Events from paths the tree never shows. Must agree with `scan_project`'s
+/// skip list, or the watcher would add entries the initial scan left out.
 fn is_ignored(path: &Path) -> bool {
     path.components().any(|component| {
         let name = component.as_os_str().to_string_lossy();
-        name.starts_with('.') || name == "node_modules"
+        name == "node_modules" || name == ".git" || name.ends_with(".asar")
     })
 }
 

@@ -18,9 +18,15 @@ const MARKDOWN_EXTENSIONS: [&str; 11] = [
     "markdown", "mdown", "mkdn", "md", "mkd", "mdwn", "mdtxt", "mdtext", "mdx", "text", "txt",
 ];
 
-/// Directories never worth walking. Mirrors the watcher's `ignored` predicate.
+/// Directories never worth walking.
+///
+/// `node_modules` and `.asar` mirror the Electron watcher's `ignored`
+/// predicate. `.git` is the one addition: it cannot hold a user's documents,
+/// and since dot-entries are otherwise shown — upstream shows them, and a
+/// `.github` folder of markdown is a real thing — it would otherwise sit in
+/// every repository's sidebar as an empty folder.
 fn is_ignored_dir(name: &str) -> bool {
-    name == "node_modules" || name.ends_with(".asar")
+    name == "node_modules" || name == ".git" || name.ends_with(".asar")
 }
 
 fn is_markdown(name: &str) -> bool {
@@ -63,10 +69,6 @@ fn walk(dir: &Path, depth: usize, out: &mut Vec<ProjectEntry>) {
 
     for entry in entries.flatten() {
         let name = entry.file_name().to_string_lossy().into_owned();
-        // Hidden entries stay hidden, as they do in the Electron sidebar.
-        if name.starts_with('.') {
-            continue;
-        }
         let Ok(meta) = entry.metadata() else {
             continue;
         };
