@@ -1,3 +1,11 @@
+// The performance requirements, measured in a real window: start fast, stay
+// small, open a large document, and keep taking keystrokes afterwards.
+//
+// They share one file, and one launched app, on purpose. Playwright runs with
+// two workers, so two specs each opening 210 KB and timing it were measuring
+// each other's CPU contention as much as their own work. Within a file the
+// cases run in order, in one worker.
+//
 // Opening a large document in a real window.
 //
 // The parser was quadratic in three separate places and is now linear, but that
@@ -14,6 +22,12 @@
 import { expect, test } from '@playwright/test'
 import type { ElectronApplication, Page } from 'playwright'
 import { launchWithMarkdown, sendIpcToRenderer } from './helpers'
+
+interface Timings {
+  domContentLoaded: number
+  loadEnd: number
+  editorReady: number
+}
 
 interface CallFrame {
   functionName: string
@@ -57,19 +71,56 @@ const buildDocument = (sections: number): string => {
   return parts.join('')
 }
 
+/** Chromium exposes this in the renderer; null elsewhere. */
+const heapMb = async(page: Page): Promise<number | null> =>
+  page.evaluate(() => {
+    const memory = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory
+    return memory ? Math.round(memory.usedJSHeapSize / (1024 * 1024)) : null
+  })
+
 test.describe('a large document', () => {
   let app: ElectronApplication
   let page: Page
+  let blankHeapMb: number | null = null
 
   test.beforeAll(async() => {
     // Start small: this measures the document, not Electron's startup.
     const launched = await launchWithMarkdown('# Small\n')
     app = launched.app
     page = launched.page
+    blankHeapMb = await heapMb(page)
   })
 
   test.afterAll(async() => {
     if (app) await app.close()
+  })
+
+  // Two requirements that had been argued from bundle sizes rather than
+  // measured: start fast, and stay small. What is measured is the RENDERER's
+  // share — navigation timing inside the page — not the whole launch:
+  // `launchElectron` sleeps half a second of its own, and process spawn belongs
+  // to Electron, which is not what this build ships. The renderer half is what
+  // the bundle work targeted and what carries over to Tauri unchanged.
+  test('reaches a usable editor within the renderer timeline', async() => {
+    const timings = await page.evaluate<Timings>(() => {
+      const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming
+      return {
+        domContentLoaded: Math.round(nav?.domContentLoadedEventEnd ?? 0),
+        loadEnd: Math.round(nav?.loadEventEnd ?? 0),
+        editorReady: Math.round(performance.now())
+      }
+    })
+
+    console.log(
+      `renderer: DOMContentLoaded ${timings.domContentLoaded} ms, ` +
+        `load ${timings.loadEnd} ms, editor usable by ${timings.editorReady} ms`
+    )
+
+    // Read after the editor is already up, so it is an upper bound that
+    // includes this call's own latency — the honest direction for a ceiling.
+    expect(timings.editorReady, 'the renderer took longer than any launch should')
+      .toBeLessThan(30_000)
+    expect(timings.domContentLoaded, 'no navigation timing was recorded').toBeGreaterThan(0)
   })
 
   test('opens and renders without falling off a cliff', async() => {
@@ -135,6 +186,20 @@ test.describe('a large document', () => {
 
     console.log(`five keystrokes in a large document: ${elapsed} ms`)
     expect(elapsed).toBeLessThan(5000)
+  })
+
+  test('holds the document without the heap running away', async() => {
+    test.skip(blankHeapMb === null, 'this build exposes no heap statistics')
+    const loaded = await heapMb(page)
+
+    console.log(`heap: ${blankHeapMb} MB blank, ${loaded} MB holding the document`)
+
+    // The document is ~0.2 MB of text; rendering it as blocks and DOM costs a
+    // multiple of that unavoidably. A hundredfold would mean something is
+    // retaining copies rather than representing it.
+    expect(loaded, 'the heap grew out of proportion to the document').toBeLessThan(
+      (blankHeapMb ?? 0) + 400
+    )
   })
 
   // A probe, not a guard: it asserts only that the profiler attached, and
