@@ -19,6 +19,9 @@
 **基线 2026-08-25：116 个通道，实现 18 → 当前 44，缺 72。**
 （复测命令见本文件末尾）
 
+**计数口径的局限**：脚本只统计 `ipcRenderer.*` 调用点。像 `window.ripgrep.*`、`window.uploader.*`、
+`window.fonts.*` 这些独立的 preload 接口面不在其中——所以全文搜索虽已实现，数字上不体现。
+
 缺口按功能域分组：
 
 | 优先级 | 功能域 | 代表通道 | 影响 |
@@ -30,7 +33,7 @@
 | ~~P1~~ ✅ | 侧栏项目树（首次扫描） | `mt::ask-for-open-project-in-sidebar`、`mt::update-object-tree` | 已接通；**watcher 未接**，树不随磁盘变化更新 |
 | ~~P1~~ ✅ | 标签切换快捷键 | `mt::switch-tab-by-index`、`mt::tabs-cycle-left/right` | 已在渲染层识别键位（`mt::switch-tab-by-file_path` 无触发方，暂不需要） |
 | ~~P1~~ ✅ | 文件重命名／删除 | `mt::rename`、`mt::fs-trash-item` | 已接通（trash 用 Rust `trash` crate） |
-| **P1** | 全文搜索 | `ripgrep.*`（桥内 stub） | 侧栏搜索面板空转 |
+| ~~P1~~ ✅ | 全文搜索 | `ripgrep.*` → Rust `rg_start`/`rg_cancel` | 已接通（不读 .gitignore，见下） |
 | P2 | 导出／打印 | `mt::response-export`、`mt::response-print`、`mt::show-export-dialog`、`mt::export-success` | 无法导出 HTML/PDF |
 | P2 | 图片上传与路径 | `mt::ask-for-image-path`、`uploader.*` | 粘贴图片失效 |
 | P2 | 拼写检查 | `mt::spellchecker-*` | 硬缺口，Electron 专有 API |
@@ -149,6 +152,17 @@ router + vue-i18n + en 语言包）+ 编辑器页 381 KB。
   PageUp/Down、Ctrl 管循环）。`test/unit/specs/tab-shortcuts.spec.ts` 锁死映射，
   特别是 **Ctrl+0 是第十个标签**、**Ctrl+Alt+数字 要留给标题快捷键**。
 
+### 全文搜索
+
+- **`246d8f88`** 侧栏搜索面板此前完全空转：桥里的 `ripgrep` 对象是一组空函数，因为 Tauri
+  不带 Electron 版所依赖的 ripgrep 二进制。改为在 Rust 里自己走目录 + 匹配
+  （`src-tauri/src/commands/search.rs`），沿用同一套 `mt::rg::*` 事件与 `searchId` 信封，
+  所以 `ripgrepSearcher.ts` 及其调用方一行未改。两种模式都覆盖：侧栏要的匹配行、快速打开要的路径列表。
+- **与真 ripgrep 的两处差距**（写在模块头注释里，不假装没有）：
+  - **不读 `.gitignore`**。固定跳过 `node_modules`、`.git` 与点开头条目（除非勾选包含隐藏文件）。
+  - **排除模式只支持 `*`、`**`、`?`**，不是完整 glob 语法。
+- 匹配位置按**字符**计数而非字节——渲染层要拿它去 JS 字符串里定位高亮。
+
 ### 大文件（要求 #8 的后半）
 
 **`c866a62b`** —— 建基准时直接撞出两类真问题：
@@ -197,7 +211,8 @@ router + vue-i18n + en 语言包）+ 编辑器页 381 KB。
 
 1. **文件 watcher**：项目树目前只在打开时扫一次。Rust 侧用 `notify` crate 监听，
    emit 与扫描同构的 `mt::update-object-tree` 事件即可（`tauri-bridge/project.ts` 已定好形状）。
-2. **ripgrep 全文搜索**：桥内目前是 stub，侧栏搜索面板空转。
+2. **菜单驱动的编辑命令**：`mt::cm-copy-as-html`、`mt::cm-paste-as-plain-text`、
+   `mt::show-command-palette` 等由菜单推送的通道，Rust 菜单尚未 emit。
 4. **E2E**：补「重启后标签页不恢复、最近文件仍在」的 Playwright 用例，锁住要求 #3/#4。
 5. **大文件的渲染侧**：解析已线性，但打开一个大文档还要经过 muya 建块树 + snabbdom 渲染，
    那一段尚未测过（本地无 WebView，需在真实窗口里量）。内存也仍偏高：4 MB 文档解析后堆约 600 MB。
