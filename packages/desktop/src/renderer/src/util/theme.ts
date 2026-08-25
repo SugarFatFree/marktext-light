@@ -5,42 +5,7 @@ import {
   oneDarkThemes,
   railscastsThemes
 } from '../config'
-import {
-  dark,
-  graphite,
-  materialDark,
-  oneDark,
-  ulysses,
-  // New gogh themes - Dark
-  dracula,
-  nord,
-  catppuccinMocha,
-  gruvboxDark,
-  tokyoNight,
-  tokyoNightStorm,
-  solarizedDark,
-  ayuDark,
-  ayuMirage,
-  everforestDark,
-  rosePine,
-  rosePineMoon,
-  monokaiPro,
-  synthwave84,
-  horizonDark,
-  palenight,
-  oxocarbonDark,
-  kanagawa,
-  nightfox,
-  cyberdream,
-  // New gogh themes - Light
-  catppuccinLatte,
-  gruvboxLight,
-  tokyoNightLight,
-  solarizedLight,
-  ayuLight,
-  everforestLight,
-  rosePineDawn
-} from './themeColor'
+import { hasThemeStylesheet, loadThemeCss } from './themeColor'
 import { isLinux } from './index'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -67,113 +32,24 @@ export const addThemeStyle = (theme: string): void => {
     document.head.appendChild(themeStyleEle)
   }
 
-  switch (theme) {
-    case 'light':
-      themeStyleEle.innerHTML = patchTheme(
-        ':root {\n  --link-color: var(--linkColor);\n  --blockquote-border-color: var(--blockquoteBorderColor);\n}'
-      )
-      break
-    case 'dark':
-      themeStyleEle.innerHTML = patchTheme(dark())
-      break
-    case 'material-dark':
-      themeStyleEle.innerHTML = patchTheme(materialDark())
-      break
-    case 'ulysses':
-      themeStyleEle.innerHTML = patchTheme(ulysses())
-      break
-    case 'graphite':
-      themeStyleEle.innerHTML = patchTheme(graphite())
-      break
-    case 'one-dark':
-      themeStyleEle.innerHTML = patchTheme(oneDark())
-      break
-    // New gogh themes - Dark
-    case 'dracula':
-      themeStyleEle.innerHTML = patchTheme(dracula())
-      break
-    case 'nord':
-      themeStyleEle.innerHTML = patchTheme(nord())
-      break
-    case 'catppuccin-mocha':
-      themeStyleEle.innerHTML = patchTheme(catppuccinMocha())
-      break
-    case 'gruvbox-dark':
-      themeStyleEle.innerHTML = patchTheme(gruvboxDark())
-      break
-    case 'tokyo-night':
-      themeStyleEle.innerHTML = patchTheme(tokyoNight())
-      break
-    case 'tokyo-night-storm':
-      themeStyleEle.innerHTML = patchTheme(tokyoNightStorm())
-      break
-    case 'solarized-dark':
-      themeStyleEle.innerHTML = patchTheme(solarizedDark())
-      break
-    case 'ayu-dark':
-      themeStyleEle.innerHTML = patchTheme(ayuDark())
-      break
-    case 'ayu-mirage':
-      themeStyleEle.innerHTML = patchTheme(ayuMirage())
-      break
-    case 'everforest-dark':
-      themeStyleEle.innerHTML = patchTheme(everforestDark())
-      break
-    case 'rose-pine':
-      themeStyleEle.innerHTML = patchTheme(rosePine())
-      break
-    case 'rose-pine-moon':
-      themeStyleEle.innerHTML = patchTheme(rosePineMoon())
-      break
-    case 'monokai-pro':
-      themeStyleEle.innerHTML = patchTheme(monokaiPro())
-      break
-    case 'synthwave-84':
-      themeStyleEle.innerHTML = patchTheme(synthwave84())
-      break
-    case 'horizon-dark':
-      themeStyleEle.innerHTML = patchTheme(horizonDark())
-      break
-    case 'palenight':
-      themeStyleEle.innerHTML = patchTheme(palenight())
-      break
-    case 'oxocarbon-dark':
-      themeStyleEle.innerHTML = patchTheme(oxocarbonDark())
-      break
-    case 'kanagawa':
-      themeStyleEle.innerHTML = patchTheme(kanagawa())
-      break
-    case 'nightfox':
-      themeStyleEle.innerHTML = patchTheme(nightfox())
-      break
-    case 'cyberdream':
-      themeStyleEle.innerHTML = patchTheme(cyberdream())
-      break
-    // New gogh themes - Light
-    case 'catppuccin-latte':
-      themeStyleEle.innerHTML = patchTheme(catppuccinLatte())
-      break
-    case 'gruvbox-light':
-      themeStyleEle.innerHTML = patchTheme(gruvboxLight())
-      break
-    case 'tokyo-night-light':
-      themeStyleEle.innerHTML = patchTheme(tokyoNightLight())
-      break
-    case 'solarized-light':
-      themeStyleEle.innerHTML = patchTheme(solarizedLight())
-      break
-    case 'ayu-light':
-      themeStyleEle.innerHTML = patchTheme(ayuLight())
-      break
-    case 'everforest-light':
-      themeStyleEle.innerHTML = patchTheme(everforestLight())
-      break
-    case 'rose-pine-dawn':
-      themeStyleEle.innerHTML = patchTheme(rosePineDawn())
-      break
-    default:
-      break
+  // The stylesheet arrives a frame or two late; the body/CodeMirror classes
+  // below must not wait on it, so they are applied first and the CSS is
+  // injected when it lands. `light` is the built-in look and has no file.
+  if (theme === 'light') {
+    themeStyleEle.innerHTML = patchTheme(
+      ':root {\n  --link-color: var(--linkColor);\n  --blockquote-border-color: var(--blockquoteBorderColor);\n}'
+    )
+  } else if (hasThemeStylesheet(theme)) {
+    const element = themeStyleEle
+    loadThemeCss(theme)
+      .then((css) => {
+        // A later switch may have won the race; only the newest theme's CSS
+        // may be written.
+        if (element.dataset.theme === theme) element.innerHTML = patchTheme(css)
+      })
+      .catch((err) => console.error(`[theme] cannot load ${theme}:`, err))
   }
+  themeStyleEle.dataset.theme = theme
 
   // workaround: use dark icons
   document.body.classList.remove('dark')
