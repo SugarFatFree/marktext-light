@@ -93,7 +93,7 @@ const isTauriEnv = isTauri()
 const sections = MENU_STRUCTURE
 const isMaximized = ref(false)
 
-const { sourceCode, typewriter, focus, theme } = storeToRefs(usePreferencesStore())
+const { sourceCode, typewriter, focus, theme, autoSave } = storeToRefs(usePreferencesStore())
 const { showSideBar, showTabBar, rightColumn } = storeToRefs(useLayoutStore())
 const { currentFile } = storeToRefs(useEditorStore())
 
@@ -128,6 +128,8 @@ const isChecked = (id: string): boolean => {
       return showTabBar.value
     case 'viewlayout:toc':
       return showSideBar.value && rightColumn.value === 'toc'
+    case 'cmd:file.toggle-auto-save':
+      return autoSave.value
     case 'lineending:lf':
       return currentFile.value?.lineEnding === 'lf'
     case 'lineending:crlf':

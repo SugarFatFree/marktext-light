@@ -31,6 +31,7 @@ export const MENU_STRUCTURE: MenuBarSection[] = [
       { id: 'file:open-folder', labelKey: 'menu.file.openFolder', accel: `${mod}+Shift+O` },
       { id: 'file:save', labelKey: 'menu.file.save', accel: `${mod}+S`, divided: true },
       { id: 'file:save-as', labelKey: 'menu.file.saveAs', accel: `${mod}+Shift+S` },
+      { id: 'cmd:file.toggle-auto-save', labelKey: 'menu.file.autoSave' },
       { id: 'cmd:file.import-file', labelKey: 'menu.file.import', divided: true },
       { id: 'cmd:file.export-file', labelKey: 'menu.file.export' },
       { id: 'cmd:file.print', labelKey: 'menu.file.print', accel: `${mod}+P` },

@@ -71,6 +71,7 @@ fn file_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::Res
         .item(&PredefinedMenuItem::separator(app)?)
         .item(&item(app, "file:save", &tr.t("menu.file.save"), Some("CmdOrCtrl+S"))?)
         .item(&item(app, "file:save-as", &tr.t("menu.file.saveAs"), Some("CmdOrCtrl+Shift+S"))?)
+        .item(&item(app, "cmd:file.toggle-auto-save", &tr.t("menu.file.autoSave"), None)?)
         .item(&PredefinedMenuItem::separator(app)?)
         .item(&item(app, "cmd:file.import-file", &tr.t("menu.file.import"), None)?)
         .item(&item(app, "cmd:file.export-file", &tr.t("menu.file.export"), None)?)

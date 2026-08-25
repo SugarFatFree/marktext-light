@@ -40,7 +40,7 @@
 | ~~P2~~ ✅ | 缩放 | `webFrame.setZoomFactor` | 接到 WebView 缩放 |
 | ~~P2~~ ✅ | 导出／打印 | `mt::response-export`、`mt::response-print` | HTML 已通；**PDF 降级为系统打印对话框的「另存为 PDF」** |
 | ⚠️ P2 | 图片 | `mt::ask-for-image-path` ✅；`uploader.*`（图床上传）仍是 stub | 本地图片可选，上传不可用 |
-| ⚠️ P2 | 拼写检查 | `mt::spellchecker-*` | **基础可用**：muya 给编辑器设 `spellcheck`，WebView 用系统词典画红波浪线（与 Electron 版在 macOS 上同理）。缺的是词典列表、应用内切换语言、右键改正 |
+| ⚠️ P2 | 拼写检查 | `mt::spellchecker-*` | **代码路径已通,红波浪线未经运行时验证**:偏好 → muya `setOptions` → 编辑器 `spellcheck` 属性,WebView 理应用系统词典标注(Electron 版在 macOS 上正是如此)。**本机无 WebView、E2E 跑的是 Electron(其拼写检查另需主进程配字典),所以这是推断不是实测。** 确定缺的是词典列表、应用内切换语言、右键改正 |
 | ~~P2~~ ✅ | 快捷键显示 | `mt::request-keybindings` | 命令面板已显示默认键位；**自定义键位未接** |
 | P3 | 自动更新 | `mt::UPDATE_*`、`mt::check-for-update` | 可最后做 |
 | P3 | pandoc 导入、截图、always-on-top | `mt::cmd-import-file`、`mt::make-screenshot`、`mt::window-toggle-always-on-top` | 边缘功能 |
@@ -698,6 +698,21 @@ Tauri 侧的快捷键来自三处——Rust 菜单里**硬编码**的加速键�
 已减负:小节数 300 → **200**(128 KB),profiling 打字 10 → 5 字符。
 **一个让整套测试变脆的测量,不值那点精度。** 这是同一个坑的第三次:
 先是两个性能文件互抢,再是并入一个文件,现在是它整体太重。
+
+### 一次有界的排查 + 自动保存进菜单(第 59 轮)
+
+**同类崩溃扫干净了**:未路由的 invoke 返回 `undefined`,调用方若假设结果形状就会抛异常。
+渲染层共 9 处 `ipcRenderer.invoke`,逐个核对后——其余 8 处要么不用结果、要么已路由、
+要么把 `undefined` 当 false(键位面板"保存失败"正是这个,且是诚实行为)。
+**只有拼写检查面板一处,已修。** 记下来免得再扫一遍。
+
+**文件 → 自动保存**已补进两套菜单。上游有、`mt::cmd-toggle-autosave` 已路由、
+自绘菜单栏的勾选态从 `autoSave` 偏好实时读(不是自持标志,不会漂移)。
+
+**「窗口置顶」没做**:通道其实已路由(计数把它记成缺失是过时的),但自绘菜单栏
+**根本没有 Window 段**——无边框窗口的最小化/最大化/关闭由标题栏按钮提供。
+为一个「置顶」单开一个只有一项的 Window 菜单不合适,而 `menu-parity.spec.ts` 要求两套菜单
+条目一致,所以不能只加原生那边。留待与 Window 段整体一起考虑。
 
 ## 下一步（按优先级）
 
