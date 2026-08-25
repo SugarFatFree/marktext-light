@@ -60,6 +60,8 @@ import Rename from '@/components/rename/index.vue'
 import ImportModal from '@/components/import/index.vue'
 import UnsavedFilesDialog from '@/components/unsavedFilesDialog/index.vue'
 import bus from '@/bus'
+import { isTauri } from '@/tauri-bridge'
+import { showEditorContextMenu } from '@/contextMenu/editor'
 import { DEFAULT_STYLE } from '@/config'
 import { useLayoutStore } from '@/store/layout'
 import { useListenForMainStore } from '@/store/listenForMain'
@@ -126,6 +128,14 @@ watch(customCss, (value, oldValue) => {
 watch(zoom, (zoomValue) => {
   bus.emit('mt::window-zoom', zoomValue)
 })
+
+// Electron built the editor's context menu in the main process from a
+// `webContents` hook; a WebView has none, so the renderer raises it. Guarded so
+// the Electron build keeps its native menu rather than showing two.
+const setupEditorContextMenu = (): void => {
+  if (!isTauri()) return
+  window.addEventListener('contextmenu', showEditorContextMenu)
+}
 
 const setupDragDropHandler = (): void => {
   window.addEventListener(
@@ -208,6 +218,7 @@ onMounted(async () => {
   // module: notification
   notificationStore.listenForNotification()
 
+  setupEditorContextMenu()
   setupDragDropHandler()
 
   nextTick(() => {
