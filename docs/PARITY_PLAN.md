@@ -16,7 +16,7 @@
 统计 `src/renderer` 里 `ipcRenderer.{send,sendSync,invoke,on,once}` 用到的通道，
 再看 `tauri-bridge/index.ts` 与 `src-tauri/src/**` 是否实现。
 
-**基线 2026-08-25：116 个通道，实现 18 → 当前 31，缺 85。**
+**基线 2026-08-25：116 个通道，实现 18 → 当前 39，缺 77。**
 （复测命令见本文件末尾）
 
 缺口按功能域分组：
@@ -26,8 +26,10 @@
 | ~~P0~~ ✅ | 文件保存 | `mt::response-file-save(-as)`、`mt::save-tabs`、`mt::tab-saved`、`mt::set-pathname` | 已接通 |
 | ~~P0~~ ✅ | 关闭前保存提示 | `mt::save-and-close-tabs` → `mt::force-close-tabs-by-id` | 已接通 |
 | ~~P0~~ ✅ | 偏好持久化 | `mt::ask-for-user-preference`、`mt::set-user-preference`、`mt::user-preference`、`mt::ask-for-user-data`、`mt::set-user-data` | 已接通 |
-| **P1** | 窗口与标签生命周期 | `mt::window-initialized`、`mt::close-window`、`mt::app-try-quit`、`mt::ask-for-close`、`mt::switch-tab-by-index`、`mt::tabs-cycle-left/right` | 关窗、切标签快捷键失效 |
-| **P1** | 侧栏项目树 | `mt::ask-for-open-project-in-sidebar`、`mt::update-object-tree`、`mt::rename`、`mt::fs-trash-item` | 打开文件夹后无文件树 |
+| ~~P1~~ ✅ | 关窗握手 | `mt::ask-for-close`、`mt::close-window(-confirm)`、`mt::app-try-quit` | 已接通 |
+| ~~P1~~ ✅ | 侧栏项目树（首次扫描） | `mt::ask-for-open-project-in-sidebar`、`mt::update-object-tree` | 已接通；**watcher 未接**，树不随磁盘变化更新 |
+| **P1** | 标签切换快捷键 | `mt::switch-tab-by-index`、`mt::tabs-cycle-left/right`、`mt::switch-tab-by-file_path` | 需 Rust 菜单加对应菜单项并 emit |
+| **P1** | 文件重命名／删除 | `mt::rename`、`mt::fs-trash-item` | 侧栏右键菜单失效 |
 | **P1** | 全文搜索 | `ripgrep.*`（桥内 stub） | 侧栏搜索面板空转 |
 | P2 | 导出／打印 | `mt::response-export`、`mt::response-print`、`mt::show-export-dialog`、`mt::export-success` | 无法导出 HTML/PDF |
 | P2 | 图片上传与路径 | `mt::ask-for-image-path`、`uploader.*` | 粘贴图片失效 |
@@ -79,18 +81,23 @@
   与 `dataCenter.json`（只存用户覆盖项，默认值仍由渲染层 store 提供），debounce 300 ms。
   主题有两个写入方（设置窗口与原生 Theme 菜单），统一走 `theme.ts` 的 `rememberThemeChoice`——
   首帧渲染早于文件读取，所以 localStorage 仍作同步快取，否则重启会显示上一个主题。
+- **`15607c41`** 关窗握手 `tauri-bridge/window.ts`：用 Tauri 的 `onCloseRequested` 复刻
+  Electron「主进程否决关闭 → 先问渲染层」的流程。**与上游的一处有意分歧**：保存失败或用户取消
+  保存对话框时保持窗口打开；上游会照关不误，等于丢掉用户刚选择要保留的改动。
+- **`3c657770`** 侧栏项目树：新增 Rust 命令 `scan_project`（一次调用走完目录，而不是
+  `readdir` + 每项一次 `stat`），桥内 `project.ts` 把结果重放成 watcher 同款的
+  `addDir`/`add` 事件。**只回元数据**——上游 watcher 会把每个 md 文件内容预读进事件、
+  而 `treeCtrl.addFile` 转手就丢掉，省掉这次读盘正是大目录打开快的关键。
 
 ## 下一步（按优先级）
 
-1. **窗口与标签生命周期**：`mt::window-initialized`、`mt::close-window`、`mt::app-try-quit`、
-   `mt::ask-for-close`、`mt::switch-tab-by-index`、`mt::tabs-cycle-left/right`。
-   关窗时要先走 `mt::save-and-close-tabs` 那套提示（已就绪）。
-2. **侧栏项目树**：`mt::ask-for-open-project-in-sidebar` → 递归 `readdir` → `mt::update-object-tree`。
-   打开文件夹后侧栏目前是空的。
-3. **启动性能**：`tauri:build-renderer` 主 chunk 3.59 MB（gzip 1.07 MB），另有 mermaid 543 KB、
-   cytoscape 443 KB、wardley 612 KB、katex 261 KB。改成动态 import 按需加载，直接决定「秒启动、加载快」。
+1. **启动性能**（对应要求 #8，且一直没动）：`tauri:build-renderer` 主 chunk 3.59 MB（gzip 1.07 MB），
+   另有 wardley 612 KB、mermaid 543 KB、cytoscape 443 KB、katex 261 KB。改成动态 import 按需加载。
+2. **文件 watcher**：项目树目前只在打开时扫一次。Rust 侧用 `notify` crate 监听，
+   emit 与扫描同构的 `mt::update-object-tree` 事件即可（`tauri-bridge/project.ts` 已定好形状）。
+3. **重命名／删除**：`mt::rename`、`mt::fs-trash-item`（回收站需 `trash` crate 或 opener 插件）。
 4. **大文件**：先建基准（5/20/50 MB 文档的打开耗时与内存），再定优化点。
-5. **侧栏项目树 + ripgrep 搜索**：`readdir` 已有，缺 `mt::update-object-tree` 的目录扫描与 watcher。
+5. **ripgrep 全文搜索**：桥内目前是 stub，侧栏搜索面板空转。
 6. **E2E**：补「重启后标签页不恢复、最近文件仍在」的 Playwright 用例，锁住要求 #3/#4。
 
 ## 复测差距的命令
