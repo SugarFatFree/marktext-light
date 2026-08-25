@@ -75,6 +75,16 @@
     "https://api.github.com/repos/SugarFatFree/marktext-light/actions/runs?branch=feat/tauri-migration-phase1&per_page=8"
   # 失败日志：.../actions/runs/<run_id>/jobs 取 job id，再 .../actions/jobs/<job_id>/logs
   ```
+- **改了 `src-tauri/**` 必须手动触发 `tauri-build.yml`,否则没有任何流水线会编译它。**
+  它只在 `workflow_dispatch` 或推到 `develop` 时跑（见该文件顶部注释：4 平台 Rust 构建太贵，
+  每次 PR 同步都跑会和另外约 12 个 workflow 抢 runner）。**本分支上 PR Build 建的是 Electron，
+  不碰 Rust**——第 45 轮改完菜单差点就这么推走了。触发方式：
+
+  ```bash
+  curl -s -X POST -H "Authorization: token $TOKEN" \
+    "https://api.github.com/repos/SugarFatFree/marktext-light/actions/workflows/tauri-build.yml/dispatches" \
+    -d '{"ref":"feat/tauri-migration-phase1"}'   # 204 = 已触发
+  ```
 - **Rust 侧现在有测试了**：`packages/desktop/src-tauri` 的 `#[cfg(test)]` 单测在 CI 的 Linux 作业里
   以 `cargo test --release` 运行（只跑一个平台：纯逻辑，四平台是同一个答案；`--release` 复用
   构建产物，默认的 dev profile 会把所有依赖重编一遍）。本机仍跑不了——工具链损坏。

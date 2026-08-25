@@ -42,6 +42,10 @@ interface StrandedText {
 interface Report {
   surfaces: Surface[]
   stranded: StrandedText[]
+  /** What `:root` actually resolves the theme's own variables to. The dark
+   *  theme and the base stylesheet both declare these at `:root`, so this says
+   *  which declaration the cascade settled on. */
+  vars: Record<string, string>
   /** Text whose contrast was judged. */
   measured: number
   /** Text over a backdrop that could not be determined, so it was not judged.
@@ -147,7 +151,13 @@ const inspect = (page: Page, selectors: string[], minContrast: number): Promise<
       }
       stranded.sort((x, y) => x.contrast - y.contrast)
 
-      return { surfaces, stranded, measured, skipped }
+      const root = getComputedStyle(document.documentElement)
+      const vars: Record<string, string> = {}
+      for (const name of ['--editorBgColor', '--editorColor', '--editorColor30', '--editorColor50']) {
+        vars[name] = root.getPropertyValue(name).trim()
+      }
+
+      return { surfaces, stranded, measured, skipped, vars }
     },
     { selectors, minContrast }
   )
@@ -193,6 +203,20 @@ test.describe('the dark theme, in a real window', () => {
         surface.luminance,
         `${surface.selector} stayed light (${surface.background})`
       ).toBeLessThan(0.25)
+    }
+  })
+
+  test('lets the theme win every variable it declares, not just some', () => {
+    // The dark theme and `assets/styles/index.css` both declare these at
+    // `:root`, so whichever the cascade settles on wins for the whole app. The
+    // theme's own values are the translucent ones; the base stylesheet's are
+    // opaque hex. A mix means some declarations are landing and others are not,
+    // which is worth knowing even where the result happens to stay readable.
+    const shown = JSON.stringify(report.vars)
+
+    expect(report.vars['--editorBgColor'], shown).toBe('#282828')
+    for (const name of ['--editorColor', '--editorColor30', '--editorColor50']) {
+      expect(report.vars[name], `${name} is not the dark theme's — ${shown}`).toMatch(/^rgba\(/)
     }
   })
 
