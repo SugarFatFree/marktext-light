@@ -58,6 +58,8 @@ pub fn run() {
             commands::fs::unlink,
             commands::fs::readdir,
             commands::fs::stat,
+            // project tree
+            commands::project::scan_project,
             // paths::*
             commands::paths::is_image,
             commands::paths::is_same_path,

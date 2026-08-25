@@ -31,6 +31,7 @@ import {
   setStoredPreferences,
   setStoredUserData
 } from './preferences'
+import { askForOpenProject, loadProjectTree } from './project'
 import { closeWindow, closeWindowConfirm, installCloseGuard } from './window'
 import { resolveInitialTheme, rememberThemeChoice } from './theme'
 import { setLanguage } from '@/i18n'
@@ -170,6 +171,9 @@ const handleSend = (channel: string, args: unknown[]): void => {
       return
     case 'mt::close-window-confirm':
       fire(closeWindowConfirm((args[0] as UnsavedFile[]) ?? [], dispatchLocal))
+      return
+    case 'mt::ask-for-open-project-in-sidebar':
+      fire(askForOpenProject(dispatchLocal))
       return
     case 'mt::window-initialized':
     case 'mt::window-tab-closed':
@@ -543,6 +547,14 @@ export async function installTauriBridge(): Promise<void> {
   applyGlobals(boot)
   initPreferenceStores(boot.paths?.userData ?? '')
   installCloseGuard(dispatchLocal)
+
+  // Whoever announces an opened folder — the sidebar button or the native Open
+  // Folder menu — the tree is filled in from here.
+  registerEvent(
+    'mt::open-directory',
+    (_event, pathname) => fire(loadProjectTree(String(pathname), dispatchLocal)),
+    false
+  )
 
   // Load the OS-language translations before the app mounts so the UI (menu bar,
   // dialogs, …) renders localized from the first paint. English is bundled.
