@@ -40,12 +40,18 @@ interface ProfileNode {
   hitCount?: number
 }
 
-// 300, not the 1200 first tried. At ~850 KB the renderer stayed saturated past
+// 200, down from 300 — and 300 down from the 1200 first tried. At ~850 KB the renderer stayed saturated past
 // a 105s timeout — `page.evaluate` could not even get a turn to count, and
 // closing the window timed out too. That limit is recorded in
 // docs/PARITY_PLAN.md rather than papered over; this size is a guard that can
-// actually run, not a statement that 192 KB is what "large" means.
-const SECTIONS = 300
+// actually run, not a statement that 128 KB is what "large" means.
+//
+// It came down again after this file's own weight started costing other specs
+// their timing: with two workers, an unrelated save round-trip missed a 5s
+// poll while this one was opening a document and profiling beside it. A
+// measurement that makes the rest of the suite flaky is not worth its
+// precision.
+const SECTIONS = 200
 // A ceiling, not a target: the real number is printed below, and this can be
 // tightened once a few runs have shown what it actually is on this runner.
 //
@@ -54,7 +60,7 @@ const SECTIONS = 300
 // measured nothing at all, because the harness killed the test first.
 const BUDGET_MS = 45000
 
-/** ~190 KB of ordinary prose: headings, paragraphs, a list, some inline marks.
+/** ~128 KB of ordinary prose: headings, paragraphs, a list, some inline marks.
  *  Deliberately not pathological — the point is that a normal big document is
  *  fine, not that a crafted one is. */
 const buildDocument = (sections: number): string => {
@@ -127,7 +133,7 @@ test.describe('a large document', () => {
     test.setTimeout(BUDGET_MS + 60_000)
 
     const markdown = buildDocument(SECTIONS)
-    expect(markdown.length).toBeGreaterThan(200_000)
+    expect(markdown.length).toBeGreaterThan(120_000)
 
     const started = Date.now()
     await sendIpcToRenderer(
@@ -223,7 +229,7 @@ test.describe('a large document', () => {
     await client.send('Profiler.start')
 
     const started = Date.now()
-    await page.keyboard.type('abcdefghij', { delay: 0 })
+    await page.keyboard.type('abcde', { delay: 0 })
     const elapsed = Date.now() - started
 
     const { profile } = (await client.send('Profiler.stop')) as {
@@ -239,7 +245,7 @@ test.describe('a large document', () => {
     }
     const total = [...self.values()].reduce((a, b) => a + b, 0)
 
-    console.log(`ten keystrokes while profiling: ${elapsed} ms, ${total} samples`)
+    console.log(`five keystrokes while profiling: ${elapsed} ms, ${total} samples`)
     for (const [where, hits] of [...self].sort((a, b) => b[1] - a[1]).slice(0, 15)) {
       console.log(`  ${((hits / total) * 100).toFixed(1)}%  ${where}`)
     }
