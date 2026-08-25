@@ -32,6 +32,7 @@ import {
   setStoredPreferences,
   setStoredUserData
 } from './preferences'
+import { exportDocument, printDocument, type ExportPayload } from './export'
 import { askForImagePath, moveOpenFileTo, renameOpenFile } from './files'
 import { askForOpenProject, loadProjectTree } from './project'
 import { broadcastLanguage, openSettingsWindow, sendCurrentLanguage } from './settings'
@@ -210,6 +211,12 @@ const handleSend = (channel: string, args: unknown[]): void => {
       return
     case 'mt::rename':
       fire(renameOpenFile(args[0] as Parameters<typeof renameOpenFile>[0], dispatchLocal))
+      return
+    case 'mt::response-export':
+      fire(exportDocument(args[0] as ExportPayload, dispatchLocal))
+      return
+    case 'mt::response-print':
+      printDocument(dispatchLocal)
       return
     case 'mt::response-file-move-to':
       fire(moveOpenFileTo(args[0] as Parameters<typeof moveOpenFileTo>[0], dispatchLocal))
