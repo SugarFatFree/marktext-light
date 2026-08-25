@@ -224,16 +224,20 @@ class JSONState {
     }
 
     dispatch(op: JSONOp, source = 'user' /* user, api */) {
+        // `prevDoc` is a full copy of the document, taken on every dispatch —
+        // which means on every keystroke. History needs it: the inverse
+        // operation for undo is computed against the document as it was.
+        //
+        // A `doc` (the state *after* the op) used to be copied alongside it and
+        // emitted too. Nothing ever read it, so it was a second whole-document
+        // clone per keystroke for nobody.
         const prevDoc = this.getState();
         this._apply(op);
-        // TODO: remove doc in future
-        const doc = this.getState();
         debug.log(JSON.stringify(op));
         this._muya.eventCenter.emit('json-change', {
             op,
             source,
             prevDoc,
-            doc,
         });
     }
 
@@ -298,8 +302,6 @@ class JSONState {
         );
         const prevDoc = this.getState();
         this._apply(op);
-        // TODO: remove doc in future
-        const doc = this.getState();
         // Clear before emitting: a listener that edits synchronously then starts
         // a fresh batch instead of mutating the one being flushed.
         this._operationCache = [];
@@ -311,7 +313,6 @@ class JSONState {
             op,
             source: 'user',
             prevDoc,
-            doc,
         });
     }
 }
