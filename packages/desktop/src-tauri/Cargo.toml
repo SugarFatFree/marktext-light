@@ -33,6 +33,8 @@ sys-locale = "0.3"
 trash = "5"
 # Pattern matching for project-wide search; Tauri ships no ripgrep binary.
 regex = "1"
+# Filesystem watching for the sidebar tree (chokidar's replacement).
+notify = "6"
 
 [features]
 # Enabled by tauri when building for production; forwarded from tauri.conf.json.

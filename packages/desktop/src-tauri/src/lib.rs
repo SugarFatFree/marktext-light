@@ -64,6 +64,9 @@ pub fn run() {
             // project-wide search (replaces the bundled ripgrep binary)
             commands::search::rg_start,
             commands::search::rg_cancel,
+            // filesystem watching for the sidebar tree
+            commands::watcher::watch_project,
+            commands::watcher::unwatch_project,
             // paths::*
             commands::paths::is_image,
             commands::paths::is_same_path,

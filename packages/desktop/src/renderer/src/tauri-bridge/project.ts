@@ -3,9 +3,8 @@
 //
 // The project store builds its tree from a stream of `mt::update-object-tree`
 // events rather than one listing, so the scan is replayed as the same
-// `addDir` / `add` events the watcher used to send. Live re-scanning on
-// filesystem changes is not wired yet — the tree reflects the folder as it was
-// when opened.
+// `addDir` / `add` events the watcher used to send. Once the scan is done a
+// Rust watcher takes over and emits the same shapes for later changes.
 
 import { invoke } from '@tauri-apps/api/core'
 import { open as showOpenDialog } from '@tauri-apps/plugin-dialog'
@@ -52,6 +51,11 @@ export const loadProjectTree = async(
     console.error(`[tauri-bridge] cannot scan ${pathname}:`, err)
     return
   }
+
+  // Watch before replaying, so a file created during the replay is not missed.
+  invoke('watch_project', { path: pathname }).catch((err) =>
+    console.warn(`[tauri-bridge] cannot watch ${pathname}:`, err)
+  )
 
   for (const entry of entries) {
     if (entry.isDirectory) {

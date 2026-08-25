@@ -4,3 +4,4 @@ pub mod fs;
 pub mod paths;
 pub mod project;
 pub mod search;
+pub mod watcher;
