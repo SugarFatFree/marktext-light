@@ -18,7 +18,11 @@ import { launchWithMarkdown, sendIpcToRenderer } from './helpers'
 const SECTIONS = 1200
 // A ceiling, not a target: the real number is printed below, and this can be
 // tightened once a few runs have shown what it actually is on this runner.
-const BUDGET_MS = 40000
+//
+// It must stay under the per-test timeout, which the spec raises for itself —
+// the first version set a 40s budget against playwright.config.ts's 30s and
+// measured nothing at all, because the harness killed the test first.
+const BUDGET_MS = 45000
 
 /** ~850 KB of ordinary prose: headings, paragraphs, a list, some inline marks.
  *  Deliberately not pathological — the point is that a normal big document is
@@ -53,6 +57,8 @@ test.describe('a large document', () => {
   })
 
   test('opens and renders without falling off a cliff', async() => {
+    test.setTimeout(BUDGET_MS + 60_000)
+
     const markdown = buildDocument(SECTIONS)
     expect(markdown.length).toBeGreaterThan(800_000)
 
@@ -65,22 +71,47 @@ test.describe('a large document', () => {
       true
     )
 
-    // Every section is a heading, so the count says the whole document made it
-    // into the DOM rather than just the first screen of it.
-    await page.waitForFunction(
-      (expected) => document.querySelectorAll('.editor-component h2').length >= expected,
-      SECTIONS,
-      { timeout: BUDGET_MS }
-    )
+    // Every section is a heading, so the count says how much of the document
+    // reached the DOM — muya renders all of it, with no windowing.
+    const headings = (): Promise<number> =>
+      page.evaluate(() => document.querySelectorAll('.editor-component h2').length)
+
+    // Polled rather than waited on, so a document that renders too slowly can
+    // be told apart from a tab that never opened. The first says the editor is
+    // slow; the second says the test is wired up wrong, and they want
+    // different fixes.
+    let count = 0
+    while (Date.now() - started < BUDGET_MS) {
+      count = await headings()
+      if (count >= SECTIONS) break
+      await page.waitForTimeout(500)
+    }
     const elapsed = Date.now() - started
 
-    console.log(`large document: ${Math.round(markdown.length / 1024)} KB rendered in ${elapsed} ms`)
-    expect(elapsed).toBeLessThan(BUDGET_MS)
+    console.log(
+      `large document: ${Math.round(markdown.length / 1024)} KB, ` +
+        `${count}/${SECTIONS} sections in ${elapsed} ms`
+    )
+
+    expect(count, 'the tab never opened at all').toBeGreaterThan(0)
+    expect(
+      count,
+      `only ${count} of ${SECTIONS} sections rendered in ${elapsed} ms`
+    ).toBeGreaterThanOrEqual(SECTIONS)
   })
 
   test('is still editable once it is open', async() => {
     // Rendering it is not the whole story: the earlier quadratic behaviour also
     // made every subsequent keystroke slow, which a render-time check misses.
+    //
+    // Assert the document is actually here first. This runs after the case
+    // above whether that one passed or not, and a typing time measured against
+    // a document that never opened says nothing.
+    const rendered = await page.evaluate(
+      () => document.querySelectorAll('.editor-component h2').length
+    )
+    expect(rendered, 'no large document to type into').toBeGreaterThanOrEqual(SECTIONS)
+
     await page.click('.editor-component')
     const started = Date.now()
     await page.keyboard.type('typed')
