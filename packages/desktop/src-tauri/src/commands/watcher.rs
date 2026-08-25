@@ -19,6 +19,7 @@ use serde_json::json;
 use tauri::{AppHandle, Emitter};
 
 use super::glob::{self, Exclusion};
+use super::project::is_skipped_dir;
 
 const MARKDOWN_EXTENSIONS: [&str; 11] = [
     "markdown", "mdown", "mkdn", "md", "mkd", "mdwn", "mdtxt", "mdtext", "mdx", "text", "txt",
@@ -56,13 +57,12 @@ fn is_markdown(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-/// Events from paths the tree never shows. Must agree with `scan_project`'s
-/// skip list, or the watcher would add entries the initial scan left out.
+/// Events from paths the tree never shows. The skip list is `scan_project`'s
+/// own, so the two cannot drift apart.
 fn is_ignored(path: &Path) -> bool {
-    let in_skipped_dir = path.components().any(|component| {
-        let name = component.as_os_str().to_string_lossy();
-        name == "node_modules" || name == ".git" || name.ends_with(".asar")
-    });
+    let in_skipped_dir = path
+        .components()
+        .any(|component| is_skipped_dir(&component.as_os_str().to_string_lossy()));
     if in_skipped_dir {
         return true;
     }
@@ -293,4 +293,33 @@ pub fn watch_open_files(app: AppHandle, paths: Vec<String>) -> Result<(), String
     let mut active = open_file_watcher().lock().map_err(|e| e.to_string())?;
     *active = Some(watcher);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn events_from_skipped_directories_are_dropped_at_any_depth() {
+        assert!(is_ignored(Path::new("/p/node_modules/x/readme.md")));
+        assert!(is_ignored(Path::new("/p/.git/HEAD")));
+        assert!(!is_ignored(Path::new("/p/src/readme.md")));
+        // The tree shows dot-directories, so their events matter.
+        assert!(!is_ignored(Path::new("/p/.github/workflow.md")));
+    }
+
+    #[test]
+    fn the_watcher_skips_exactly_what_the_scan_skips() {
+        // Not a restatement of the list: it asserts that both sides read the
+        // same one, which is what keeps the watcher from adding back entries
+        // the initial scan left out.
+        for name in ["node_modules", ".git", "app.asar", "src", ".github"] {
+            let path = std::path::PathBuf::from("/p").join(name).join("a.md");
+            assert_eq!(
+                is_ignored(&path),
+                is_skipped_dir(name),
+                "watcher and scan disagree about {name}"
+            );
+        }
+    }
 }
