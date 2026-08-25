@@ -216,11 +216,14 @@ test.describe('a large document', () => {
 
     console.log(`heap after GC: ${blankHeapMb} MB blank, ${loaded} MB holding the document`)
 
-    // The document is ~0.2 MB of text; rendering it as blocks and DOM costs a
-    // multiple of that unavoidably. A hundredfold would mean something is
-    // retaining copies rather than representing it.
+    // Measured once the reading became trustworthy: 11 MB blank, 15.3 MB
+    // holding 139 KB — about 4.3 MB for the document, some thirty times the
+    // source text, which is what a block tree plus a JSON copy of the content
+    // costs. The ceiling leaves an order of magnitude over that: loose enough
+    // to ignore runner variance, tight enough that a leak or a second retained
+    // copy would trip it.
     expect(loaded, 'the heap grew out of proportion to the document').toBeLessThan(
-      (blankHeapMb ?? 0) + 400
+      (blankHeapMb ?? 0) + 60
     )
   })
 
