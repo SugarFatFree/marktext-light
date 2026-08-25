@@ -16,6 +16,7 @@
 // (warn + resolve) until phases 2–7 land their Rust handlers.
 
 import { invoke } from '@tauri-apps/api/core'
+import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { writeText, readText } from '@tauri-apps/plugin-clipboard-manager'
@@ -164,6 +165,19 @@ const toggleBooleanPreference = async(key: string): Promise<void> => {
   const next = !current
   await setStoredPreferences({ [key]: next })
   dispatchLocal('mt::user-preference', [{ [key]: next }])
+}
+
+/**
+ * Scale the whole page, the way `webFrame.setZoomFactor` used to.
+ *
+ * Zoom is a preference, so a rejection here would otherwise leave the stored
+ * value and the visible size disagreeing with nothing said about it.
+ */
+const setWebviewZoom = (factor: number): void => {
+  if (!Number.isFinite(factor) || factor <= 0) return
+  getCurrentWebview()
+    .setZoom(factor)
+    .catch((err) => console.warn('[tauri-bridge] cannot set zoom:', err))
 }
 
 // Boot values `handleSend` needs long after the handshake has run. `handleSend`
@@ -477,9 +491,10 @@ const buildGlobals = (boot: BootInfo, ipc: ReturnType<typeof buildIpcWrapper>) =
       guessFilePath: async() => null
     },
     webFrame: {
-      // System WebView zoom differs per platform; wire real zoom in phase 3.
-      setZoomFactor: (_factor: number) => {},
-      setZoomLevel: (_level: number) => {}
+      setZoomFactor: (factor: number) => setWebviewZoom(factor),
+      // Electron's zoom *level* is logarithmic — factor = 1.2^level — while
+      // Tauri takes the factor directly.
+      setZoomLevel: (level: number) => setWebviewZoom(1.2 ** level)
     },
     webUtils: {
       // Tauri exposes dropped-file paths via the drag-drop event, not File objs.
