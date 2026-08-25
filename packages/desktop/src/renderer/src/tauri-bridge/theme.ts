@@ -24,6 +24,20 @@ function getChoice(): string {
   }
 }
 
+/**
+ * Record the theme choice. The durable copy lives in the preferences file, but
+ * first paint happens before that file can be read, so the choice is mirrored
+ * here where it can be read synchronously. Every writer of the `theme`
+ * preference must come through here or a restart will show the previous theme.
+ */
+export function rememberThemeChoice(choice: string): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, choice)
+  } catch {
+    /* localStorage unavailable — the preferences file still has it */
+  }
+}
+
 function themeForChoice(choice: string): string {
   if (choice === 'system') return systemPrefersDark() ? DARK : LIGHT
   return choice
@@ -47,11 +61,7 @@ export function initThemeController(applyTheme: (theme: string) => void): void {
     })
   }
   window.electron.ipcRenderer.on('mt::set-theme', (_e, choice) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, choice)
-    } catch {
-      /* localStorage unavailable — apply without persisting */
-    }
-    applyTheme(themeForChoice(choice))
+    rememberThemeChoice(String(choice))
+    applyTheme(themeForChoice(String(choice)))
   })
 }

@@ -24,7 +24,14 @@ import pathe from 'pathe'
 
 import type { BootInfo } from '@shared/types/ipc'
 import { saveDocument, saveAndCloseTabs, type UnsavedFile } from './save'
-import { resolveInitialTheme } from './theme'
+import {
+  initPreferenceStores,
+  sendStoredPreferences,
+  sendStoredUserData,
+  setStoredPreferences,
+  setStoredUserData
+} from './preferences'
+import { resolveInitialTheme, rememberThemeChoice } from './theme'
 import { setLanguage } from '@/i18n'
 
 // -----------------------------------------------------------------------------
@@ -134,6 +141,23 @@ const handleSend = (channel: string, args: unknown[]): void => {
       return
     case 'mt::save-and-close-tabs':
       fire(saveAndCloseTabs((args[0] as UnsavedFile[]) ?? [], dispatchLocal))
+      return
+    case 'mt::ask-for-user-preference':
+      fire(sendStoredPreferences(dispatchLocal))
+      return
+    case 'mt::ask-for-user-data':
+      fire(sendStoredUserData(dispatchLocal))
+      return
+    case 'mt::set-user-preference': {
+      const patch = args[0] as Record<string, unknown> | undefined
+      // The settings window writes the theme through this channel; mirror it to
+      // the sync store `resolveInitialTheme` reads on the next launch.
+      if (typeof patch?.theme === 'string') rememberThemeChoice(patch.theme)
+      fire(setStoredPreferences(patch))
+      return
+    }
+    case 'mt::set-user-data':
+      fire(setStoredUserData(args[0]))
       return
     case 'mt::win::minimize':
       fire(win().minimize())
@@ -500,6 +524,7 @@ export async function installTauriBridge(): Promise<void> {
   const boot = (await invoke('boot_info')) as BootInfo
   synthesizeEditorUrlArgs(boot)
   applyGlobals(boot)
+  initPreferenceStores(boot.paths?.userData ?? '')
 
   // Load the OS-language translations before the app mounts so the UI (menu bar,
   // dialogs, …) renders localized from the first paint. English is bundled.
