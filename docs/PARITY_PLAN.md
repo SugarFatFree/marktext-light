@@ -98,18 +98,33 @@
   注意：**往模板里加新的 `<el-…>` 标签时，必须同步加进 `main.ts` 的注册清单**。
 - **`844bbd49`** 源码模式（CodeMirror）改 `defineAsyncComponent`：编辑器 chunk 649 → 381 KB，
   剩下 267 KB 只有真正切到源码模式的会话才取。
+- **`8f772a6d`** 主题按需加载：32 个主题 CSS + 31 个 prism CSS 原本是 63 个 `?inline` 静态导入
+  （约 260 KB 字符串常量）挤在首屏 chunk 里，只为显示其中一个。改用 `import.meta.glob` 后，
+  它们共用的那个 chunk 从 231 KB 降到 11 KB。33 分支的 switch 塌缩成文件名查表——配对本来就是
+  机械的（主题 x 配 prism x，只有 `material-dark` 一个例外）。
+  代价：应用主题变成异步，body/CodeMirror 的 class 先同步设好、CSS 到了再写入（含竞态保护）。
 
 实测体积（`packages/desktop/out-tauri/renderer/assets/`）：
 
-| 阶段 | eager 入口 | 编辑器路由首屏合计 |
+| 阶段 | eager 入口 | 编辑器首屏静态闭包 |
 |---|---|---|
 | 优化前 | 3512 KB | 3512 KB |
-| 现在 | 762 KB | 2428 KB |
+| Element Plus + 路由懒加载后 | 762 KB | 2689 KB |
+| CodeMirror + 主题懒加载后 | **762 KB** | **2469 KB** |
+
+已确认**不在**首屏闭包内（muya 自己按需取）：katex、mermaid、cytoscape、wardley、embed。
+剩下 2469 KB 的构成：muya 引擎 1284 KB + 入口 762 KB（Vue + 25 个 Element Plus 组件 + pinia +
+router + vue-i18n + en 语言包）+ 编辑器页 381 KB。
+语言包本来就是按需的：只有 en 静态打包，其余走 Rust 的 `load_locale`。
+
+复测：`pnpm -C packages/desktop run tauri:build-renderer && pnpm run bundle-size`
+（脚本 `scripts/bundle-size.ts` 算的是**静态闭包**，不是最大 chunk——动态 import 后面的东西
+不该计入首屏）。
 
 ## 下一步（按优先级）
 
-1. **继续瘦身**：编辑器路由首屏仍需 2428 KB，其中 1284 KB 的共享 chunk 主要是 muya（katex 已单独 255 KB）。
-   下一刀应切 muya 内部的按需加载，或把 katex 变成「文档含公式才取」。
+1. **大文件基准**（要求 #8 的后半，仍未开工）：先用 Vitest 建 5/20/50 MB 文档的解析耗时基准，
+   有数字再谈优化。muya 引擎 1284 KB 已是首屏最大块，继续切它风险高、收益需先由基准证明。
 2. **文件 watcher**：项目树目前只在打开时扫一次。Rust 侧用 `notify` crate 监听，
    emit 与扫描同构的 `mt::update-object-tree` 事件即可（`tauri-bridge/project.ts` 已定好形状）。
 3. **重命名／删除**：`mt::rename`、`mt::fs-trash-item`（回收站需 `trash` crate 或 opener 插件）。
