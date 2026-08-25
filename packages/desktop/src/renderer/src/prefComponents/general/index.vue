@@ -45,12 +45,20 @@
           :bool="hideScrollbar"
           :on-change="(value) => onSelectChange('hideScrollbar', value)"
         />
+        <!-- Hidden under Tauri, where this build is one window with many tabs by
+             design: the bridge opens every file as a tab and answers even "New
+             Window" with one. Leaving the switches on screen would promise
+             something that cannot happen, and flipping them would look broken.
+             The Electron build still honours them, so the gate is not a
+             deletion. -->
         <bool
+          v-if="!runningInTauri"
           :description="t('preferences.general.window.openFilesInNewWindow')"
           :bool="openFilesInNewWindow"
           :on-change="(value) => onSelectChange('openFilesInNewWindow', value)"
         />
         <bool
+          v-if="!runningInTauri"
           :description="t('preferences.general.window.openFoldersInNewWindow')"
           :bool="openFolderInNewWindow"
           :on-change="(value) => onSelectChange('openFolderInNewWindow', value)"
@@ -188,6 +196,10 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { usePreferencesStore } from '@/store/preferences'
 import type { PreferencesState } from '@/store/preferences'
+// Resolved once, not referenced in the template: `isTauri` is a function, and
+// a template testing it directly would be testing a function object, which is
+// always truthy — hiding the rows in the Electron build too.
+import { isTauri } from '@/tauri-bridge'
 import Compound from '../common/compound/index.vue'
 import Range from '../common/range/index.vue'
 import CurSelect from '../common/select/index.vue'
@@ -205,6 +217,7 @@ import {
 
 const { t } = useI18n()
 const preferenceStore = usePreferencesStore()
+const runningInTauri = isTauri()
 
 const {
   autoSave,
