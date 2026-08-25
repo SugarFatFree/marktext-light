@@ -10,10 +10,73 @@ import axios from './axios'
 import pinia from './store'
 import './assets/symbolIcon'
 
-// Element Plus instead of Element UI for Vue 3
-import ElementPlus from 'element-plus'
+// Element Plus, registered component by component rather than as the whole
+// library: `app.use(ElementPlus)` pins every one of its ~80 components into the
+// entry chunk, and this app uses 25. Adding an `<el-…>` tag to a template means
+// adding it to this list.
+//
+// No locale is passed — Element Plus already defaults to English, which is what
+// the plugin form was configured with. The app's own strings go through i18n.
+import type { Plugin } from 'vue'
+import {
+  ElAutocomplete,
+  ElButton,
+  ElCol,
+  ElDialog,
+  ElDropdown,
+  ElDropdownItem,
+  ElDropdownMenu,
+  ElForm,
+  ElFormItem,
+  ElIcon,
+  ElInput,
+  ElInputNumber,
+  ElOption,
+  ElRadio,
+  ElRadioGroup,
+  ElRow,
+  ElSelect,
+  ElSlider,
+  ElSwitch,
+  ElTabPane,
+  ElTable,
+  ElTableColumn,
+  ElTabs,
+  ElTooltip,
+  ElTree
+} from 'element-plus'
+// Still the full stylesheet: per-component style entrypoints would have to be
+// kept in sync by hand, and CSS does not carry the parse cost that made the
+// JS side worth splitting.
 import 'element-plus/dist/index.css'
-import en from 'element-plus/es/locale/lang/en'
+
+const ELEMENT_PLUS_COMPONENTS = [
+  ElAutocomplete,
+  ElButton,
+  ElCol,
+  ElDialog,
+  ElDropdown,
+  ElDropdownItem,
+  ElDropdownMenu,
+  ElForm,
+  ElFormItem,
+  ElIcon,
+  ElInput,
+  ElInputNumber,
+  ElOption,
+  ElRadio,
+  ElRadioGroup,
+  ElRow,
+  ElSelect,
+  ElSlider,
+  ElSwitch,
+  ElTabPane,
+  ElTable,
+  ElTableColumn,
+  ElTabs,
+  ElTooltip,
+  ElTree
+] as unknown as Plugin[]
 
 // I18n translation system
 import i18nPlugin from './i18n'
@@ -47,10 +110,9 @@ async function start(): Promise<void> {
   // Create Vue app
   const app: App<Element> = createApp(Main)
 
-  // Configure Element Plus with locale
-  app.use(ElementPlus, {
-    locale: en
-  })
+  for (const component of ELEMENT_PLUS_COMPONENTS) {
+    app.use(component)
+  }
 
   const envType = window.marktext?.env?.type as string | undefined
 
