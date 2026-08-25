@@ -16,7 +16,7 @@
 统计 `src/renderer` 里 `ipcRenderer.{send,sendSync,invoke,on,once}` 用到的通道，
 再看 `tauri-bridge/index.ts` 与 `src-tauri/src/**` 是否实现。
 
-**基线 2026-08-25：116 个通道，实现 18 → 当前 44，缺 72。**
+**基线 2026-08-25：116 个通道，实现 18 → 当前 78，缺 38。**
 （复测命令见本文件末尾）
 
 **计数口径的局限**：脚本只统计 `ipcRenderer.*` 调用点。像 `window.ripgrep.*`、`window.uploader.*`、
@@ -34,8 +34,8 @@
 | ~~P1~~ ✅ | 标签切换快捷键 | `mt::switch-tab-by-index`、`mt::tabs-cycle-left/right` | 已在渲染层识别键位（`mt::switch-tab-by-file_path` 无触发方，暂不需要） |
 | ~~P1~~ ✅ | 文件重命名／删除 | `mt::rename`、`mt::fs-trash-item` | 已接通（trash 用 Rust `trash` crate） |
 | ~~P1~~ ✅ | 全文搜索 | `ripgrep.*` → Rust `rg_start`/`rg_cancel` | 已接通（不读 .gitignore，见下） |
-| P2 | 导出／打印 | `mt::response-export`、`mt::response-print`、`mt::show-export-dialog`、`mt::export-success` | 无法导出 HTML/PDF |
-| P2 | 图片上传与路径 | `mt::ask-for-image-path`、`uploader.*` | 粘贴图片失效 |
+| ~~P2~~ ✅ | 导出／打印 | `mt::response-export`、`mt::response-print` | HTML 已通；**PDF 降级为系统打印对话框的「另存为 PDF」** |
+| ⚠️ P2 | 图片 | `mt::ask-for-image-path` ✅；`uploader.*`（图床上传）仍是 stub | 本地图片可选，上传不可用 |
 | P2 | 拼写检查 | `mt::spellchecker-*` | 硬缺口，Electron 专有 API |
 | P2 | 快捷键自定义 | `mt::request-keybindings`、`mt::keybinding-save-user-keybindings` | 用默认键位可用 |
 | P3 | 自动更新 | `mt::UPDATE_*`、`mt::check-for-update` | 可最后做 |
@@ -163,6 +163,25 @@ router + vue-i18n + en 语言包）+ 编辑器页 381 KB。
   - **排除模式只支持 `*`、`**`、`?`**，不是完整 glob 语法。
 - 匹配位置按**字符**计数而非字节——渲染层要拿它去 JS 字符串里定位高亮。
 
+### 桥接面的其余补齐（第 13–14 轮）
+
+- **`755e4c4e`** 导出与打印。HTML 完整实现；**PDF 是有意降级**：上游用 Electron `webContents.printToPDF`
+  抓页面，Tauri 无对应 API，改走 WebView 自带打印对话框的「另存为 PDF」。此时渲染层已换上打印布局
+  DOM（正是 printToPDF 当年抓的那份），文档内容一致，但目标路径由系统对话框决定、不回传，
+  所以 **PDF 没有成功通知**。打印布局的拆除放在 `finally`，否则取消打印会把编辑器卡在打印视图。
+- **`3c299faa`** 五个文件/窗口对话框：移动文件、图片选择、图片目录、默认打开目录、窗口置顶。
+  两个目录选择器写完偏好还要回推 `mt::user-preference`——偏好 store 只通过那个通道感知变化。
+  踩坑：从 `common/filesystem/paths` 引 `IMAGE_EXTENSIONS` 会**直接构建失败**（该模块 import 了 Node 的 `fs`），
+  改为内联，与桥内已有的 `MARKDOWN_EXTENSIONS` 同理。
+- **`ef33f3aa`** 命令面板的文件命令。**「新建窗口」映射为新建标签页**——本项目按要求是单窗口多标签，
+  再开窗口会与单实例处理器冲突。（若希望改为从面板移除该命令，需另行决定。）
+- **`6941968f`** 窗口状态与拖放：自定义标题栏此前永远不知道窗口被最大化；拖 markdown 到窗口现在能打开成标签页
+  （WebView 的 DOM drop 事件不带路径，改用窗口自身的 drag-drop 事件）。
+- **`3fd14f57`** 显式吞掉「本就不该有去处」的通道。`mt::editor-selection-changed` **每次光标移动都会触发**，
+  此前落到未处理分支、每次打一条 `console.warn`——在大文档上是真实开销。
+  `update-buffer-state` 同样吞掉，但理由不同：**丢弃它正是「标签页不持久化」的实现机制**。
+  同时补 `test/unit/specs/recent-files.spec.ts` 覆盖要求 #3/#5。
+
 ### 大文件（要求 #8 的后半）
 
 **`c866a62b`** —— 建基准时直接撞出两类真问题：
@@ -209,10 +228,15 @@ router + vue-i18n + en 语言包）+ 编辑器页 381 KB。
 
 ## 下一步（按优先级）
 
+0. **CI 验证（阻塞中）**：8 个改了 Rust 的提交已推送但**从未编译过**。本机 rustup 工具链损坏、
+   无 webkit2gtk，`gh` token 已失效导致无法触发 workflow。需要在本机终端跑一次
+   `gh auth login -h github.com`（token 需 `repo` + `workflow` 权限）。
 1. **文件 watcher**：项目树目前只在打开时扫一次。Rust 侧用 `notify` crate 监听，
    emit 与扫描同构的 `mt::update-object-tree` 事件即可（`tauri-bridge/project.ts` 已定好形状）。
-2. **菜单驱动的编辑命令**：`mt::cm-copy-as-html`、`mt::cm-paste-as-plain-text`、
-   `mt::show-command-palette` 等由菜单推送的通道，Rust 菜单尚未 emit。
+2. **原生菜单状态回显**：`mt::update-format-menu` 等目前是显式空操作，Tauri 菜单不显示
+   粗体/斜体/行尾/布局的勾选状态。需要 Rust 侧持有菜单项句柄并 set_checked。
+3. **快捷键表**：`mt::request-keybindings` 未接，命令面板不显示快捷键。
+   键位表在 `src/main/keyboard/keybindings*.ts`，是纯数据，但跨进程目录导入需先想清楚边界。
 4. **E2E**：补「重启后标签页不恢复、最近文件仍在」的 Playwright 用例，锁住要求 #3/#4。
 5. **大文件的渲染侧**：解析已线性，但打开一个大文档还要经过 muya 建块树 + snabbdom 渲染，
    那一段尚未测过（本地无 WebView，需在真实窗口里量）。内存也仍偏高：4 MB 文档解析后堆约 600 MB。
