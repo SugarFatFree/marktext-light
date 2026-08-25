@@ -17,14 +17,14 @@
           :on-change="(value) => onSelectChange('spellcheckerNoUnderline', value)"
         />
         <bool
-          v-show="isOsx"
+          v-show="osManagedSpellcheck"
           :description="t('preferences.spellchecker.autoDetectLanguage')"
           :bool="true"
           :disable="true"
           :on-change="noop"
         />
         <cur-select
-          v-show="!isOsx"
+          v-show="!osManagedSpellcheck"
           :description="t('preferences.spellchecker.defaultLanguage')"
           :value="spellcheckerLanguage"
           :options="availableDictionaries"
@@ -35,13 +35,13 @@
     </compound>
 
     <div
-      v-if="isOsx && spellcheckerEnabled"
+      v-if="osManagedSpellcheck && spellcheckerEnabled"
       class="description"
     >
       {{ t('preferences.spellchecker.autoDetectDescription') }}
     </div>
 
-    <div v-if="!isOsx && spellcheckerEnabled">
+    <div v-if="!osManagedSpellcheck && spellcheckerEnabled">
       <h6 class="title">
         {{ t('preferences.spellchecker.customDictionary.title') }}
       </h6>
@@ -91,7 +91,8 @@ import { storeToRefs } from 'pinia'
 import Compound from '../common/compound/index.vue'
 import CurSelect from '../common/select/index.vue'
 import Bool from '../common/bool/index.vue'
-import { isOsx as checkIsOsx } from '@/util'
+import { isOsx } from '@/util'
+import { isTauri } from '@/util/isTauri'
 import { SpellChecker } from '@/spellchecker'
 import { getLanguageName } from '@/spellchecker/languageMap'
 import notice from '@/services/notification'
@@ -104,7 +105,13 @@ interface CustomDictionaryWord {
 }
 
 const { t } = useI18n()
-const isOsx = checkIsOsx
+// Whether the platform's own spell checker owns this, rather than a dictionary
+// the app manages. True on macOS, and true in the WebView this build runs in:
+// muya sets `spellcheck` on the editor and the system takes it from there,
+// choosing languages itself. Neither offers a dictionary list, a language
+// switch, or a custom word list, so the controls for those are not shown — and
+// asking for them threw, since nothing answers those channels here.
+const osManagedSpellcheck = isOsx || isTauri()
 const availableDictionaries = ref<PrefSelectOption<string>[]>([])
 const wordsInCustomDictionary = ref<CustomDictionaryWord[]>([])
 
@@ -114,7 +121,7 @@ const { spellcheckerEnabled, spellcheckerNoUnderline, spellcheckerLanguage } =
   storeToRefs(preferenceStore)
 
 onMounted(async () => {
-  if (isOsx) {
+  if (osManagedSpellcheck) {
     return
   }
 

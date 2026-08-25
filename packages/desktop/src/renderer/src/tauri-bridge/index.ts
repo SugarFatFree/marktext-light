@@ -764,7 +764,7 @@ export async function installTauriBridge(): Promise<void> {
   )
 }
 
-/** True when running under the Tauri shell rather than Electron. */
-export function isTauri(): boolean {
-  return typeof (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ !== 'undefined'
-}
+// Re-exported so existing `import { isTauri } from '@/tauri-bridge'` callers
+// keep working; it lives in `@/util/isTauri` so a consumer that only needs the
+// predicate does not have to pull in the bridge (and, through it, `@/i18n`).
+export { isTauri } from '@/util/isTauri'

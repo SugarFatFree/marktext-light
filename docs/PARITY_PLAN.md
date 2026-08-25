@@ -40,7 +40,7 @@
 | ~~P2~~ ✅ | 缩放 | `webFrame.setZoomFactor` | 接到 WebView 缩放 |
 | ~~P2~~ ✅ | 导出／打印 | `mt::response-export`、`mt::response-print` | HTML 已通；**PDF 降级为系统打印对话框的「另存为 PDF」** |
 | ⚠️ P2 | 图片 | `mt::ask-for-image-path` ✅；`uploader.*`（图床上传）仍是 stub | 本地图片可选，上传不可用 |
-| P2 | 拼写检查 | `mt::spellchecker-*` | **硬缺口**：依赖 Electron 专有 API，无 Tauri 对应物 |
+| ⚠️ P2 | 拼写检查 | `mt::spellchecker-*` | **基础可用**：muya 给编辑器设 `spellcheck`，WebView 用系统词典画红波浪线（与 Electron 版在 macOS 上同理）。缺的是词典列表、应用内切换语言、右键改正 |
 | ~~P2~~ ✅ | 快捷键显示 | `mt::request-keybindings` | 命令面板已显示默认键位；**自定义键位未接** |
 | P3 | 自动更新 | `mt::UPDATE_*`、`mt::check-for-update` | 可最后做 |
 | P3 | pandoc 导入、截图、always-on-top | `mt::cmd-import-file`、`mt::make-screenshot`、`mt::window-toggle-always-on-top` | 边缘功能 |
