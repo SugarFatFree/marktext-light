@@ -23,10 +23,11 @@ test.describe('emoji picker', () => {
     });
 
     test('fills with suggestions, including the first time in a session', async ({ page }) => {
-        // The emoji table is 179 KB and loads when the picker first searches,
-        // so the very first `:` in a session searches an empty table and the
-        // picker draws again when the module lands. Polling covers that; a
-        // one-shot read would be racing the import.
+        // The emoji table is 179 KB and is not in the startup bundle; the
+        // picker prefetches it on idle, so by the time anything is typed it is
+        // normally in hand. Polling covers the case where it is not — and, in
+        // this harness specifically, the dev server transforming a
+        // 13,000-line module on first request, which a built app never does.
         //
         // The case above deliberately asserts only that the container exists,
         // because its populated state used to be flaky. This one asserts the
@@ -37,7 +38,7 @@ test.describe('emoji picker', () => {
         await slowType(page, ':smile');
 
         await expect
-            .poll(() => page.locator(`${floats.emojiPicker} div.item`).count(), { timeout: 10000 })
+            .poll(() => page.locator(`${floats.emojiPicker} div.item`).count(), { timeout: 25000 })
             .toBeGreaterThan(0);
     });
 

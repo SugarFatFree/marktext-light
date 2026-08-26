@@ -5,7 +5,7 @@ import type { Muya } from '../../index';
 import { query } from '../../utils/dom';
 import { h, patch } from '../../utils/snabbdom';
 import BaseScrollFloat from '../baseScrollFloat';
-import Emoji from './emoji';
+import Emoji, { prefetchEmojis } from './emoji';
 import './index.css';
 
 const defaultOptions = {
@@ -32,6 +32,7 @@ export class EmojiSelector extends BaseScrollFloat {
         super(muya, name, defaultOptions);
 
         this.listen();
+        prefetchEmojis();
     }
 
     get renderObj(): Record<string, EmojiType[]> {
