@@ -1372,6 +1372,35 @@ code-block-language-selector / footnote / unwrap-undo),
 
 **结论:本机只单独跑相关 spec,全量 e2e 以 CI 的 Muya E2E 为准。** 不要再为此重复排查。
 
+### 不再等日志:让 CI 读启动埋点(第 89 轮)
+
+那 464 ms 已经等了三轮用户回传日志。其实不必等——**埋点在 Electron 下同样会写
+`window.__MT_STARTUP__`**(只有写文件那句 `invoke` 是 Tauri 专属),
+而我要归因的 `mounted → microtasks drained → commands sorted → commands ready`
+**三段是纯渲染层代码,两个 shell 完全一致**。CI 的桌面 E2E 跑的就是真实应用。
+
+新增 `test/e2e/startup-phases.spec.ts`:启动、等 `__MT_STARTUP__`、解析、**把各段打进日志**。
+**断言的是仪器本身还好用**——每个阶段出现且仅出现一次、顺序与代码标记顺序一致、时间不倒流。
+**不断言时长**:共享 runner 上 40 ms 级的阈值必然飘,飘了就会被静音,
+最后变成没人看的仪器。数字打出来给人读。
+
+顺序检查不是凑数:这些埋点**已经误导过两次**——`engine constructed` 标在建引擎之前,
+`commands ready` 标在它没度量的工作下游。少一个或挪一个都是静默的,顺序检查挡的是这个。
+
+**两个 shell 的差异要记住**:Electron 下 `bootstrap dispatched` 之后才等主进程的
+`mt::bootstrap-editor`,所以 `editor mounting` 那一段两边不可比;
+但它在被比较的三段之后,不影响归因。
+
+### 渲染路径的下一步是架构级(第 89 轮)
+
+profile 里 `snabbdom-to-html` 出现在热路径上,查实了原因:
+`inlineRenderer.patch()` 的做法是 **vnode → HTML 字符串 → `domNode.innerHTML`**,
+即每个内容块都要序列化成字符串、再由浏览器解析回 DOM,绕了一趟。
+改用 snabbdom 的 DOM patch 可省掉这趟往返,对**打字延迟**收益更大(增量 diff 而非整块替换)。
+
+**但这是渲染核心的重写**,牵动每种块类型、光标处理与一致性套件。
+与虚拟化(只渲染可视区块)并列为架构级项,**不在迭代里做**。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
