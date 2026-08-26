@@ -1261,8 +1261,27 @@ mermaid / katex(第二份) / sourceCode / preference / emojis / embed 均已是�
 说明它是活的。没有命令式 API(`ElMessage`/`ElMessageBox`/`ElNotification`/`ElLoading` 全仓为零),
 那类最容易漏样式的用法不存在。
 
-**仍未验证的是"好不好看"**:本机无 GUI,E2E 查 DOM 与对比度、查不出布局崩坏。
-**这一条要由跑安装包的人目视确认**——如果哪里样式塌了,就是这次改动。
+**丢了什么,已逐条查实(第 86 轮)**。类名虽由运行时拼接,但 **CSS 选择器是静态文本**,
+可以精确枚举。全量样式表 809 个 `.el-*` 选择器,产物仍带 675 个,丢 134 个:
+
+- 绝大多数属明确未使用的组件(alert / calendar / carousel / date-picker / drawer /
+  upload / transfer / tour / steps / menu / message / notification / loading …)。
+- 与在用组件同前缀的逐条看过,全是**别的组件**:`el-table-v2`、`el-tree-select`、
+  `el-checkbox-group` / `el-checkbox-button`、`el-radio-button`、`el-overlay-message-box`、
+  `el-pagination` / `el-pager`、`el-sub-menu`、`el-picker*` / `el-range*` / `el-month-table`。
+- 三个不以标签形式出现、可能被直接写进 `class` 的也查了:`el-transitioning` 来自
+  `el-carousel.css`,`el-vg` 来自 `el-virtual-list.css`(select-v2/table-v2 用),
+  `el-icon-arrow-right` / `el-icon-circle-close` 是旧图标字体类
+  (本项目用 `@element-plus/icons-vue` 的 SVG 组件)。**应用源码里没有任何一处直接写这些类名。**
+
+**深色模式无回归**:Element Plus 的 `theme-chalk/dark/css-vars.css` 是独立文件(2.9 KB),
+全量表里本就只有 3 条 `.dark` 规则,而本仓从未引入过它——深色走的是自己的 `addThemeStyle`。
+
+**CI 也过了**:`510d6e8b` 的 E2E 在**真实 Electron** 上全绿(侧栏树、对话框、下拉、标签页,
+含深色模式对比度用例)。
+
+**仍未验证的只剩"好不好看"**:E2E 查 DOM 与对比度,查不出布局塌陷。
+**这一条要由跑安装包的人目视确认。**
 
 **一个未了结的间歇性失败**:全量单测带改动跑 5 次,`pdf.spec.ts` 失败过 1 次
 (`window.marktext` 在 `beforeEach` 明明赋过值却是 undefined);干净树跑 3 次全过。
