@@ -22,6 +22,25 @@ test.describe('emoji picker', () => {
         expect(typeof opacity).toBe('string');
     });
 
+    test('fills with suggestions, including the first time in a session', async ({ page }) => {
+        // The emoji table is 179 KB and loads when the picker first searches,
+        // so the very first `:` in a session searches an empty table and the
+        // picker draws again when the module lands. Polling covers that; a
+        // one-shot read would be racing the import.
+        //
+        // The case above deliberately asserts only that the container exists,
+        // because its populated state used to be flaky. This one asserts the
+        // thing a user cares about — that suggestions actually appear — which
+        // is also exactly what deferring the table could break.
+        await page.evaluate(() => window.muya!.setContent(''));
+        await page.locator(editor.paragraph).first().click();
+        await slowType(page, ':smile');
+
+        await expect
+            .poll(() => page.locator(`${floats.emojiPicker} div.item`).count(), { timeout: 10000 })
+            .toBeGreaterThan(0);
+    });
+
     test('emoji picker DOM is detached only via opacity (not removed)', async ({ page }) => {
         // The picker float box is mounted once and reused — confirm it stays
         // in the DOM after focus moves elsewhere.
