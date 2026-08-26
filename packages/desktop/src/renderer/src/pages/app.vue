@@ -183,10 +183,11 @@ onMounted(async () => {
   await commandCenterStore.LISTEN_COMMAND_CENTER_BUS()
   // The editor is gated on `init`, which `LISTEN_FOR_BOOTSTRAP_WINDOW` sets
   // below — so everything queued ahead of it delays the first document even
-  // though none of it is needed to show one. These three marks say how the
-  // 356 ms between the app mounting and the editor starting divides up:
-  // building the command table, registering listeners either side of the
-  // bootstrap, and finally Vue's re-render once `init` flips.
+  // though none of it is needed to show one.
+  //
+  // This mark closes the command store's share of that wait: the listener
+  // registrations after its own `commands sorted`. It is not where the command
+  // table is built — that happens before the app is even marked mounted.
   markStartup('commands ready')
   layoutStore.LISTEN_FOR_LAYOUT()
   listenForMainStore.LISTEN_FOR_EDIT()

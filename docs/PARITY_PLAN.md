@@ -1114,6 +1114,58 @@ Flutter 版不到 1 秒。
 修复本机验不了(无 Electron/Xvfb),已由 CI 复跑确认:`e6db7d31` 的 E2E
 **229 过 / 0 失败**,比修复前的 228 过 + 1 失败正好多出这一条。
 
+### 第四份日志(第 83 轮):埋点的名字骗了我
+
+新包(`f0212a3d`)跑出的日志。这次整体慢约 1.3 倍(WebView2 1824 ms、script start +770 ms),
+所以看比例。`mounted → editor mounting` 由 356 涨到 464 ms,四段拆分:
+
+| 区间 | 耗时 | 占比 |
+|---|---|---|
+| mounted → **commands ready** | **397 ms** | **86%** |
+| → bootstrap dispatched | 8 ms | 2% |
+| → listeners registered | 3 ms | 1% |
+| → editor mounting | 56 ms | 12% |
+
+**先说被证伪的**:约 40 次 `LISTEN_*` 注册合计 **11 ms**。我原本相当怀疑它——
+桥的 `registerEvent` 每次都要 `listen()` 发一趟 Tauri 事件订阅——**错了,不在这里。**
+Vue 重渲染(含侧栏挂载)56 ms,也不是。
+
+**再说 397 ms 不是什么**。本机 V8 上把嫌疑逐项定价(真实依赖,`node`):
+
+| 项目 | 耗时 |
+|---|---|
+| `createI18n` | 4.8 ms |
+| 118 个 `t()` 首次调用(含 vue-i18n 惰性编译) | 12.4 ms |
+| 同样的键再来一次(热) | 2.9 ms |
+| `SORT_COMMANDS` 的 `localeCompare` 排序 | 9.8 ms |
+| 同样排序改用缓存的 `Intl.Collator` | **0.2 ms** |
+| 83 条命令赋值进深响应式 `ref` | 0.5 ms |
+| 通过响应式 Proxy 排序 | 11.8 ms |
+| 同样排序在普通数组上 | 0.1 ms |
+
+**全部加起来不到 40 ms,而实测 397 ms。** 冷 WebView2 慢 10 倍讲不通。
+
+**真正的问题是我读错了埋点**。`getCommandsWithDescriptions()` 的函数体是纯同步的,
+按 JS 语义它在 `await` 求值时就跑完了——**即在 `mounted` 埋点之前**。
+所以叫 `commands ready` 的标记**从来没有度量过命令表**。
+那个窗口里排的是 `mounted` 之后要清空的微任务队列,最大嫌疑是
+`onMounted` 开头那句 `SET_USER_PREFERENCE(initialState)` 触发的**整个外壳重渲染**
+(Vue 的调度器 flush 也是微任务)。
+
+**这是本文件记过一次的同一种错**:上一轮把 `engine constructed` 改名成
+`engine about to build`,正因为名字会把读日志的人引向反方向。这次名字又骗了我一轮。
+**教训:埋点命名要说它在代码里的位置,不要说它"测的是什么",后者是待证的结论。**
+
+已加两处埋点把窗口彻底切开:`microtasks drained`(我们的续体第一次拿到 CPU,
+之前的都是排在前面的微任务)、`commands sorted`(赋值 + 排序,本机 12 ms)。
+到 `commands ready` 的剩余才是那约 10 个监听注册。
+**若 397 ms 落在 `mounted → microtasks drained`,那它属于偏好设置引发的重渲染,
+和命令中心无关**,改法也完全不同。
+
+顺带一个无论如何都成立的小结论:`SORT_COMMANDS` 用 `localeCompare` 且未缓存 Collator,
+在普通数组上是 0.1 → 9.8 ms 的 100 倍差距。绝对值小,**没有据此改动**——
+这条路径一共才 12 ms,改它属于拿不到的收益。记在这里是为了下次别重新发现一遍。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
