@@ -61,19 +61,27 @@ export class EmojiSelector extends BaseScrollFloat {
                 return this.hide();
             const text = emojiText.trim();
             if (text) {
-                this.renderObj = this._emoji.search(text);
                 const cb: (item: EmojiType) => void = (item) => {
                     if (block && block.setEmoji)
                         block.setEmoji(item.aliases[0]);
                 };
+                const searchAndShow = (): void => {
+                    this.renderObj = this._emoji.search(text);
+                    if (this.renderArray.length) {
+                        this.show(reference, cb);
+                        this.render();
+                    }
+                    else {
+                        this.hide();
+                    }
+                };
 
-                if (this.renderArray.length) {
-                    this.show(reference, cb);
-                    this.render();
-                }
-                else {
-                    this.hide();
-                }
+                searchAndShow();
+                // The emoji table loads on demand, so the first `:` typed in a
+                // session searches an empty one. Search again once it lands —
+                // `whenReady` is already resolved on every later keystroke, so
+                // this costs a microtask and nothing else.
+                void this._emoji.whenReady().then(searchAndShow);
             }
         });
     }

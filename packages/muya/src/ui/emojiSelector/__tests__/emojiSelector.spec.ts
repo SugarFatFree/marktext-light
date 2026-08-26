@@ -5,6 +5,7 @@ import { EmojiSelector } from '..';
 import EventCenter from '../../../event';
 import { en } from '../../../locales/en';
 import { zhCN } from '../../../locales/zh-CN';
+import Emoji from '../emoji';
 
 // Integration-shaped tests for the EmojiSelector floating autocomplete UI.
 //
@@ -55,6 +56,14 @@ function localeT(resource: Record<string, string>): (s: string) => string {
 }
 
 const selectors: EmojiSelector[] = [];
+
+// The emoji table loads on demand — it is 179 KB and only this popup reads it,
+// so it is not in the startup bundle. The loaded table is module state, so
+// awaiting it once here lets every case below search synchronously, exactly as
+// the running app does from the second `:` onwards.
+beforeEach(async () => {
+    await new Emoji().whenReady();
+});
 
 afterEach(() => {
     while (selectors.length)
