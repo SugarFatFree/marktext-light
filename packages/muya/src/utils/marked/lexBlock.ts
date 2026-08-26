@@ -104,7 +104,18 @@ export function lexBlock(
         );
     }
 
-    if (footnote) {
+    // The footnote rule is the same trap as the math rules above, and takes the
+    // same way out. Its `start()` runs `/\n\[\^…\]:/` against the whole
+    // remaining source at every block boundary, so a document with no footnotes
+    // pays a full scan per block — quadratic in the document. A 593 KB file with
+    // none opened in 6.0 s with the rule registered and 4.5 s without, and its
+    // cost per KB stopped climbing with size.
+    //
+    // The block rule and its `start()` both need the literal `[^`, so a source
+    // without it cannot produce a footnote token. Tested against the original
+    // `src` for the same reason the math checks are: front matter is stripped
+    // below, and a superset without `[^` guarantees the remainder has none.
+    if (footnote && src.includes('[^')) {
         m.use(footnoteExtension());
     }
 

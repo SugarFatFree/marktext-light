@@ -1289,6 +1289,48 @@ mermaid / katex(第二份) / sourceCode / preference / emojis / embed 均已是�
 内联 CSS、dompurify)。失败形态指向该 spec 自己「首个用例 delete 全局、靠 beforeEach 兜底」
 的写法。**没复现、没归因,记在这里,盯 CI。**
 
+### 大文件:又一个二次项,和 math 那个一模一样(第 87 轮)
+
+先确认首屏 JS 已到地板:按文件归因应用代码,最大单文件 `store/editor.ts` 25.9 KB,
+把几个对话框改懒加载总共约省 20 KB(1%),**不值当**。构建目标已是 `esnext`,没有余量。
+剩下的都是库,而最大两项(katex 285 KB、prism 目录 78 KB)要动引擎的同步语义。
+**削首屏这条线到此为止。**
+
+转到"支持大文件"。对 296 KB 文档做 CPU profile,自身耗时里冒出两个新面孔:
+
+| 占比 | 函数 |
+|---|---|
+| 29.1% | `addRange`(**已排除的假线索**,去掉它到首帧无差别) |
+| 8.9% | `patch`(inlineRenderer,预期之内) |
+| **7.1%** | **`utils/marked/extensions/footnote.ts` 的 `start`** |
+| 4.5% | `event/index.ts` 的 `_checkHasBind` |
+
+**而这份测试文档里一个脚注都没有。**
+
+原因本文件已经记过一次——`math.ts` 的注释写着:marked 会在**每个 token 边界**对
+**剩余全文**调用每个扩展的 `start()`,所以一条不可能匹配的规则仍要付一次扫描;
+能证明它不可能匹配的调用方应当关掉它。`lexBlock` 为 math 做了这个判断
+(`src.includes('$')`),**却没给脚注做**。块边界数与文档大小成正比 × 每次扫剩余全文
+= 二次方。
+
+修法完全照搬先例:块规则与其 `start()` 都必须要有字面量 `[^`,所以
+`footnote && src.includes('[^')`。实测(同机同会话,各取 3 次最好成绩):
+
+| 文档 | 改前 perKB | 改后 perKB | 开文档耗时 |
+|---|---|---|---|
+| 147 KB | 7.85 ms | 7.85 ms | 持平 |
+| 296 KB | 8.18 ms | 6.88 ms | 2421 → 2035 ms(−16%) |
+| 593 KB | **10.20 ms** | **7.66 ms** | 6043 → **4543 ms(−25%)** |
+
+**改前 perKB 随尺寸上升,改后是平的**——这是二次项被摘掉的标准形态,文档越大省得越多。
+
+`src/state/__tests__/footnoteRuleGating.spec.ts` 钉住守卫(仿 `mathRuleGating.spec.ts`):
+开头即定义、文档中部定义、front matter 之后定义、只有引用没有定义、完全无 `[^`。
+**验过它有牙齿**:把守卫改成恒假,5 条里红 3 条。这一步是必要的——守卫写错的后果是
+脚注**静默**不再解析,而不是报错。
+
+**剩下的两个**:`addRange` 29% 已排除;`_checkHasBind` 4.5%(`event/index.ts:112`)未查。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
