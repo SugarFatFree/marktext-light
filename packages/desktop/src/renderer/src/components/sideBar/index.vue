@@ -33,7 +33,6 @@
       <tree
         v-if="rightColumn === 'files'"
         :project-tree="projectTree"
-        :opened-files="openedFiles"
         :tabs="tabs"
       />
       <side-bar-search v-else-if="rightColumn === 'search'" />
@@ -58,7 +57,6 @@ import Tree from './tree.vue'
 import SideBarSearch from './search.vue'
 import Toc from './toc.vue'
 import { storeToRefs } from 'pinia'
-import type { TabDescriptor } from './types'
 
 const layoutStore = useLayoutStore()
 const projectStore = useProjectStore()
@@ -67,7 +65,6 @@ const editorStore = useEditorStore()
 const sideBar = ref<HTMLDivElement | null>(null)
 const dragBar = ref<HTMLDivElement | null>(null)
 
-const openedFiles = ref<TabDescriptor[]>([])
 const sideBarViewWidth = ref(280)
 
 const { rightColumn, showSideBar, sideBarWidth } = storeToRefs(layoutStore)

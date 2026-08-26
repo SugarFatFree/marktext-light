@@ -243,7 +243,9 @@
       "closeAll": "Alle schließen",
       "emptyProject": "Leeres Projekt",
       "createFile": "Datei erstellen",
-      "openFolder": "Ordner öffnen"
+      "openFolder": "Ordner öffnen",
+      "files": "Dateien",
+      "open": "Öffnen…"
     },
     "toc": {
       "title": "Inhaltsverzeichnis"

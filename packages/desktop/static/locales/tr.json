@@ -243,7 +243,9 @@
       "closeAll": "Tümünü Kapat",
       "emptyProject": "Boş proje",
       "createFile": "Dosya Oluştur",
-      "openFolder": "Klasör Aç"
+      "openFolder": "Klasör Aç",
+      "files": "Dosyalar",
+      "open": "Aç…"
     },
     "toc": {
       "title": "İçindekiler"

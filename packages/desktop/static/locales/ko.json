@@ -243,7 +243,9 @@
       "closeAll": "모두 닫기",
       "emptyProject": "빈 프로젝트",
       "createFile": "파일 만들기",
-      "openFolder": "폴더 열기"
+      "openFolder": "폴더 열기",
+      "files": "파일",
+      "open": "열기…"
     },
     "toc": {
       "title": "목차"

@@ -243,7 +243,9 @@
       "closeAll": "Fechar Todos",
       "emptyProject": "Projeto vazio",
       "createFile": "Criar Arquivo",
-      "openFolder": "Abrir Pasta"
+      "openFolder": "Abrir Pasta",
+      "files": "Arquivos",
+      "open": "Abrir…"
     },
     "toc": {
       "title": "Índice"
