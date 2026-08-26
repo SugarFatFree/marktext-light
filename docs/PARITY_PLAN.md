@@ -808,6 +808,20 @@ V8 的 `split`/`replace` 是高度优化的原生代码,而逐字符进正则引
 将来做图床上传时直接 import 即可,没必要留一个没有消费方的模块烂在那里。
 首屏 2445 → **2400 KB**。
 
+**element-plus 288 KB:已拆分,首屏 2229 → 2088 KB(省 141 KB)。**
+按 `<el-…>` 标签统计,10 个组件**只有设置窗口用**(含最重的 `el-table` / `el-select`),
+却在 `main.ts` 里为两个窗口全局注册。改为设置树加载时才注册
+(`prefComponents/settingsComponents.ts`,在 `preference.vue` 的 setup 里调用——
+setup 早于自身与路由子组件的渲染,而 Vue 是在渲染时解析标签的)。
+
+**先做了一次"临时删掉再量"的实验**才动手:确认省 141 KB 之后才写正式实现。
+
+**这个拆分会引入静默故障**:编辑器里写 `<el-input>` 会解析不到,Vue 只在控制台警告、
+控件直接不显示。所以配了 `element-plus-registration.spec.ts`,
+**拿两棵树里真实出现的 `<el-…>` 标签去对账两份注册清单**(四条:编辑器标签全覆盖、
+设置标签全覆盖、延后集合不出现在编辑器、两份清单不重叠)。
+CLAUDE.md 里"加 `<el-…>` 要同步 main.ts"的告诫,现在由测试强制执行。
+
 **两个更大的候选,都有代价,先记不动:**
 - **katex 285 KB**:muya 里 3 处静态 import(`inlineMath` / `marked/extensions/math` / `mathPreview`),
   而渲染是**同步产出 HTML 字符串**的。改成动态 import 会波及引擎架构,

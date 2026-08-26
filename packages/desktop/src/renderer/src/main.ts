@@ -18,7 +18,6 @@ import './assets/symbolIcon'
 // the plugin form was configured with. The app's own strings go through i18n.
 import type { Plugin } from 'vue'
 import {
-  ElAutocomplete,
   ElButton,
   ElCol,
   ElDialog,
@@ -28,18 +27,9 @@ import {
   ElForm,
   ElFormItem,
   ElIcon,
-  ElInput,
   ElInputNumber,
-  ElOption,
-  ElRadio,
-  ElRadioGroup,
   ElRow,
-  ElSelect,
-  ElSlider,
-  ElSwitch,
   ElTabPane,
-  ElTable,
-  ElTableColumn,
   ElTabs,
   ElTooltip,
   ElTree
@@ -49,8 +39,11 @@ import {
 // JS side worth splitting.
 import 'element-plus/dist/index.css'
 
+// The editor window's set. The settings window registers its own extras when
+// that tree loads — see prefComponents/settingsComponents.ts — because the
+// table and the select alone cost 141 KB of first paint here for markup this
+// window never renders.
 const ELEMENT_PLUS_COMPONENTS = [
-  ElAutocomplete,
   ElButton,
   ElCol,
   ElDialog,
@@ -60,18 +53,9 @@ const ELEMENT_PLUS_COMPONENTS = [
   ElForm,
   ElFormItem,
   ElIcon,
-  ElInput,
   ElInputNumber,
-  ElOption,
-  ElRadio,
-  ElRadioGroup,
   ElRow,
-  ElSelect,
-  ElSlider,
-  ElSwitch,
   ElTabPane,
-  ElTable,
-  ElTableColumn,
   ElTabs,
   ElTooltip,
   ElTree
