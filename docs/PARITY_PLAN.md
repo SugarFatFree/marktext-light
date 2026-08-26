@@ -115,7 +115,7 @@
 | # | 要求 | 状态 |
 |---|---|---|
 | 1 | 多文件在**同一窗口以标签页**打开 | ✅ 桥内 `mt::open-file` + 单实例插件;**已在真实运行的应用里验证**(`tabs-not-windows.spec.ts`,E2E `22d77ecc`):开三个文档 → 三个标签、`app.windows()` 始终为 1;同路径再开只置为活动、不新增 |
-| 2 | 默认显示左侧抽屉菜单页 | ✅ Tauri 自举 `sideBarVisibility: true` |
+| 2 | 默认显示左侧抽屉菜单页 | ✅ Tauri 自举 `sideBarVisibility: true`(在 `store/editor.ts` 的 `isTauri()` 分支,不在桥里);`sidebar-open-by-default.spec.ts` 钉住链条两端 —— **布局 store 自身默认是 `false`**,不写就是收起的 |
 | 3 | 打开过的文件在左侧抽屉**持久留存** | ✅ `store/recentFiles.ts` + 侧栏「最近文件」区块；**已在真实运行的编辑器里验证**（E2E `28231b26`） |
 | 4 | 标签页**不**持久化 | ✅ 桥把 `update-buffer-state` 放进 `IGNORED_INVOKES`（有意为之，非巧合）；`no-tab-restore.spec.ts` 双向锁住。**E2E 验不了**——Electron 版本本来就会恢复 |
 | 5 | 记录仅手动删除 | ✅ 单条 hover ✕ + 「清空最近文件」；**已在真实运行的编辑器里验证**（E2E `28231b26`） |
