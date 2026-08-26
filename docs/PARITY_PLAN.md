@@ -1401,6 +1401,40 @@ profile 里 `snabbdom-to-html` 出现在热路径上,查实了原因:
 **但这是渲染核心的重写**,牵动每种块类型、光标处理与一致性套件。
 与虚拟化(只渲染可视区块)并列为架构级项,**不在迭代里做**。
 
+### 第五份日志 + CI 对照:窗口切开了,而且指向两段离群(第 90 轮)
+
+用户第五份日志(Tauri/Windows,含新埋点)与 CI 的桌面 E2E(Electron)同段对照:
+
+| 区间 | Electron(CI) | Tauri(Windows) | 倍数 |
+|---|---|---|---|
+| script start | 416 ms | 861 ms | 2.1× |
+| **mounted → microtasks drained** | **41 ms** | **393 ms** | **9.6×** |
+| commands sorted(赋值+排序) | 10 ms | 29 ms | 2.9× |
+| commands ready(约 10 个监听) | 0 ms | 51 ms | — |
+| editor mounting(Vue 重渲染) | 94 ms | 65 ms | 0.7× |
+| **editor ready(建引擎+渲染)** | **68 ms** | **601 ms** | **8.8×** |
+
+**第 83 轮的结论坐实**:那段从来不是命令表——赋值加排序只有 29 ms
+(与本地基准的 12 ms 同量级),监听注册 4 ms。**393 ms 全在 `mounted` 之后的微任务清空里。**
+
+**新信息是"离群"**:整体 Tauri 比该 CI runner 慢 2–3 倍属机器差异,
+但有两段慢了近 10 倍,**远超基线**——这两段里有 Tauri 特有的成本。
+
+**一个被证伪的假设**:我原以为是 `SET_USER_PREFERENCE(initialState)` 触发的大规模重渲染。
+查实:`initialState` 在**两个 shell 下都走 `parseUrlArgs()` 的 URL 参数**,只有 5 个字段,
+是同一条代码路径做同一件小事。**不是它。**
+
+**本机无法继续**:这两段的成本是 Tauri 特有的,而 CI 只能给 Electron 的数字。
+所以加两处埋点各问一个问题:
+- `shell flushed`(app.vue,`nextTick`):Vue 把 `SET_USER_PREFERENCE` 的改动 flush 完的时刻。
+  落在 393 ms 末尾就是重渲染,落在开头就是别的东西排在前面。
+- `engine constructed`(editor.vue,`new Muya` 之后、`init()` 之前):
+  把 601 ms 拆成"构造"与"建文档+渲染"。harness 量过构造约 7 ms + 文档,
+  所以构造若明显超过它,与"文档大所以画得慢"是两个问题。
+
+**`shell flushed` 不进顺序断言**:它由 `nextTick` 触发,落点取决于当时有没有待处理的 flush
+——而那正是它要测的东西。写死顺序就是一条会飘的断言,只断言它出现且仅出现一次。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，

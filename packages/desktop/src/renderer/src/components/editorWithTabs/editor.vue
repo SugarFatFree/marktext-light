@@ -1808,6 +1808,13 @@ onMounted(() => {
   // is the part worth telling apart from everything done to get ready for it.
   markStartup('engine about to build')
   const muya = markRaw(new Muya(ele, options))
+  // Construction only sets up the modules; `init()` below is what builds the
+  // document and renders it. Measured against a Chromium harness the split is
+  // roughly 7 ms plus the document, so a constructor that costs more than that
+  // is a different problem from a document that takes a while to draw — and
+  // this phase ran 8.8x slower under Tauri than Electron, which is well past
+  // the 2-3x the rest of startup differs by.
+  markStartup('engine constructed')
   // The new engine requires an explicit init() after construction (it builds
   // the document tree and instantiates the registered UI plugins).
   muya.init()

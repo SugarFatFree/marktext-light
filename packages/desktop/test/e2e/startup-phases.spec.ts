@@ -34,8 +34,14 @@ const PHASES = [
   'listeners registered',
   'editor mounting',
   'engine about to build',
+  'engine constructed',
   'editor ready'
 ]
+
+/** Marked from a `nextTick` rather than in line with the code, so where it
+ *  lands depends on whether a flush was already pending — which is the thing it
+ *  measures. Present, but not in a fixed position. */
+const UNORDERED = ['shell flushed']
 
 interface Phase {
   name: string
@@ -87,7 +93,7 @@ test.describe('startup phases', () => {
   test('reports every phase exactly once', () => {
     const seen = phases.map((p) => p.name)
 
-    for (const phase of PHASES) {
+    for (const phase of [...PHASES, ...UNORDERED]) {
       expect(seen.filter((name) => name === phase), `phase "${phase}"`).toHaveLength(1)
     }
   })

@@ -179,6 +179,13 @@ onMounted(async () => {
     preferencesStore.SET_USER_PREFERENCE(window.marktext.initialState)
   }
 
+  // Resolves once Vue has flushed whatever the line above changed, and lands
+  // inside the stretch between the app's `mounted` mark and the command store
+  // resuming — 393 ms under Tauri against 41 ms under Electron, which is 10x
+  // the difference the rest of startup shows. This says whether that stretch
+  // is Vue re-rendering the shell or something else queued behind it.
+  nextTick(() => markStartup('shell flushed'))
+
   mainStore.LISTEN_WIN_STATUS()
   await commandCenterStore.LISTEN_COMMAND_CENTER_BUS()
   // The editor is gated on `init`, which `LISTEN_FOR_BOOTSTRAP_WINDOW` sets
