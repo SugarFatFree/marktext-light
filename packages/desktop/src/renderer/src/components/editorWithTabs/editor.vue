@@ -1806,7 +1806,13 @@ onMounted(() => {
   // Named for what comes next, not what just happened: the gap forward from
   // here is the engine building the document and putting it on screen, which
   // is the part worth telling apart from everything done to get ready for it.
-  markStartup('engine about to build')
+  //
+  // Carries the document's size because that gap is mostly a function of it —
+  // the engine harness prices a 4 KB document at 52 ms and a 90 KB one at
+  // 712 ms. Without the size in the line, two traces of this phase cannot be
+  // compared at all, and comparing them anyway is how a big document gets
+  // mistaken for a slow shell.
+  markStartup(`engine about to build (${Math.round((props.markdown?.length ?? 0) / 1024)} KB)`)
   const muya = markRaw(new Muya(ele, options))
   // Construction only sets up the modules; `init()` below is what builds the
   // document and renders it. Measured against a Chromium harness the split is

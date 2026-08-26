@@ -1462,6 +1462,27 @@ profile 里 `snabbdom-to-html` 出现在热路径上,查实了原因:
 到首帧的总量不变)。剩下的 `patch` 9.2% / `setAttribute` 6.3% / snabbdom-to-html 约 5%
 都在渲染路径上,而那条路要动就是架构级(见上一节)。
 
+### 订正:`editor ready` 的 8.8× 可能根本不是 Tauri 慢(第 92 轮)
+
+上一轮我把两段列为"离群"(近 10 倍,远超 2–3 倍的机器基线),其中一段是
+`editor ready`(Electron 68 ms vs Tauri 601 ms)。**这个比较不成立。**
+
+CI 的 E2E 打开的是 `# Doc\n\nSome text.`,用户打开的是真实文档。
+而 muya harness 早就量过这一段几乎完全是文档大小的函数:
+4.4 KB → 52 ms、90 KB → 712 ms。**601 ms 完全可能只是"文档大"**,
+我拿小文档的 Electron 去比大文档的 Tauri,量的是两件不同的事。
+
+`mounted → microtasks drained` 那 393 ms 不受此影响——文档内容要到
+`bootstrap dispatched` 之后才进来,不在那个窗口里。**那一段的离群仍然成立。**
+
+**治本**:`engine about to build` 现在带上文档大小(`engine about to build (NN KB)`),
+与 `bundle fetched (1902 KB)` 同格式。**没有大小的日志,这一段两份之间根本不可比**,
+而"照比不误"正是上面这个错误的来源。
+
+E2E 用例相应改为**按去掉括号后的名字匹配**,打印时仍用原始名字(否则新信息在 CI 日志里看不见)。
+顺带一个发现:**Electron 下没有 `bundle fetched`**(JS 的 resource timing 没被记录),
+所以它不能进必选阶段列表——差点就这么加进去了。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，

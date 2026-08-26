@@ -44,16 +44,26 @@ const PHASES = [
 const UNORDERED = ['shell flushed']
 
 interface Phase {
+  /** Without the measurement, for matching against the lists above. */
   name: string
+  /** As written in the trace, measurement and all, for reading. */
+  marked: string
   at: number
 }
+
+/** Some phases carry a measurement in their name — the bundle's size, the
+ *  document's — so that two traces can be compared rather than just read. The
+ *  phase is the part in front of it. */
+const phaseName = (marked: string): string => marked.replace(/ \(.*\)$/, '')
 
 const parse = (line: string): Phase[] =>
   line.split(' · ').map((entry) => {
     const match = /^(.*) (\d+)ms$/.exec(entry)
     expect(match, `unreadable phase entry: ${entry}`).not.toBeNull()
 
-    return { name: match![1] as string, at: Number(match![2]) }
+    const marked = match![1] as string
+
+    return { name: phaseName(marked), marked, at: Number(match![2]) }
   })
 
 test.describe('startup phases', () => {
@@ -78,10 +88,10 @@ test.describe('startup phases', () => {
     )
     phases = parse(line)
 
-    const width = Math.max(...phases.map((p) => p.name.length))
+    const width = Math.max(...phases.map((p) => p.marked.length))
     const lines = phases.map((phase, i) => {
       const since = i === 0 ? phase.at : phase.at - phases[i - 1]!.at
-      return `  ${phase.name.padEnd(width)}  ${String(phase.at).padStart(5)} ms  (+${since})`
+      return `  ${phase.marked.padEnd(width)}  ${String(phase.at).padStart(5)} ms  (+${since})`
     })
     console.log(`startup phases:\n${lines.join('\n')}`)
   })
