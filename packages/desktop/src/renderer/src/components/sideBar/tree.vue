@@ -180,6 +180,7 @@ import { useRecentFilesStore } from '@/store/recentFiles'
 import Folder from './treeFolder.vue'
 import File from './treeFile.vue'
 import FileRow from './treeFileRow.vue'
+import { mergeFileEntries } from './mergeFileEntries'
 import bus from '../../bus'
 import { showContextMenu } from '../../contextMenu/sideBar'
 import { useI18n } from 'vue-i18n'
@@ -240,25 +241,9 @@ const { recentFiles } = storeToRefs(recentFilesStore)
 /** Whether "save all" has anything to act on. */
 const hasOpenTabs = computed(() => (props.tabs ?? []).length > 0)
 
-const fileEntries = computed<FileEntry[]>(() => {
-  const openTabs = openedFilesInSidebar.value ? (props.tabs ?? []) : []
-  const byPath = new Map<string, TabDescriptor>()
-  const untitled: FileEntry[] = []
-
-  for (const tab of openTabs) {
-    if (tab.pathname) byPath.set(tab.pathname, tab)
-    else untitled.push({ key: tab.id, filename: tab.filename, pathname: '', tab })
-  }
-
-  const recent = recentFiles.value.map((file) => ({
-    key: file.pathname,
-    filename: file.filename,
-    pathname: file.pathname,
-    tab: byPath.get(file.pathname) ?? null
-  }))
-
-  return [...untitled, ...recent]
-})
+const fileEntries = computed<FileEntry[]>(() =>
+  mergeFileEntries(props.tabs ?? [], recentFiles.value, openedFilesInSidebar.value)
+)
 
 // The createCache state is `{ dirname, type }` while an input is shown, and
 // `{}` otherwise. Expose a typed accessor for the template so we don't have
