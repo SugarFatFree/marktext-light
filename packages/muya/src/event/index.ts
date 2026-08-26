@@ -14,6 +14,25 @@ class EventCenter {
     public events: IEvent[] = [];
     public listeners: IListeners = {};
 
+    // Answers "is this exact binding already here" without walking `events`.
+    //
+    // The walk was once per bind over a table that grows with the document —
+    // roughly one entry per block, so 8000 blocks meant 33 million comparisons
+    // and 16000 meant four times that. Quadratic, and it bit hardest on the
+    // large files the editor is meant to handle.
+    //
+    // `events` stays the source of truth (and stays public — the listener-leak
+    // spec counts it). This only indexes it, by target. One list per target
+    // rather than a map keyed by event name: a single element carries a handful
+    // of listeners, so the list is short enough to scan, and a map per target
+    // costs more memory than the scan saves — measured at 150 bytes a block.
+    //
+    // Scanning also preserves the `===` comparison the check has always used,
+    // which matters for a `capture` passed as an options object.
+    //
+    // Weak on the target so a removed element takes its list with it.
+    private _bound = new WeakMap<HTMLElement | Document, IEvent[]>();
+
     private get _eventId() {
         return `${PREFIX}${idIterator.next().value}`;
     }
@@ -28,18 +47,26 @@ class EventCenter {
         listener: EventListener,
         capture?: boolean | AddEventListenerOptions,
     ): string {
-        if (this._checkHasBind(target, event, listener, capture))
+        let bound = this._bound.get(target);
+        if (!bound) {
+            bound = [];
+            this._bound.set(target, bound);
+        }
+
+        if (bound.some(e => e.event === event && e.listener === listener && e.capture === capture))
             return '';
 
         const eventId = this._eventId;
         target.addEventListener(event, listener, capture);
-        this.events.push({
+        const entry: IEvent = {
             eventId,
             target,
             event,
             listener,
             capture,
-        });
+        };
+        this.events.push(entry);
+        bound.push(entry);
 
         return eventId;
     }
@@ -56,8 +83,16 @@ class EventCenter {
         if (removeEvent) {
             const { target, event, listener, capture } = removeEvent;
             target.removeEventListener(event, listener, capture);
-            const index = this.events.findIndex(e => e.eventId === eventId);
+            const index = this.events.indexOf(removeEvent);
             this.events.splice(index, 1);
+
+            // Must come off the index too, or re-binding the same listener
+            // after detaching it would be mistaken for a duplicate and
+            // silently dropped.
+            const bound = this._bound.get(target);
+            const boundIndex = bound?.indexOf(removeEvent) ?? -1;
+            if (bound && boundIndex !== -1)
+                bound.splice(boundIndex, 1);
         }
     }
 
@@ -71,6 +106,7 @@ class EventCenter {
         }
 
         this.events = [];
+        this._bound = new WeakMap();
     }
 
     /**
@@ -137,27 +173,6 @@ class EventCenter {
      */
     unsubscribeAll() {
         this.listeners = {};
-    }
-
-    // Determine whether the event has been bind
-    private _checkHasBind(
-        cTarget: HTMLElement | Document,
-        cEvent: string,
-        cListener: EventListenerOrEventListenerObject,
-        cCapture?: boolean | AddEventListenerOptions,
-    ) {
-        for (const { target, event, listener, capture } of this.events) {
-            if (
-                target === cTarget
-                && event === cEvent
-                && listener === cListener
-                && capture === cCapture
-            ) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }
 
