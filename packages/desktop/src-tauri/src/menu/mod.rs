@@ -217,6 +217,10 @@ fn window_submenu<R: Runtime>(app: &AppHandle<R>, tr: &Translations) -> tauri::R
         .item(&PredefinedMenuItem::minimize(app, None)?)
         .item(&PredefinedMenuItem::maximize(app, None)?)
         .item(&PredefinedMenuItem::separator(app)?)
+        .item(&item(app, "cmd:window.zoomIn", &tr.t("menu.window.zoomIn"), None)?)
+        .item(&item(app, "cmd:window.zoomOut", &tr.t("menu.window.zoomOut"), None)?)
+        .item(&item(app, "cmd:window.toggle-always-on-top", &tr.t("menu.window.alwaysOnTop"), None)?)
+        .item(&PredefinedMenuItem::separator(app)?)
         .item(&PredefinedMenuItem::close_window(app, None)?)
         .build()
 }

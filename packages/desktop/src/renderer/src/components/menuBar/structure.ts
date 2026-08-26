@@ -136,6 +136,17 @@ export const MENU_STRUCTURE: MenuBarSection[] = [
     ]
   },
   {
+    // The native menu's Window section also carries minimize/maximize/close as
+    // OS roles. This bar only ever renders on a frameless window, whose own
+    // titlebar has those buttons, so it lists just the commands.
+    titleKey: 'menu.window.title',
+    items: [
+      { id: 'cmd:window.zoomIn', labelKey: 'menu.window.zoomIn' },
+      { id: 'cmd:window.zoomOut', labelKey: 'menu.window.zoomOut' },
+      { id: 'cmd:window.toggle-always-on-top', labelKey: 'menu.window.alwaysOnTop', divided: true }
+    ]
+  },
+  {
     titleKey: 'menu.help.help',
     items: [
       { id: 'cmd:docs.markdown-syntax', labelKey: 'menu.help.markdownReference' },
