@@ -44,8 +44,10 @@ pub fn run() {
         // saying which half, and on Windows the second half is WebView2
         // starting, which is not ours to speed up.
         .plugin(
+            // The config type has to be named: a plugin with no configuration
+            // gives the compiler nothing to infer `C` from (E0283).
             tauri::plugin::Builder::new("startup-probe")
-                .setup(|_app, _api| {
+                .setup(|_app, _api: tauri::plugin::PluginApi<_, ()>| {
                     startup::trace("plugins ready");
                     Ok(())
                 })

@@ -65,7 +65,10 @@ test.describe('the file list in the left drawer', () => {
     await row.locator('.action-icon').click()
 
     await expect(rows(page)).toHaveCount(0)
-    // The section goes with its last row rather than sitting there empty.
-    await expect(list(page)).toHaveCount(0)
+    // The section stays behind once emptied, because its header carries the
+    // only way to open anything from the drawer — taking it away with the last
+    // row would leave a first run with nothing to click.
+    await expect(list(page)).toBeVisible()
+    await expect(list(page).locator('.open-entry a')).toBeVisible()
   })
 })
