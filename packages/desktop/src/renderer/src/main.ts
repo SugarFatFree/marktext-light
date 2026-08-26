@@ -6,7 +6,6 @@ import './tauri-bridge/preload-sync'
 import { createApp, type App } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import bootstrapRenderer from './bootstrap'
-import axios from './axios'
 import pinia from './store'
 import './assets/symbolIcon'
 
@@ -126,9 +125,6 @@ async function start(): Promise<void> {
   app.use(router)
   app.use(pinia)
   app.use(i18nPlugin)
-
-  // Configure axios globally
-  app.config.globalProperties.$http = axios
 
   // Register services globally
   ;(services as unknown as Array<Record<string, unknown> & { name: string }>).forEach((s) => {

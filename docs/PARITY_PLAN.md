@@ -784,6 +784,37 @@ V8 的 `split`/`replace` 是高度优化的原生代码,而逐字符进正则引
 改用映射表预期的 id 后,描述文件一行都不用动(diff 为空)。
 **加东西之前先读一遍现有的表。**
 
+### 首屏体积的真实构成(第 67 轮)
+
+之前只知道首屏是 2445 KB 一整块,不知道里面是什么(压缩后包名不可见)。
+**用 sourcemap 解码 mappings、把生成后的字节归因到来源**——这是准确的口径:
+
+| KB | 来源 |
+|---|---|
+| 715 | `packages/muya`(编辑器引擎,必需) |
+| 291 | 应用源码 |
+| 288 | element-plus |
+| **285** | **katex** |
+| **170** | **@marktext/file-icons** |
+| 45 | axios |
+| 44 | prismjs |
+| 41 | marked |
+
+复现方法:`pnpm exec vite build --config vite.tauri.config.ts --sourcemap`,
+再解码 `index-*.js.map` 的 mappings 按 `sources` 聚合(sourcesContent 不存在,只能走 mappings)。
+
+**已摘掉 axios(45 KB)**:它只在 `main.ts` 里挂了个 `app.config.globalProperties.$http`,
+**从未被读取**——Vue 2 时代的写法。连同那个 4 行的 `axios/index.ts` 一并删除;
+将来做图床上传时直接 import 即可,没必要留一个没有消费方的模块烂在那里。
+首屏 2445 → **2400 KB**。
+
+**两个更大的候选,都有代价,先记不动:**
+- **katex 285 KB**:muya 里 3 处静态 import(`inlineMath` / `marked/extensions/math` / `mathPreview`),
+  而渲染是**同步产出 HTML 字符串**的。改成动态 import 会波及引擎架构,
+  且公式会变成"先占位、后替换"的可见行为变化。
+- **file-icons 170 KB**:侧栏文件树的图标。抽屉默认展开(要求 #2),所以不能简单延后,
+  只能考虑改成按需取图标或换更小的实现。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
