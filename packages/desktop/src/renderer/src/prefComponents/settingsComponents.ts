@@ -12,6 +12,21 @@ import {
   ElTableColumn
 } from 'element-plus'
 
+// Styles for these, loaded with them. They travel in the settings chunk rather
+// than the entry for the same reason the components do: the editor window
+// never renders this markup, and the table and the select are the heaviest
+// things in the library.
+import 'element-plus/es/components/autocomplete/style/css'
+import 'element-plus/es/components/input/style/css'
+import 'element-plus/es/components/option/style/css'
+import 'element-plus/es/components/radio/style/css'
+import 'element-plus/es/components/radio-group/style/css'
+import 'element-plus/es/components/select/style/css'
+import 'element-plus/es/components/slider/style/css'
+import 'element-plus/es/components/switch/style/css'
+import 'element-plus/es/components/table/style/css'
+import 'element-plus/es/components/table-column/style/css'
+
 /**
  * Element Plus components used only by the settings window.
  *

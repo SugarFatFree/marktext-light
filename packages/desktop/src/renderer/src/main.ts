@@ -34,10 +34,32 @@ import {
   ElTooltip,
   ElTree
 } from 'element-plus'
-// Still the full stylesheet: per-component style entrypoints would have to be
-// kept in sync by hand, and CSS does not carry the parse cost that made the
-// JS side worth splitting.
-import 'element-plus/dist/index.css'
+// Styles for exactly the components above. The full stylesheet is 349 KB of
+// the 508 KB the entry linked, for fifteen of the library's hundred-odd
+// components — and a stylesheet is worse than a chunk of script: the browser
+// paints nothing until it has the whole thing.
+//
+// Each of these entrypoints pulls in its own dependencies' styles (dialog
+// brings overlay, tree brings checkbox and text), so the chain is Element
+// Plus's own declaration rather than a list of internals guessed at here. The
+// component list above is what has to stay in sync, and
+// `element-plus-registration.spec.ts` already holds it against the `<el-…>`
+// tags both windows actually render.
+import 'element-plus/es/components/button/style/css'
+import 'element-plus/es/components/col/style/css'
+import 'element-plus/es/components/dialog/style/css'
+import 'element-plus/es/components/dropdown/style/css'
+import 'element-plus/es/components/dropdown-item/style/css'
+import 'element-plus/es/components/dropdown-menu/style/css'
+import 'element-plus/es/components/form/style/css'
+import 'element-plus/es/components/form-item/style/css'
+import 'element-plus/es/components/icon/style/css'
+import 'element-plus/es/components/input-number/style/css'
+import 'element-plus/es/components/row/style/css'
+import 'element-plus/es/components/tab-pane/style/css'
+import 'element-plus/es/components/tabs/style/css'
+import 'element-plus/es/components/tooltip/style/css'
+import 'element-plus/es/components/tree/style/css'
 
 // The editor window's set. The settings window registers its own extras when
 // that tree loads — see prefComponents/settingsComponents.ts — because the

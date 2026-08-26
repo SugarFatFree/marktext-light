@@ -100,4 +100,26 @@ describe('Element Plus registration', () => {
 
     expect(both, 'registered eagerly and deferred').toEqual([])
   })
+
+  // Each window imports styles for exactly the components it registers, in
+  // place of the library's 349 KB stylesheet. That trade buys back half the
+  // entry's render-blocking CSS and costs a second list to keep in step — a
+  // component registered without its styles renders unstyled, which no test
+  // above would notice and no console warning announces.
+  describe('per-component styles', () => {
+    const styleImportsIn = (file: string): Set<string> => {
+      const source = readFileSync(resolve(RENDERER, file), 'utf-8')
+      const matches = source.matchAll(/element-plus\/es\/components\/([a-z0-9-]+)\/style\/css/g)
+
+      // `…/table-column/style/css` -> `ElTableColumn`, matching the lists above.
+      return new Set([...matches].map((m) => `El${toPascal(m[1] as string)}`))
+    }
+
+    it.each([
+      ['the editor window', 'main.ts', editorEager],
+      ['the settings window', 'prefComponents/settingsComponents.ts', settingsOnly]
+    ])('imports styles for exactly what %s registers', (_who, file, registered) => {
+      expect([...styleImportsIn(file)].sort()).toEqual([...registered].sort())
+    })
+  })
 })

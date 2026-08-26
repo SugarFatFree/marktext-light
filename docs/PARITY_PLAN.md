@@ -1232,6 +1232,44 @@ mermaid / katex(第二份) / sourceCode / preference / emojis / embed 均已是�
 削掉 372 KB 大约值 **30–60 ms**,对 3.6 s 的启动是个位数百分比。
 **真正的大头仍是 WebView2 的 1.0–1.2 s,那是 Web 技术栈的地板。**
 
+### 入口 CSS 砍掉一半(第 85 轮)
+
+上一轮判定"需目视验收、不盲改",并提了两条可能的安全路径。这轮先试了其中一条,
+**它自己否定了自己**:静态覆盖检查(从产物抽 `el-*` 类名核对按组件样式表)只抽到 45 个字面量,
+`el-col`、`el-tab-pane`、`el-option` 等 17 个显示"无人声明"。原因是
+**Element Plus 的类名多由 BEM 辅助函数在运行时拼接**(`ns.e('header')` → `el-dialog__header`),
+根本不以完整字面量存在。**这条路在原理上就走不通,别再试。**
+
+另一条成立:`element-plus/es/components/<name>/style/css` 是官方的按组件样式入口,
+**它自己 import 依赖的样式**——`dialog/style/css` 带 base + overlay,`tree/style/css`
+带 base + checkbox + text。于是依赖链是 Element Plus 的声明,不是我猜的内部实现。
+
+改动:`main.ts` 的 `element-plus/dist/index.css` 换成编辑器窗 15 个组件的样式入口;
+`prefComponents/settingsComponents.ts` 加上设置窗 10 个的。结果:
+
+| | 改前 | 改后 |
+|---|---|---|
+| 入口 CSS(渲染阻塞) | 507.9 KB | **265.6 KB** |
+| 其中 `.el-` 规则 | 372.5 KB | **132.7 KB** |
+| 设置窗组件样式 | 在入口里 | 移到 `preference-*.css` 53.2 KB |
+| 入口 JS | 1902 KiB | 1902 KiB(未变) |
+
+**风险是怎么消掉的**:旧注释担心"按组件样式表要手工同步",这是真的。
+但组件清单本来就手工维护,且 `element-plus-registration.spec.ts` 早已按两棵组件树里
+真实出现的 `<el-…>` 标签把关。所以给该用例加了一条:
+**样式导入必须与各窗注册的组件集合完全相等**。写的时候它立刻抓到我漏了 `El` 前缀,
+说明它是活的。没有命令式 API(`ElMessage`/`ElMessageBox`/`ElNotification`/`ElLoading` 全仓为零),
+那类最容易漏样式的用法不存在。
+
+**仍未验证的是"好不好看"**:本机无 GUI,E2E 查 DOM 与对比度、查不出布局崩坏。
+**这一条要由跑安装包的人目视确认**——如果哪里样式塌了,就是这次改动。
+
+**一个未了结的间歇性失败**:全量单测带改动跑 5 次,`pdf.spec.ts` 失败过 1 次
+(`window.marktext` 在 `beforeEach` 明明赋过值却是 undefined);干净树跑 3 次全过。
+样本不足以区分,且 `@/util/pdf` 的模块图里没有本次改动的任何文件(它只引 muya core、
+内联 CSS、dompurify)。失败形态指向该 spec 自己「首个用例 delete 全局、靠 beforeEach 兜底」
+的写法。**没复现、没归因,记在这里,盯 CI。**
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
@@ -1255,7 +1293,8 @@ mermaid / katex(第二份) / sourceCode / preference / emojis / embed 均已是�
    （只渲染可视区块），属架构级改动，不在本轮。
 8. **首屏那 356 ms**：第 83 轮查明埋点名字骗了人，已再切两段（`microtasks drained` /
    `commands sorted`），等下一份启动日志归因。**这仍是可控部分里最大的一块。**
-9. **入口 CSS 的 372 KB Element Plus**（第 84 轮）：最大的单项，但需目视验收，见上。
+9. ~~**入口 CSS 的 372 KB Element Plus**~~ ✅ 第 85 轮已做，372.5 → 132.7 KB。
+   **待目视确认样式没塌**——这是本机验不了的那一半。
 
 ## 复测差距的命令
 
