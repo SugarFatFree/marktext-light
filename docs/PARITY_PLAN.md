@@ -913,6 +913,28 @@ CLAUDE.md 里"加 `<el-…>` 要同步 main.ts"的告诫,现在由测试强制�
 而本机 `pnpm install` 会触发下载 Electron 的 postinstall。**未 import 的依赖不进打包**,
 所以这只是清单卫生问题,不影响体积。
 
+### 启动埋点(第 75 轮,回应"3 秒"的反馈)
+
+用户报告:双击图标到首次看到文件内容约 **3 秒**,上游 Electron 版同为 3 秒,
+Flutter 版不到 1 秒。
+
+**先厘清能测到什么**:E2E 量到渲染层那一半约 1 秒(导航开始 → 编辑器可用),
+首屏字节这几轮已由 3512 KB 降到 1901 KB。剩下约 2 秒在**第一行 JS 之前**——
+进程拉起、插件注册、菜单构建、WebView 创建——**本机没有 webkit2gtk,量不到**。
+
+审查过渲染层挂载前的串行等待,只有两处:`boot_info` 一次 IPC(它顺带把首个文件的内容
+一起带回,这条路径是紧的)、以及非英文时的语言包加载。**量级不足以解释 2 秒。**
+
+所以加了两侧埋点,便于一次运行就定位:
+- **Rust**:`setup entered` / `menu built`,相对进程启动,打到 stderr(终端启动可见)。
+- **渲染层**:`shell bridge` / `mounted` / `editor ready`,相对 `performance.timeOrigin`,
+  一行 console + `window.__MT_STARTUP__`。
+
+**两者相减即为 JS 之前的开销**——这正是目前唯一看不见的一段。
+
+**仍待用户确认**:测的是 Electron 构建还是 Tauri 构建。若是 Electron,3 秒与上游一致属正常
+(要拉起完整 Chromium);若是 Tauri,3 秒不正常,说明瓶颈另有其处。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，

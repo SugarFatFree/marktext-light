@@ -70,6 +70,7 @@ import routes from './router'
 import Main from './Main.vue'
 
 import { installTauriBridge, isTauri } from './tauri-bridge'
+import { markStartup } from './util/startupTrace'
 
 import './assets/styles/index.css'
 import './assets/styles/printService.css'
@@ -83,6 +84,7 @@ async function start(): Promise<void> {
   if (isTauri()) {
     await installTauriBridge()
   }
+  markStartup('shell bridge')
 
   window.marktext = {}
   bootstrapRenderer()
@@ -117,6 +119,7 @@ async function start(): Promise<void> {
 
   // Mount the app
   app.mount('#app')
+  markStartup('mounted')
 }
 
 start().catch((err) => console.error('[marktext] renderer init failed', err))

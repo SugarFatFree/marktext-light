@@ -24,7 +24,24 @@ fn handle_second_instance(app: &tauri::AppHandle, argv: Vec<String>) {
     }
 }
 
+/// Wall-clock since the process began, for the startup trace.
+///
+/// The renderer can time its own half (navigation timing), but everything
+/// before the first line of JavaScript — process spawn, plugin registration,
+/// menu construction, WebView creation — is invisible from there. On a report
+/// of "three seconds to first content" that is exactly the half nobody can see,
+/// so it is printed: one line, on stderr, visible when the binary is run from a
+/// terminal.
+fn trace_startup(stage: &str, started: std::time::Instant) {
+    eprintln!(
+        "[startup] {stage}: {} ms",
+        started.elapsed().as_millis()
+    );
+}
+
 pub fn run() {
+    let started = std::time::Instant::now();
+
     tauri::Builder::default()
         // Must be registered first — plugins run in registration order and this
         // one decides whether the process survives at all.
@@ -34,9 +51,11 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
-        .setup(|app| {
+        .setup(move |app| {
+            trace_startup("setup entered", started);
             let menu = menu::build_menu(app.handle())?;
             app.set_menu(menu)?;
+            trace_startup("menu built", started);
             Ok(())
         })
         .on_menu_event(|app, event| {
