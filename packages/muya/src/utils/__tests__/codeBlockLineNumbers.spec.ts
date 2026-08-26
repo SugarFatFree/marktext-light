@@ -145,4 +145,55 @@ describe('repositionLineNumberSpans', () => {
         expect((wrapper.children[1] as HTMLElement).style.top).toBe('30px');
         expect((wrapper.children[2] as HTMLElement).style.top).toBe('60px');
     });
+
+    it('measures every line before positioning any of them', () => {
+        // Reading a rect after writing a style forces the browser to lay the
+        // whole document out again, and this runs per line of every code block
+        // — 45% of the time to open a file made of them, before the two passes
+        // were separated.
+        //
+        // Interleaving them back would produce identical output, so nothing
+        // above would notice. This watches the order of the calls instead.
+        const wrapper = document.createElement('span');
+        syncLineNumbersSpans(wrapper, 3);
+        const codeEl = document.createElement('code');
+        codeEl.appendChild(document.createTextNode('a\nb\nc'));
+
+        const order: string[] = [];
+        const rangeProto = Range.prototype as unknown as {
+            getBoundingClientRect: () => { top: number };
+        };
+        const origRangeRect = rangeProto.getBoundingClientRect;
+        rangeProto.getBoundingClientRect = () => {
+            order.push('read');
+            return { top: 0 };
+        };
+        for (const span of Array.from(wrapper.children)) {
+            const style = (span as HTMLElement).style;
+            const descriptor = Object.getOwnPropertyDescriptor(
+                Object.getPrototypeOf(style),
+                'top',
+            )!;
+            Object.defineProperty(style, 'top', {
+                configurable: true,
+                get: () => descriptor.get!.call(style),
+                set: (value: string) => {
+                    order.push('write');
+                    descriptor.set!.call(style, value);
+                },
+            });
+        }
+
+        try {
+            repositionLineNumberSpans(wrapper, codeEl);
+        }
+        finally {
+            rangeProto.getBoundingClientRect = origRangeRect;
+        }
+
+        expect(order).toContain('read');
+        expect(order).toContain('write');
+        expect(order.indexOf('write'), 'a line was positioned before the last one was measured')
+            .toBeGreaterThan(order.lastIndexOf('read'));
+    });
 });

@@ -43,6 +43,12 @@ export function syncLineNumbersSpans(wrapper: HTMLElement, count: number): void 
 // set `top` on each span so line numbers align correctly in wrap mode (where
 // a single logical line can span multiple visual rows).
 //
+// Measures every line before positioning any of them. Interleaving the two
+// makes each measurement force a fresh layout, because the write before it
+// invalidated the one it would otherwise have reused — and the layout it
+// forces is of the whole document, not the block. On a 31 KB file of code
+// blocks that was 45% of the time to open it.
+//
 // Must run after layout (call via requestAnimationFrame).
 export function repositionLineNumberSpans(
     wrapper: HTMLElement,
@@ -67,30 +73,21 @@ export function repositionLineNumberSpans(
 
     let nodeStart = 0;
     let lineIdx = 0;
-    // Origin = the measured top of the first logical line. A collapsed range's
-    // rect top sits at the text/caret box (below the line-box leading), so
-    // subtracting the wrapper top would offset every number down by that
-    // constant leading. Anchoring to the first line cancels it and keeps line 1
-    // flush with the gutter top, while preserving correct per-line deltas for
-    // wrap mode.
-    let baseTop: number | null = null;
+    const tops: number[] = [];
     let node = walker.nextNode() as Text | null;
 
-    while (node !== null && lineIdx < lineStarts.length) {
+    // Pass 1 — read only.
+    while (node !== null && lineIdx < lineStarts.length && lineIdx < spans.length) {
         const nodeLen = (node.textContent ?? '').length;
         const nodeEnd = nodeStart + nodeLen;
 
         // A line start may be INSIDE this node (< nodeEnd); if it equals nodeEnd
         // it belongs to the next node and will be picked up on the next iteration.
-        while (lineIdx < lineStarts.length && lineStarts[lineIdx] < nodeEnd) {
+        while (lineIdx < lineStarts.length && lineIdx < spans.length && lineStarts[lineIdx] < nodeEnd) {
             const offsetInNode = lineStarts[lineIdx] - nodeStart;
             range.setStart(node, offsetInNode);
             range.collapse(true);
-            const measured = range.getBoundingClientRect().top;
-            if (baseTop === null)
-                baseTop = measured;
-            if (lineIdx < spans.length)
-                spans[lineIdx].style.top = `${measured - baseTop}px`;
+            tops.push(range.getBoundingClientRect().top);
             lineIdx++;
         }
 
@@ -99,14 +96,28 @@ export function repositionLineNumberSpans(
     }
 
     // Lines with no text node to measure from: the trailing empty line after a
-    // final "\n", or the single line of a wholly empty code block. The first
-    // line is always flush with the top; later ones stack one line-height below
-    // their predecessor.
-    if (lineIdx < spans.length) {
-        const lineH = Number.parseFloat(getComputedStyle(wrapper).lineHeight) || 24;
-        for (let i = lineIdx; i < spans.length; i++) {
-            const prevTop = i > 0 ? Number.parseFloat(spans[i - 1].style.top || '0') : 0;
-            spans[i].style.top = i > 0 ? `${prevTop + lineH}px` : '0px';
-        }
+    // final "\n", or the single line of a wholly empty code block. Read the
+    // line height here, while nothing has been written yet.
+    const lineH = tops.length < spans.length
+        ? Number.parseFloat(getComputedStyle(wrapper).lineHeight) || 24
+        : 0;
+
+    // Pass 2 — write only.
+    //
+    // Origin = the measured top of the first logical line. A collapsed range's
+    // rect top sits at the text/caret box (below the line-box leading), so
+    // subtracting the wrapper top would offset every number down by that
+    // constant leading. Anchoring to the first line cancels it and keeps line 1
+    // flush with the gutter top, while preserving correct per-line deltas for
+    // wrap mode.
+    const baseTop = tops[0] ?? 0;
+    for (let i = 0; i < tops.length; i++)
+        spans[i].style.top = `${tops[i] - baseTop}px`;
+
+    // The unmeasured tail stacks one line-height below its predecessor; the
+    // first line is always flush with the top.
+    for (let i = tops.length; i < spans.length; i++) {
+        const prevTop = i > 0 ? Number.parseFloat(spans[i - 1].style.top || '0') : 0;
+        spans[i].style.top = i > 0 ? `${prevTop + lineH}px` : '0px';
     }
 }
