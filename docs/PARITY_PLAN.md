@@ -16,16 +16,27 @@
 统计 `src/renderer` 里 `ipcRenderer.{send,sendSync,invoke,on,once}` 用到的通道，
 再看 `tauri-bridge/index.ts` 与 `src-tauri/src/**` 是否实现。
 
-**基线 2026-08-25：116 个通道，实现 18 → 当前 91，"缺" 25。**
+**基线 2026-08-25：116 个通道，实现 18 → 当前 92，"缺" 24。**
 （复测命令见本文件末尾）
 
-**这个 25 不能直接读作"还差 25 个功能"。** 逐条查证后(第 44/53/58/59/63 轮),分三类:
+**这个 24 不能直接读作"还差 24 个功能"。** 逐条查证后(第 44/53/58/59/63/83 轮),分三类:
 
 | 类别 | 数量 | 明细 |
 |---|---|---|
-| **有意不实现 / 不适用** | 4 | `bootstrap-editor`(Tauri 自举)、`load-state`(标签页有意不恢复,已测)、`switch-tab-by-file_path`(应用内无触发方)、`keybinding-save-user-keybindings` + `debug-dump`(前置条件是 Rust 运行时重建加速键) |
-| **计数假阳性(功能其实可用)** | 10 | `show-export-dialog`(导出菜单走命令系统)、`cm-copy-as-html` / `cm-copy-as-rich` / `cm-paste-as-plain-text` / `cm-insert-paragraph`(自绘右键菜单派发同名 bus 事件)、`spellchecker-*` × 3 + `spelling-*` × 2(系统/WebView 负责,周边 UI 已隐藏) |
-| **真缺口** | 11 | 自动更新 6(需签名密钥 + 更新服务器)、截图 2(Tauri 无对应 API)、`show-notification`(仅 watcher I/O 错误提示)、`window-zoom`(功能可经命令面板到达,缺菜单项)、`spellchecker-get-available-dictionaries`(无词典列表可给) |
+| **有意不实现 / 不适用** | 5 | `bootstrap-editor`(Tauri 自举)、`load-state`(标签页有意不恢复,已测)、`switch-tab-by-file_path`(应用内无触发方)、`keybinding-save-user-keybindings`、`keybinding-debug-dump-keyboard-info`(前置条件是 Rust 运行时重建加速键) |
+| **计数假阳性(功能其实可用)** | 10 | `show-export-dialog`(导出菜单走命令系统)、`cm-copy-as-html` / `cm-copy-as-rich` / `cm-paste-as-plain-text` / `cm-insert-paragraph`(自绘右键菜单派发同名 bus 事件)、`spellchecker-set-enabled` / `spellchecker-switch-language` / `spelling-replace-misspelling` / `spelling-show-switch-language`(系统/WebView 负责,周边 UI 已隐藏)、`window-zoom`(见下) |
+| **真缺口** | 9 | 自动更新 6(需签名密钥 + 更新服务器)、截图 2(Tauri 无对应 API)、`spellchecker-get-available-dictionaries`(无词典列表可给) |
+
+**第 83 轮的两处订正**:
+- `show-notification` 已实现(`7…` 轮补的 watcher I/O 错误提示),不再计入。
+- `window-zoom` 由「真缺口:缺菜单项」改判为**计数假阳性**。查实:Rust 菜单发的是
+  `cmd:window.zoomIn` / `cmd:window.zoomOut`,经命令系统到 `bus.emit('mt::window-zoom')`,
+  而 `store/editor.ts` **同时**监听 bus 与 ipc 两条路。菜单项本身也早在 `891a910c` 就加了。
+  这一条的记载过时了两重。
+
+**于是「实现上游全部功能」这条轴基本关账**:剩下的 9 个真缺口里,6 个是自动更新
+(属发布基建,要签名密钥和更新服务器,得先有决策),2 个截图是 Tauri 平台没有对应 API,
+1 个是拿不出词典列表。**没有一条是"还没做"的普通功能。**
 
 **教训**:这个脚本只看"通道名有没有出现在桥或 Rust 里"。
 **有意不实现、走别的路径、以及由系统接管的,都会被算成缺口**——
@@ -1166,6 +1177,61 @@ Vue 重渲染(含侧栏挂载)56 ms,也不是。
 在普通数组上是 0.1 → 9.8 ms 的 100 倍差距。绝对值小,**没有据此改动**——
 这条路径一共才 12 ms,改它属于拿不到的收益。记在这里是为了下次别重新发现一遍。
 
+### 首屏字节第一次被逐字节归因(第 84 轮)
+
+此前几轮削首屏(axios、图标集、emoji 表、设置窗组件)靠的是**逐个怀疑**。
+这次拿到了地图:带 `--sourcemap` 重建,按 mapping 段把生成字节归还给来源。
+脚本口径:每个 mapping 段拥有从它开始到下一段之间的生成列;归并到包名。
+
+**入口 JS `index-*.js` = 1889 KB**(归因覆盖 1886 KB):
+
+| 体积 | 占比 | 来源 |
+|---|---|---|
+| **285 KB** | **15.1%** | **katex** |
+| 156 KB | 8.3% | element-plus(已裁到 15 个组件) |
+| 85 KB | 4.5% | app: components |
+| **78 KB** | **4.2%** | muya `utils/prism/loadLanguage.ts`(实为 `prismjs/components.js` 语言目录) |
+| 71 KB | 3.8% | muya `muya.ts` |
+| 46 KB | 2.4% | @vue/runtime-core |
+| 46 KB | 2.4% | vue-i18n |
+| 44 KB | 2.3% | prismjs |
+| 41 KB | 2.2% | marked |
+
+mermaid / katex(第二份) / sourceCode / preference / emojis / embed 均已是懒加载分块。
+
+**两个最大项都动不了,原因相同——引擎内部同步使用**:
+- katex 有三处**静态**导入(`inlineRenderer/renderer/inlineMath.ts`、
+  `utils/marked/extensions/math.ts`、`block/extra/math/mathPreview.ts`),
+  都同步调 `renderToString`。改惰性要引入「先占位、加载完再重渲染」,
+  动的是 muya 的渲染语义,不是配置。
+- prism 的 78 KB 语言目录被 `codeBlockContent/index.ts:170,423` 的
+  `transformAliasToOrigin` **同步**读取(语法定义本身早已是动态 `import`)。
+- 另注:`utils/prism/index.ts:81-82` 在**模块作用域**就 `loadLanguage('latex')`
+  与 `('yaml')`,启动即触发两个动态 import。
+
+`lodash.remove`(12.7 KB)是传递依赖,源码无直接引用;`fuse.js` 三处都在 muya 内部。
+
+**更大的一项在 JS 之外:入口 CSS 507.9 KB,单文件、`<link>` 挂在 index.html 上,渲染阻塞。**
+其中 **`.el-` 规则约 372.5 KB(73%)**,而本窗口只用 Element Plus 约 80 个组件里的 15 个。
+`element-plus/theme-chalk/el-*.css` 的按组件样式表是现成的,组件清单本来就手工维护在
+`main.ts` 里,同步 CSS 是同一处编辑。
+
+**`main.ts` 里"CSS 不值得拆"的理由不完整**,原文说的是「CSS 没有 JS 那样的解析成本」——
+但 CSS 的代价从来不是解析,是**阻塞首次绘制**。
+
+**没有动手,理由要说清**:Element Plus 组件之间有内部样式依赖
+(dialog→overlay、tree→checkbox、dropdown→popper/tooltip),漏一个就是视觉损坏;
+**本机无 GUI,E2E 查的是 DOM 与对比度,查不出布局崩坏**。
+在能目视验收之前盲改,正是本文件记过三次的那种错。
+可行的安全路径是 `unplugin-element-plus`——它按实际用到的组件自动引入样式并处理依赖,
+把"手工同步"这个风险源去掉;或先做静态覆盖检查(从产物里抽出所有 `el-*` 类名,
+核对按组件样式表是否覆盖)。**留给能目视验收的那一轮。**
+
+**量级要诚实**:这是本地应用,资源走自定义协议而非网络。按日志里 1902 KB 打包体
+耗 125 ms 折算(约 15 KB/ms),508 KB CSS 约 33 ms 取用加解析应用。
+削掉 372 KB 大约值 **30–60 ms**,对 3.6 s 的启动是个位数百分比。
+**真正的大头仍是 WebView2 的 1.0–1.2 s,那是 Web 技术栈的地板。**
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
@@ -1177,6 +1243,7 @@ Vue 重渲染(含侧栏挂载)56 ms,也不是。
    `commands::cmd::pandoc_to_markdown` 已注册（`lib.rs:77`），桥内 `import.ts` 的
    `canImportWithPandoc` / `importWithPandoc` 已接，拖入 .docx 也走这条路。
 5. **原生菜单状态回显**：自绘菜单栏已有勾选态；macOS 的原生菜单仍无，需 Rust 侧持句柄 `set_checked`。
+   仅影响 macOS，本机与用户（Windows）都无法目视验收。
 6. ~~**E2E 覆盖要求 #4**~~ —— **这条做不到，不要再试**。E2E 跑的是 Electron，而
    **Electron 版本本来就会恢复标签页**（主进程持久化 buffered state + `startUpAction:
    'restoreAll'`）。要求 #4 只在 Tauri 侧成立：桥把 `update-buffer-state` 放进
@@ -1186,7 +1253,9 @@ Vue 重渲染(含侧栏挂载)56 ms,也不是。
 7. **大文件的渲染侧**：解析与内存都已量到且都线性（见「内存:线性」一节，约 25× 源文本、
    每块 ~960 B）。渲染耗时在 harness 里约 11–13 ms/KB，也近似线性。**再往下要虚拟化**
    （只渲染可视区块），属架构级改动，不在本轮。
-8. **首屏那 356 ms**：埋点已细化到四段，等下一份启动日志决定改哪一段（见第 82 轮）。
+8. **首屏那 356 ms**：第 83 轮查明埋点名字骗了人，已再切两段（`microtasks drained` /
+   `commands sorted`），等下一份启动日志归因。**这仍是可控部分里最大的一块。**
+9. **入口 CSS 的 372 KB Element Plus**（第 84 轮）：最大的单项，但需目视验收，见上。
 
 ## 复测差距的命令
 
