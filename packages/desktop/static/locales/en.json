@@ -901,7 +901,9 @@
     "unsafeFileTitle": "Potentially unsafe file",
     "unsafeFileMessage": "This link opens a file that can run code",
     "unsafeFileDetail": "\"{name}\" is an executable or script file. Opening it may run programs on your computer. Only continue if you trust this document.",
-    "openAnyway": "Open Anyway"
+    "openAnyway": "Open Anyway",
+    "imageFilesFilter": "Images",
+    "documentFilesFilter": "Documents"
   },
   "error": {
     "configSchemaViolation": "Configuration schema violation",

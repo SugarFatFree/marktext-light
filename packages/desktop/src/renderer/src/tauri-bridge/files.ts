@@ -98,7 +98,7 @@ export const moveOpenFileTo = async(
 /** Pick an image to insert. Resolves to '' when the dialog is dismissed. */
 export const askForImagePath = async(): Promise<string> => {
   const selected = await showOpenDialog({
-    filters: [{ name: 'Images', extensions: [...IMAGE_EXTENSIONS] }]
+    filters: [{ name: t('dialog.imageFilesFilter'), extensions: [...IMAGE_EXTENSIONS] }]
   })
   return typeof selected === 'string' ? selected : ''
 }

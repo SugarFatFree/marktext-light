@@ -72,7 +72,7 @@ export const importWithPandoc = async(
 /** Prompt for a document to import. */
 export const askForImportFile = async(dispatchLocal: DispatchLocal): Promise<void> => {
   const selected = await showOpenDialog({
-    filters: [{ name: 'Documents', extensions: PANDOC_EXTENSIONS }]
+    filters: [{ name: t('dialog.documentFilesFilter'), extensions: PANDOC_EXTENSIONS }]
   })
   if (typeof selected !== 'string') return
   await importWithPandoc(selected, dispatchLocal)

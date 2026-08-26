@@ -901,7 +901,9 @@
     "unsafeFileTitle": "Archivo potencialmente peligroso",
     "unsafeFileMessage": "Este enlace abre un archivo que puede ejecutar código",
     "unsafeFileDetail": "«{name}» es un archivo ejecutable o de script. Abrirlo podría ejecutar programas en tu equipo. Continúa solo si confías en este documento.",
-    "openAnyway": "Abrir de todos modos"
+    "openAnyway": "Abrir de todos modos",
+    "imageFilesFilter": "Imágenes",
+    "documentFilesFilter": "Documentos"
   },
   "error": {
     "configSchemaViolation": "Violación del esquema de configuración",

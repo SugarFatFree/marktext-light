@@ -94,4 +94,24 @@ describe('user-visible attributes are translated', () => {
 
     expect(offenders, 'notification text belongs in the locale files').toEqual([])
   })
+
+  it('names no file-dialog filter in English', () => {
+    // The filter label is drawn by the operating system's file picker, which
+    // makes it easy to forget — it is not in any template and not in any
+    // component. Format names are exempt: "Markdown" is a name, like PNG, and
+    // translating it would be wrong.
+    const FORMAT_NAMES = /^(Markdown|PDF|HTML|PNG|JPEG|SVG)\b/
+    const offenders: string[] = []
+
+    for (const path of filesUnder(RENDERER, '.ts', '.vue')) {
+      const source = readFileSync(path, 'utf-8')
+      for (const [, value] of source.matchAll(/filters:\s*\[\s*\{\s*name:\s*'([^']+)'/g)) {
+        if (LOOKS_LIKE_PROSE.test(value as string) && !FORMAT_NAMES.test(value as string)) {
+          offenders.push(`${relative(RENDERER, path)}: filter '${value}'`)
+        }
+      }
+    }
+
+    expect(offenders, 'the file picker shows this label to the user').toEqual([])
+  })
 })
