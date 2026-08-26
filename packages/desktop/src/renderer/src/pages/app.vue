@@ -44,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, nextTick, onMounted, ref } from 'vue'
+import { computed, watch, nextTick, onMounted, onUpdated, ref } from 'vue'
 import { useMainStore } from '@/store'
 import { storeToRefs } from 'pinia'
 import { addStyles, addThemeStyle, addCustomStyle, type AddStylesOptions } from '@/util/theme'
@@ -84,6 +84,19 @@ const commandCenterStore = useCommandCenterStore()
 const notificationStore = useNotificationStore()
 
 const timer = ref<ReturnType<typeof setTimeout> | null>(null)
+
+// Runs inside the flush, which is where the previous probe could not reach.
+// The flush is queued by the preferences applied in `onMounted` and runs
+// before the command store's continuation, so a mark here bounds it from the
+// inside: close to `microtasks drained` means re-rendering the shell is the
+// 393 ms; close to `mounted` means something else owns it. Only the first
+// update matters — later ones are ordinary work, not startup.
+let shellUpdateMarked = false
+onUpdated(() => {
+  if (shellUpdateMarked) return
+  shellUpdateMarked = true
+  markStartup('shell updated')
+})
 
 const { windowActive, platform, init } = storeToRefs(mainStore)
 const { showTabBar } = storeToRefs(layoutStore)
@@ -179,11 +192,13 @@ onMounted(async () => {
     preferencesStore.SET_USER_PREFERENCE(window.marktext.initialState)
   }
 
-  // Resolves once Vue has flushed whatever the line above changed, and lands
-  // inside the stretch between the app's `mounted` mark and the command store
-  // resuming — 393 ms under Tauri against 41 ms under Electron, which is 10x
-  // the difference the rest of startup shows. This says whether that stretch
-  // is Vue re-rendering the shell or something else queued behind it.
+  // Kept for the ordering it demonstrates, not for what it measures: a
+  // `nextTick` registered here chains onto the flush promise, so its callback
+  // is queued only once the flush has resolved — by which time the command
+  // store's own continuation, queued during this same function, has already
+  // run. It lands after `microtasks drained` by construction, and reading that
+  // as "the flush was not the cost" was wrong. `shell updated` below is the
+  // probe that can actually answer it.
   nextTick(() => markStartup('shell flushed'))
 
   mainStore.LISTEN_WIN_STATUS()

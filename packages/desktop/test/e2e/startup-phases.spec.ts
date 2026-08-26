@@ -43,6 +43,12 @@ const PHASES = [
  *  measures. Present, but not in a fixed position. */
 const UNORDERED = ['shell flushed']
 
+/** `shell updated` comes from the first `onUpdated`, which only fires if
+ *  something rendered at mount actually changed. Whether it does is exactly
+ *  what the mark is there to find out, so requiring it would be asserting the
+ *  answer. Checked for not appearing twice, and nothing else. */
+const OPTIONAL = ['shell updated']
+
 interface Phase {
   /** Without the measurement, for matching against the lists above. */
   name: string
@@ -105,6 +111,11 @@ test.describe('startup phases', () => {
 
     for (const phase of [...PHASES, ...UNORDERED]) {
       expect(seen.filter((name) => name === phase), `phase "${phase}"`).toHaveLength(1)
+    }
+
+    for (const phase of OPTIONAL) {
+      expect(seen.filter((name) => name === phase).length, `phase "${phase}"`)
+        .toBeLessThanOrEqual(1)
     }
   })
 

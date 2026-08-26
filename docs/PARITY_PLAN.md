@@ -1677,6 +1677,30 @@ katex 产出 HTML → `htmlToVNode` 转 vnode(5.3%)→ `patch` 再序列化回 H
 **另一处口径差异**:这份数字来自 CI 的 Linux runner,用户的是 Windows。
 跨平台的绝对值不可直接相减,**可比的是"同一台机器上 Electron 版 vs Tauri 版"**。
 
+### 订正:上一轮那个"否定结论"是我读错了探针(第 98 轮)
+
+第 93 轮我写道:`shell flushed` 落在 `microtasks drained` 之后,
+**所以那 343 ms 不是 Vue 重渲染**。**这个推理是错的,该结论作废。**
+
+按微任务队列的语义:`SET_USER_PREFERENCE` 触发的 flush 任务在挂载期间入队;
+命令存储 `await` 的续体在其**之后**入队;而 `nextTick` 的回调要等 flush 的 promise
+兑现后才入队,**必然排在续体之后**。
+所以 `shell flushed` 落在 `microtasks drained` 之后**是队列语义决定的,不含任何信息**——
+而 flush 本身**一定跑在 `microtasks drained` 之前**,因此它仍然完全可能就是那 343 ms。
+
+**教训**:探针的位置决定了它能回答什么。这个探针从一开始就答不了这个问题,
+而我把"它没落在我预期的位置"当成了否定证据。**在读探针之前,先想清楚它在事件顺序里的位置。**
+(这是同类错误的第三次:`engine constructed` 名字指反方向、`commands ready` 站在无关工作下游、
+现在是 `shell flushed` 的排队位置。)
+
+**换成能答的探针**:`app.vue` 加 `onUpdated`(只记第一次)→ `shell updated`。
+它**在 flush 内部**运行:靠近 `microtasks drained` 就说明重渲染就是那 393 ms,
+靠近 `mounted` 就说明另有其人。
+
+E2E 用例把它列为**可选**而非必选:`onUpdated` 只在真有重渲染时才触发,
+**而"有没有重渲染"正是它要回答的问题——要求它必须出现等于把答案写进断言**。
+只断言它不会出现两次。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
