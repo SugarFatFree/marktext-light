@@ -56,6 +56,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             startup::startup_trace,
+            startup::startup_log_path,
             // fs::* — mirror of the mt::fs:: channels
             commands::fs::is_file,
             commands::fs::is_directory,

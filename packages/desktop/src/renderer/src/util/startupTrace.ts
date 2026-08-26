@@ -44,6 +44,14 @@ export const reportStartup = (finalStage: string): void => {
 
   const line = marks.map(([stage, at]) => `${stage} ${at}ms`).join(' · ')
   console.log(`[startup] ${line}`)
-  console.log('[startup] the shell writes the same phases, plus its own, to startup.log')
+  if (isTauri()) {
+    invoke<string | null>('startup_log_path')
+      .then((path) => {
+        // Where the whole trace lives, shell phases included. Printed because
+        // the directory is a platform convention, not something anyone chose.
+        console.log(`[startup] full trace: ${path ?? '(no log file)'}`)
+      })
+      .catch(() => {})
+  }
   ;(window as unknown as { __MT_STARTUP__?: string }).__MT_STARTUP__ = line
 }

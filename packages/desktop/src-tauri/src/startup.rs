@@ -109,3 +109,12 @@ pub fn startup_trace(stage: String, since_navigation_ms: f64) {
         since_navigation_ms
     ));
 }
+
+/// Where the log went, so the renderer can say it out loud.
+///
+/// Saves a person hunting through `%LOCALAPPDATA%` for a file whose location
+/// depends on the platform's conventions rather than anything they chose.
+#[tauri::command]
+pub fn startup_log_path() -> Option<String> {
+    log_path().map(|p| p.to_string_lossy().into_owned())
+}
