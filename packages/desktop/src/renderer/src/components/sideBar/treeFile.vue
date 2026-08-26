@@ -24,11 +24,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, defineAsyncComponent, h } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useProjectStore } from '@/store/project'
 import { useEditorStore } from '@/store/editor'
-import FileIcon from './icon.vue'
+/**
+ * The icon set is 170 KB — the second largest thing in the first-paint chunk
+ * after the editor engine itself — and nothing shows it until a project folder
+ * is open. The drawer opens on the recent-files list, whose rows carry no file
+ * icon, so a user who never opens a folder never needs it.
+ *
+ * The placeholder holds the icon's width so expanding a folder does not shift
+ * the filenames sideways while the chunk arrives. `.file-icon`'s own styles are
+ * scoped inside `icon.vue` and do not reach here, hence the inline ones.
+ */
+const FileIcon = defineAsyncComponent({
+  loader: () => import('./icon.vue'),
+  loadingComponent: () =>
+    h('span', {
+      style: 'display:inline-block;width:1em;margin-right:5px;flex-shrink:0'
+    }),
+  delay: 0
+})
 import { showContextMenu } from '../../contextMenu/sideBar'
 import bus from '../../bus'
 import type { TreeFileNode } from './types'

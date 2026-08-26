@@ -7,9 +7,37 @@ import { search } from '../../utils/prism';
 
 import { h, patch } from '../../utils/snabbdom';
 import BaseScrollFloat from '../baseScrollFloat';
-import fileIcons from '../utils/fileIcons';
 
 import './index.css';
+/**
+ * The icon set weighs 170 KB — the largest thing in the renderer's first-paint
+ * bundle after the engine itself — and this popup is its only consumer. Loading
+ * it here, on the first render of the language list, keeps it out of startup
+ * for every session that never opens one.
+ *
+ * Rendering stays synchronous: the list draws without icons if the module has
+ * not landed, and draws again when it has. `loadFileIcons` is a no-op once the
+ * module is in hand, so the redraw cannot recurse.
+ */
+type FileIcons = Awaited<typeof import('../utils/fileIcons')>['default'];
+let fileIcons: FileIcons | null = null;
+let loadingFileIcons: Promise<void> | null = null;
+
+function loadFileIcons(onReady: () => void): void {
+    if (fileIcons || loadingFileIcons)
+        return;
+
+    loadingFileIcons = import('../utils/fileIcons')
+        .then((module) => {
+            fileIcons = module.default;
+            onReady();
+        })
+        .catch(() => {
+            // Without icons the list is still usable; do not take the popup
+            // down over decoration.
+            loadingFileIcons = null;
+        });
+}
 
 const defaultOptions = {
     placement: 'bottom-start' as const,
@@ -102,6 +130,7 @@ export class CodeBlockLanguageSelector extends BaseScrollFloat {
     }
 
     render() {
+        loadFileIcons(() => this.render());
         const { renderArray, _oldVNode: oldVNode, scrollElement, activeItem } = this;
         let children = (
             renderArray as {
@@ -111,12 +140,12 @@ export class CodeBlockLanguageSelector extends BaseScrollFloat {
         ).map((item) => {
             let iconClassNames;
             if (item.name)
-                iconClassNames = fileIcons.getClassByLanguage(item.name);
+                iconClassNames = fileIcons?.getClassByLanguage(item.name);
 
             // Because `markdown mode in Codemirror` don't have extensions.
             // if still can not get the className, add a common className 'atom-icon light-cyan'
             if (!iconClassNames && item.name === 'markdown')
-                iconClassNames = fileIcons.getClassByName('fakeName.md');
+                iconClassNames = fileIcons?.getClassByName('fakeName.md');
 
             const text = h('div.language', item.name);
             const selector = activeItem === item ? 'li.item.active' : 'li.item';
