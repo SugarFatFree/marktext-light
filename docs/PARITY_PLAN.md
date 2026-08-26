@@ -1755,6 +1755,11 @@ CI 首份数据:`mounted` 237 → `microtasks drained` 261(**仅 24 ms**),
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
    静态审查已做尽（见下）。需在有 webkit2gtk 的机器上跑 CI 产物的安装包人工确认。
 2. **自动更新**（6 个通道）：需 `tauri-plugin-updater` + 签名密钥 + 更新服务器，属发布基建。
+   **但它是「干净地缺席」而不是「静默地坏掉」**（第 104 轮查证）：Rust 的 `boot_info`
+   返回 `is_updatable: false`，命令面板项被 `if (isUpdatable())` 挡住从未注册，
+   原生菜单与自绘菜单栏里都没有「检查更新」。**没有点了没反应的死 UI，不需要"先补个降级提示"。**
+   阻塞的只是密钥与服务器这两个决策——Rust 插件本身不需要 `pnpm install`（CI 编译即可），
+   渲染层也能绕开 JS 包直接 `invoke`。
 3. **拼写检查**：**这条的「5 个通道硬缺口」说法已过时**。逐条查证后只有
    `spellchecker-get-available-dictionaries` 是真缺口，其余 4 个由系统 WebView 接管
    （见文件开头的三分表）。仍缺的是词典列表、应用内切换语言、右键改正。
