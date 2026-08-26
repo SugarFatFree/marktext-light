@@ -1813,6 +1813,15 @@ CI 首份数据:`mounted` 237 → `microtasks drained` 261(**仅 24 ms**),
 - **`addRange`**：profile 里最大的一项（29–33%），**两次不同尺寸的实验都证明不可回收**
   （第 82 轮 2400 块、第 91 轮 12000 块）。不要再查第三次。
 - **样式重算**：打字时为 0–1 ms，**选择器问题已排除**（第 99 轮）。
+- **`mounted → microtasks drained` 的静态排查已做尽**（第 105 轮）：挂载期间在 `await`
+  之前只有两件事——`SET_USER_PREFERENCE`（5 个 URL 参数字段）与 `LISTEN_WIN_STATUS`
+  （**只注册一个监听器**）。两者都不足以解释 393 ms。**只能等 Tauri 侧 `shell updated` 的落点。**
+
+**顺带发现的一处小重复（29 ms，记录但不动手）**：非英文环境下命令表会建**两次**。
+`i18n/index.ts` 模块级发 `mt::get-current-language` → 桥回 `mt::current-language`
+→ `setLanguage` → `bus.emit('language-changed')` → 命令中心重建 83 条描述。
+第二次**不是冗余**（描述要重新翻译），浪费的是第一次那个英文版。
+命令表构建实测 29 ms，**不值得为此改动启动顺序**；若将来要动，方向是把首次构建推迟到语言确定之后。
 - **桥的静默路径**（第 102 轮审计）：差距脚本只看通道名在不在桥里，所以
   **被有意忽略、或 case 体为空的通道会被算成「已实现」**——这是比假阳性更危险的假阴性。
   查了：`IGNORED_INVOKES` 只有 `update-buffer-state` 一条（要求 #4，有意为之）；
