@@ -919,7 +919,21 @@
     "defaultMessage": "Default message",
     "defaultTitle": "Notification",
     "fileReadFailedTitle": "Cannot read file",
-    "fileReadFailedMessage": "{path} could not be read: {msg}"
+    "fileReadFailedMessage": "{path} could not be read: {msg}",
+    "deleteFailedTitle": "Error while deleting",
+    "pasteForbiddenTitle": "Paste Forbidden",
+    "pasteSameLocationMessage": "Source and destination must not be the same.",
+    "pasteFailedTitle": "Error while pasting",
+    "sideBarErrorTitle": "Error in Side Bar",
+    "fileAlreadyExistsMessage": "A file named \"{name}\" already exists in this folder.",
+    "directoryAlreadyExistsMessage": "A folder named \"{name}\" already exists in this folder.",
+    "spellingTitle": "Spelling",
+    "spellcheckerDisabledMessage": "Cannot change language because spellchecker is disabled.",
+    "uploadImageTitle": "Upload Image",
+    "updateTitle": "Update",
+    "updateNotAvailableTitle": "Update not Available",
+    "updateDownloadedTitle": "Update Downloaded",
+    "updateAvailableTitle": "Update Available"
   },
   "store": {
     "editor": {

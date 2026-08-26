@@ -919,7 +919,21 @@
     "defaultMessage": "預設訊息",
     "defaultTitle": "通知",
     "fileReadFailedTitle": "無法讀取檔案",
-    "fileReadFailedMessage": "{path} 讀取失敗：{msg}"
+    "fileReadFailedMessage": "{path} 讀取失敗：{msg}",
+    "deleteFailedTitle": "刪除失敗",
+    "pasteForbiddenTitle": "無法貼上",
+    "pasteSameLocationMessage": "來源位置和目標位置不能相同。",
+    "pasteFailedTitle": "貼上失敗",
+    "sideBarErrorTitle": "側邊欄錯誤",
+    "fileAlreadyExistsMessage": "此資料夾中已存在名為「{name}」的檔案。",
+    "directoryAlreadyExistsMessage": "此資料夾中已存在名為「{name}」的資料夾。",
+    "spellingTitle": "拼字檢查",
+    "spellcheckerDisabledMessage": "拼字檢查已關閉，無法切換語言。",
+    "uploadImageTitle": "上傳圖片",
+    "updateTitle": "更新",
+    "updateNotAvailableTitle": "暫無更新",
+    "updateDownloadedTitle": "更新已下載",
+    "updateAvailableTitle": "有可用更新"
   },
   "store": {
     "editor": {

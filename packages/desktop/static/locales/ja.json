@@ -919,7 +919,21 @@
     "defaultMessage": "デフォルトメッセージ",
     "defaultTitle": "通知",
     "fileReadFailedTitle": "ファイルを読み込めません",
-    "fileReadFailedMessage": "{path} を読み込めませんでした: {msg}"
+    "fileReadFailedMessage": "{path} を読み込めませんでした: {msg}",
+    "deleteFailedTitle": "削除エラー",
+    "pasteForbiddenTitle": "貼り付けできません",
+    "pasteSameLocationMessage": "コピー元とコピー先を同じにはできません。",
+    "pasteFailedTitle": "貼り付けエラー",
+    "sideBarErrorTitle": "サイドバーのエラー",
+    "fileAlreadyExistsMessage": "このフォルダーには「{name}」という名前のファイルが既に存在します。",
+    "directoryAlreadyExistsMessage": "このフォルダーには「{name}」という名前のフォルダーが既に存在します。",
+    "spellingTitle": "スペルチェック",
+    "spellcheckerDisabledMessage": "スペルチェックが無効なため、言語を変更できません。",
+    "uploadImageTitle": "画像のアップロード",
+    "updateTitle": "更新",
+    "updateNotAvailableTitle": "更新はありません",
+    "updateDownloadedTitle": "更新をダウンロードしました",
+    "updateAvailableTitle": "更新があります"
   },
   "store": {
     "editor": {

@@ -1767,10 +1767,27 @@ CI 首份数据:`mounted` 237 → `microtasks drained` 261(**仅 24 ms**),
 图标正上方就是 `t('import.title')` 与 `t('import.description')`,它是装饰性的;
 **正确做法是不给替代文本,而不是给一个翻译过的**。
 
-新增 `no-untranslated-attributes.spec.ts` 守住这一类:
+新增 `no-untranslated-strings.spec.ts` 守住这一类:
 模板里静态的 `placeholder` / `title` / `alt` / `aria-label` 不得含成句字母
 (绑定形式 `:placeholder="t(...)"` 与空 `alt=""` 都放行)。
 **验过有牙齿**:把 placeholder 改回硬编码,它立刻变红。
+
+### 通知里全是英文(第 107 轮)
+
+同一把尺子量脚本侧,又抓到 **13 处**硬编码英文通知——**出错那一刻弹给用户的字**,
+而那正是最不该显示看不懂的语言的时刻:
+
+- `store/project.ts` 6 处:侧栏删除失败、粘贴被拒、粘贴失败、同名冲突。**最可能撞见的。**
+- `commands/spellcheckerLanguage.ts` 2 处、`editor.vue` 1 处(图片上传)、
+  `store/autoUpdates.ts` 4 处(Tauri 下 `isUpdatable:false` 触发不到,但 Electron 版会)。
+
+上游 `../marktext` 同样硬编码,没有现成译文可复用,**14 个键 × 10 种语言全部自写**。
+
+**一处设计选择**:原文是 `A ${type} named "${name}" already exists`,`type` 取
+`'file'` / `'directory'`。直接注入会让译句里夹一个英文名词,**而且各语言的性/数配合不同**,
+所以拆成 `fileAlreadyExistsMessage` / `directoryAlreadyExistsMessage` 两个独立成句的键。
+
+守卫扩到通知(同一个 spec,已改名为 `no-untranslated-strings`),**同样验过有牙齿**。
 
 ### 那个间歇失败:不再查成因,直接消除机制(第 106 轮)
 

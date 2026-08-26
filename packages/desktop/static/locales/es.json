@@ -919,7 +919,21 @@
     "defaultMessage": "Mensaje predeterminado",
     "defaultTitle": "Notificación",
     "fileReadFailedTitle": "No se puede leer el archivo",
-    "fileReadFailedMessage": "No se pudo leer {path}: {msg}"
+    "fileReadFailedMessage": "No se pudo leer {path}: {msg}",
+    "deleteFailedTitle": "Error al eliminar",
+    "pasteForbiddenTitle": "Pegado no permitido",
+    "pasteSameLocationMessage": "El origen y el destino no pueden ser el mismo.",
+    "pasteFailedTitle": "Error al pegar",
+    "sideBarErrorTitle": "Error en la barra lateral",
+    "fileAlreadyExistsMessage": "Ya existe un archivo llamado «{name}» en esta carpeta.",
+    "directoryAlreadyExistsMessage": "Ya existe una carpeta llamada «{name}» en esta carpeta.",
+    "spellingTitle": "Ortografía",
+    "spellcheckerDisabledMessage": "No se puede cambiar el idioma porque el corrector ortográfico está desactivado.",
+    "uploadImageTitle": "Subir imagen",
+    "updateTitle": "Actualización",
+    "updateNotAvailableTitle": "No hay actualizaciones",
+    "updateDownloadedTitle": "Actualización descargada",
+    "updateAvailableTitle": "Actualización disponible"
   },
   "store": {
     "editor": {

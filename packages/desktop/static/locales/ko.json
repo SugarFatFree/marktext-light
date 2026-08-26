@@ -919,7 +919,21 @@
     "defaultMessage": "기본 메시지",
     "defaultTitle": "알림",
     "fileReadFailedTitle": "파일을 읽을 수 없습니다",
-    "fileReadFailedMessage": "{path}을(를) 읽지 못했습니다: {msg}"
+    "fileReadFailedMessage": "{path}을(를) 읽지 못했습니다: {msg}",
+    "deleteFailedTitle": "삭제 오류",
+    "pasteForbiddenTitle": "붙여넣기 불가",
+    "pasteSameLocationMessage": "원본과 대상이 같을 수 없습니다.",
+    "pasteFailedTitle": "붙여넣기 오류",
+    "sideBarErrorTitle": "사이드바 오류",
+    "fileAlreadyExistsMessage": "이 폴더에 \"{name}\" 파일이 이미 있습니다.",
+    "directoryAlreadyExistsMessage": "이 폴더에 \"{name}\" 폴더가 이미 있습니다.",
+    "spellingTitle": "맞춤법 검사",
+    "spellcheckerDisabledMessage": "맞춤법 검사가 꺼져 있어 언어를 변경할 수 없습니다.",
+    "uploadImageTitle": "이미지 업로드",
+    "updateTitle": "업데이트",
+    "updateNotAvailableTitle": "업데이트 없음",
+    "updateDownloadedTitle": "업데이트 다운로드 완료",
+    "updateAvailableTitle": "업데이트 사용 가능"
   },
   "store": {
     "editor": {

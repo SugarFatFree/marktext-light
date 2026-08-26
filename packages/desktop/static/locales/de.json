@@ -919,7 +919,21 @@
     "defaultMessage": "Standardnachricht",
     "defaultTitle": "Benachrichtigung",
     "fileReadFailedTitle": "Datei kann nicht gelesen werden",
-    "fileReadFailedMessage": "{path} konnte nicht gelesen werden: {msg}"
+    "fileReadFailedMessage": "{path} konnte nicht gelesen werden: {msg}",
+    "deleteFailedTitle": "Fehler beim Löschen",
+    "pasteForbiddenTitle": "Einfügen nicht möglich",
+    "pasteSameLocationMessage": "Quelle und Ziel dürfen nicht identisch sein.",
+    "pasteFailedTitle": "Fehler beim Einfügen",
+    "sideBarErrorTitle": "Fehler in der Seitenleiste",
+    "fileAlreadyExistsMessage": "Eine Datei mit dem Namen „{name}“ existiert bereits in diesem Ordner.",
+    "directoryAlreadyExistsMessage": "Ein Ordner mit dem Namen „{name}“ existiert bereits in diesem Ordner.",
+    "spellingTitle": "Rechtschreibung",
+    "spellcheckerDisabledMessage": "Sprache kann nicht geändert werden, da die Rechtschreibprüfung deaktiviert ist.",
+    "uploadImageTitle": "Bild hochladen",
+    "updateTitle": "Update",
+    "updateNotAvailableTitle": "Kein Update verfügbar",
+    "updateDownloadedTitle": "Update heruntergeladen",
+    "updateAvailableTitle": "Update verfügbar"
   },
   "store": {
     "editor": {

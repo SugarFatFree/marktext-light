@@ -919,7 +919,21 @@
     "defaultMessage": "Mensagem padrão",
     "defaultTitle": "Notificação",
     "fileReadFailedTitle": "Não é possível ler o arquivo",
-    "fileReadFailedMessage": "Não foi possível ler {path}: {msg}"
+    "fileReadFailedMessage": "Não foi possível ler {path}: {msg}",
+    "deleteFailedTitle": "Erro ao excluir",
+    "pasteForbiddenTitle": "Colagem não permitida",
+    "pasteSameLocationMessage": "A origem e o destino não podem ser os mesmos.",
+    "pasteFailedTitle": "Erro ao colar",
+    "sideBarErrorTitle": "Erro na barra lateral",
+    "fileAlreadyExistsMessage": "Já existe um arquivo chamado \"{name}\" nesta pasta.",
+    "directoryAlreadyExistsMessage": "Já existe uma pasta chamada \"{name}\" nesta pasta.",
+    "spellingTitle": "Ortografia",
+    "spellcheckerDisabledMessage": "Não é possível alterar o idioma porque o corretor ortográfico está desativado.",
+    "uploadImageTitle": "Enviar imagem",
+    "updateTitle": "Atualização",
+    "updateNotAvailableTitle": "Nenhuma atualização disponível",
+    "updateDownloadedTitle": "Atualização baixada",
+    "updateAvailableTitle": "Atualização disponível"
   },
   "store": {
     "editor": {

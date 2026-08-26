@@ -919,7 +919,21 @@
     "defaultMessage": "默认消息",
     "defaultTitle": "通知",
     "fileReadFailedTitle": "无法读取文件",
-    "fileReadFailedMessage": "{path} 读取失败：{msg}"
+    "fileReadFailedMessage": "{path} 读取失败：{msg}",
+    "deleteFailedTitle": "删除失败",
+    "pasteForbiddenTitle": "无法粘贴",
+    "pasteSameLocationMessage": "源位置和目标位置不能相同。",
+    "pasteFailedTitle": "粘贴失败",
+    "sideBarErrorTitle": "侧边栏错误",
+    "fileAlreadyExistsMessage": "此文件夹中已存在名为“{name}”的文件。",
+    "directoryAlreadyExistsMessage": "此文件夹中已存在名为“{name}”的文件夹。",
+    "spellingTitle": "拼写检查",
+    "spellcheckerDisabledMessage": "拼写检查已关闭，无法切换语言。",
+    "uploadImageTitle": "上传图片",
+    "updateTitle": "更新",
+    "updateNotAvailableTitle": "暂无更新",
+    "updateDownloadedTitle": "更新已下载",
+    "updateAvailableTitle": "有可用更新"
   },
   "store": {
     "editor": {

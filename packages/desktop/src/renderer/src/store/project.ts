@@ -6,6 +6,7 @@ import bus from '../bus'
 import { create, paste, rename, type FileCreateType, type PasteOptions } from '../util/fileSystem'
 import { PATH_SEPARATOR } from '../config'
 import notice from '../services/notification'
+import { t } from '../i18n'
 import { getFileStateFromData } from './help'
 import { useLayoutStore } from './layout'
 import { useEditorStore } from './editor'
@@ -223,7 +224,7 @@ export const useProjectStore = defineStore('project', () => {
       const { pathname } = activeItem.value
       window.electron.ipcRenderer.invoke('mt::fs-trash-item', pathname).catch((err) => {
         notice.notify({
-          title: 'Error while deleting',
+          title: t('notifications.deleteFailedTitle'),
           type: 'error',
           message: err instanceof Error ? err.message : String(err)
         })
@@ -242,9 +243,9 @@ export const useProjectStore = defineStore('project', () => {
 
         if (window.path.normalize(cb.src) === window.path.normalize(cb.dest)) {
           notice.notify({
-            title: 'Paste Forbidden',
+            title: t('notifications.pasteForbiddenTitle'),
             type: 'warning',
-            message: 'Source and destination must not be the same.'
+            message: t('notifications.pasteSameLocationMessage')
           })
           return
         }
@@ -255,7 +256,7 @@ export const useProjectStore = defineStore('project', () => {
           })
           .catch((err) => {
             notice.notify({
-              title: 'Error while pasting',
+              title: t('notifications.pasteFailedTitle'),
               type: 'error',
               message: err instanceof Error ? err.message : String(err)
             })
@@ -284,9 +285,17 @@ export const useProjectStore = defineStore('project', () => {
     if (await window.fileUtils.pathExists(fullName)) {
       createCache.value = {}
       notice.notify({
-        title: 'Error in Side Bar',
+        title: t('notifications.sideBarErrorTitle'),
         type: 'error',
-        message: `A ${type} named "${name}" already exists in this folder.`
+        // Two messages rather than one with the kind injected: a translated
+        // sentence with an English noun dropped into it is not a translation,
+        // and languages differ on how the noun agrees with the rest.
+        message: t(
+          type === 'file'
+            ? 'notifications.fileAlreadyExistsMessage'
+            : 'notifications.directoryAlreadyExistsMessage',
+          { name }
+        )
       })
       return
     }
@@ -300,7 +309,7 @@ export const useProjectStore = defineStore('project', () => {
       })
       .catch((err) => {
         notice.notify({
-          title: 'Error in Side Bar',
+          title: t('notifications.sideBarErrorTitle'),
           type: 'error',
           message: err instanceof Error ? err.message : String(err)
         })

@@ -919,7 +919,21 @@
     "defaultMessage": "Varsayılan mesaj",
     "defaultTitle": "Bildirim",
     "fileReadFailedTitle": "Dosya okunamıyor",
-    "fileReadFailedMessage": "{path} okunamadı: {msg}"
+    "fileReadFailedMessage": "{path} okunamadı: {msg}",
+    "deleteFailedTitle": "Silme hatası",
+    "pasteForbiddenTitle": "Yapıştırma engellendi",
+    "pasteSameLocationMessage": "Kaynak ve hedef aynı olamaz.",
+    "pasteFailedTitle": "Yapıştırma hatası",
+    "sideBarErrorTitle": "Kenar çubuğu hatası",
+    "fileAlreadyExistsMessage": "Bu klasörde \"{name}\" adlı bir dosya zaten var.",
+    "directoryAlreadyExistsMessage": "Bu klasörde \"{name}\" adlı bir klasör zaten var.",
+    "spellingTitle": "Yazım denetimi",
+    "spellcheckerDisabledMessage": "Yazım denetimi kapalı olduğu için dil değiştirilemiyor.",
+    "uploadImageTitle": "Görsel yükle",
+    "updateTitle": "Güncelleme",
+    "updateNotAvailableTitle": "Güncelleme yok",
+    "updateDownloadedTitle": "Güncelleme indirildi",
+    "updateAvailableTitle": "Güncelleme mevcut"
   },
   "store": {
     "editor": {
