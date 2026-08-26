@@ -914,7 +914,9 @@
   },
   "notifications": {
     "defaultMessage": "기본 메시지",
-    "defaultTitle": "알림"
+    "defaultTitle": "알림",
+    "fileReadFailedTitle": "파일을 읽을 수 없습니다",
+    "fileReadFailedMessage": "{path}을(를) 읽지 못했습니다: {msg}"
   },
   "store": {
     "editor": {

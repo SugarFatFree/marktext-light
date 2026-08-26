@@ -914,7 +914,9 @@
   },
   "notifications": {
     "defaultMessage": "デフォルトメッセージ",
-    "defaultTitle": "通知"
+    "defaultTitle": "通知",
+    "fileReadFailedTitle": "ファイルを読み込めません",
+    "fileReadFailedMessage": "{path} を読み込めませんでした: {msg}"
   },
   "store": {
     "editor": {

@@ -51,7 +51,7 @@ import { installTabShortcuts } from './shortcuts'
 import { closeWindow, closeWindowConfirm, installCloseGuard } from './window'
 import { installFileDrop, installWindowEvents } from './window-events'
 import { resolveInitialTheme, rememberThemeChoice } from './theme'
-import { setLanguage } from '@/i18n'
+import { setLanguage, t } from '@/i18n'
 
 // -----------------------------------------------------------------------------
 // Invoke-channel → Rust command routing
@@ -138,11 +138,40 @@ const fire = (op: Promise<unknown>): void => {
  * IPC; here the bridge plays that role so a click in the file tree / recent list
  * lands as another tab in the same window rather than opening a second window.
  */
+/**
+ * Tell the user a file could not be read.
+ *
+ * Upstream's main process raised these through `mt::show-notification`; with no
+ * main process the bridge does. Only for an open the user asked for — the
+ * watcher's own read failure stays quiet on purpose, because a file removed
+ * between the change event and the read is the ordinary case and its unlink
+ * event is already on the way.
+ */
+const notifyUnreadable = (pathname: string, reason: unknown): void => {
+  const msg = reason instanceof Error ? reason.message : String(reason)
+  console.warn(`[tauri-bridge] cannot read ${pathname}:`, msg)
+  dispatchLocal('mt::show-notification', [
+    {
+      title: t('notifications.fileReadFailedTitle'),
+      type: 'error',
+      message: t('notifications.fileReadFailedMessage', { path: pathname, msg })
+    }
+  ])
+}
+
 const openFileAsTab = async(pathname: string, options: unknown): Promise<void> => {
   if (!pathname) return
-  const markdown = await invoke('read_file', { path: pathname, encoding: 'utf8' })
+  let markdown: unknown
+  try {
+    markdown = await invoke('read_file', { path: pathname, encoding: 'utf8' })
+  } catch (err) {
+    // Gone, unreadable, or not permitted. Silence here meant a click on a file
+    // in the tree or the recent list simply did nothing.
+    notifyUnreadable(pathname, err)
+    return
+  }
   if (typeof markdown !== 'string') {
-    console.warn(`[tauri-bridge] not a text document: ${pathname}`)
+    notifyUnreadable(pathname, 'not a text document')
     return
   }
   trackOpenFile(pathname)

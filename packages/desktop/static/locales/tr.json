@@ -914,7 +914,9 @@
   },
   "notifications": {
     "defaultMessage": "Varsayılan mesaj",
-    "defaultTitle": "Bildirim"
+    "defaultTitle": "Bildirim",
+    "fileReadFailedTitle": "Dosya okunamıyor",
+    "fileReadFailedMessage": "{path} okunamadı: {msg}"
   },
   "store": {
     "editor": {

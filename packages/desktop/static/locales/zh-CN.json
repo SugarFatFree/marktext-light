@@ -914,7 +914,9 @@
   },
   "notifications": {
     "defaultMessage": "默认消息",
-    "defaultTitle": "通知"
+    "defaultTitle": "通知",
+    "fileReadFailedTitle": "无法读取文件",
+    "fileReadFailedMessage": "{path} 读取失败：{msg}"
   },
   "store": {
     "editor": {

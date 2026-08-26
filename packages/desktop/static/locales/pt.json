@@ -914,7 +914,9 @@
   },
   "notifications": {
     "defaultMessage": "Mensagem padrão",
-    "defaultTitle": "Notificação"
+    "defaultTitle": "Notificação",
+    "fileReadFailedTitle": "Não é possível ler o arquivo",
+    "fileReadFailedMessage": "Não foi possível ler {path}: {msg}"
   },
   "store": {
     "editor": {
