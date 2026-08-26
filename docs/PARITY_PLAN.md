@@ -1654,6 +1654,29 @@ katex 产出 HTML → `htmlToVNode` 转 vnode(5.3%)→ `patch` 再序列化回 H
 **用途**:这给 Tauri 版一个可对标的基线——用户在任务管理器里读到的数,
 与这份 Electron 数字对比才有意义。
 
+**首批数字(CI Linux runner,小文档,`2124156e`)**:
+
+| 进程 | 工作集 |
+|---|---|
+| Browser(主进程) | 208 MB |
+| Tab(渲染进程) | 173 MB |
+| GPU | 139 MB |
+| Utility | 87 MB |
+| **合计** | **608 MB** |
+| 渲染进程 JS 堆 | 15 MB |
+
+同一次运行的旁证:编辑器可用 993 ms、139 KB 文档 200 节渲染 2102 ms、
+五次击键 227 ms、堆 10.2 → 14.6 MB(持有文档)。
+
+**对比时必须避开的陷阱**:Tauri 用系统 WebView2,而 **WebView2 自己也会起独立进程**
+(msedgewebview2.exe 的浏览器/GPU/渲染进程)。
+**拿 Tauri 主 exe 的内存去比 Electron 的 608 MB 合计,会得到一个偏袒 Tauri 的假结论。**
+诚实的口径是:两边都统计**该应用引起的全部进程**。
+在任务管理器里,要把 marktext 之下的 `msedgewebview2.exe` 一并计入。
+
+**另一处口径差异**:这份数字来自 CI 的 Linux runner,用户的是 Windows。
+跨平台的绝对值不可直接相减,**可比的是"同一台机器上 Electron 版 vs Tauri 版"**。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
