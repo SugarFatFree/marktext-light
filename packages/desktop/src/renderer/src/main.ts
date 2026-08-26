@@ -70,7 +70,7 @@ import routes from './router'
 import Main from './Main.vue'
 
 import { installTauriBridge, isTauri } from './tauri-bridge'
-import { markStartup } from './util/startupTrace'
+import { markStartup, markNetworkTimings } from './util/startupTrace'
 
 import './assets/styles/index.css'
 import './assets/styles/printService.css'
@@ -84,6 +84,7 @@ import './assets/styles/printService.css'
 // above has been fetched, parsed and evaluated. It is the first moment the
 // renderer can speak for itself, and the gap between navigation and here is the
 // cost of the bundle rather than of anything the app does.
+markNetworkTimings()
 markStartup('script start')
 
 async function start(): Promise<void> {

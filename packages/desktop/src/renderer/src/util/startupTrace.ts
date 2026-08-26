@@ -17,9 +17,9 @@ import { isTauri } from './isTauri'
 const marks: Array<[string, number]> = []
 let reported = false
 
-export const markStartup = (stage: string): void => {
+export const markStartup = (stage: string, when = performance.now()): void => {
   if (reported) return
-  const at = Math.round(performance.now())
+  const at = Math.round(when)
   marks.push([stage, at])
 
   // Also send it to the shell, which writes a file. On Windows a released
@@ -29,6 +29,34 @@ export const markStartup = (stage: string): void => {
     invoke('startup_trace', { stage, sinceNavigationMs: at }).catch(() => {
       // A missing trace must never be the reason startup fails.
     })
+  }
+}
+
+/**
+ * Splits the stretch before the first line of app code into fetching and
+ * compiling, which is the difference between "the bundle is too big" and
+ * "serving it is slow" — opposite fixes.
+ *
+ * Read off the timing API rather than marked by hand: by the time app code
+ * runs, both the document and the script that carries it have finished
+ * loading, and the browser already recorded when. Call this before the first
+ * mark so the log reads in order.
+ */
+export const markNetworkTimings = (): void => {
+  const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
+  if (nav) markStartup('document fetched', nav.responseEnd)
+
+  // The entry chunk, identified by size: it is by far the largest script an
+  // editor window loads, and its name carries a build hash.
+  const scripts = performance
+    .getEntriesByType('resource')
+    .filter((entry): entry is PerformanceResourceTiming => entry.name.endsWith('.js'))
+  const entry = scripts.reduce<PerformanceResourceTiming | null>(
+    (largest, script) => (!largest || script.decodedBodySize > largest.decodedBodySize ? script : largest),
+    null
+  )
+  if (entry) {
+    markStartup(`bundle fetched (${Math.round(entry.decodedBodySize / 1024)} KB)`, entry.responseEnd)
   }
 }
 

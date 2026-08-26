@@ -1703,6 +1703,11 @@ const handleLanguageChanged = (newLocale?: unknown) => {
 const resizeObserverForEditor = new ResizeObserver(handleResetPaddingBottom)
 
 onMounted(() => {
+  // This lands after the app's own `mounted` mark rather than inside it: the
+  // editor is not part of the first render, so it waits for whatever gates it.
+  // The gap between the two marks is that wait, and the gap forward is the
+  // editor's own setup — 326 ms sat across both with no way to tell which.
+  markStartup('editor mounting')
   printer = new Printer()
   const ele = editorRef.value
   if (!ele) return
@@ -1797,10 +1802,10 @@ onMounted(() => {
   // The engine stores live DOM nodes and block-tree references and patches the
   // DOM via snabbdom; proxying them silently breaks identity checks so the
   // document tree never renders.
-  // The last stretch a user waits through splits here: constructing the engine
-  // and rendering the document, versus everything the app did to get ready for
-  // it. 550 ms of a 2.3 s startup landed in this range unmeasured.
-  markStartup('engine constructed')
+  // Named for what comes next, not what just happened: the gap forward from
+  // here is the engine building the document and putting it on screen, which
+  // is the part worth telling apart from everything done to get ready for it.
+  markStartup('engine about to build')
   const muya = markRaw(new Muya(ele, options))
   // The new engine requires an explicit init() after construction (it builds
   // the document tree and instantiates the registered UI plugins).

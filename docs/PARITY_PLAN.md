@@ -979,6 +979,34 @@ Flutter 版不到 1 秒。
 **本机跑不了桌面端 E2E**(无 Xvfb,native-keymap 的 .node 也不在),
 所以渲染层的启动分解只能靠用户回传日志 + muya harness 侧证,不能本机复现。
 
+### 第二份日志(第 80 轮),三处细化埋点都到位
+
+| 区间 | 耗时 | 是什么 |
+|---|---|---|
+| 0 → 57 ms | 57 ms | 进程拉起 + 插件初始化 |
+| 57 → 1075 ms | **1018 ms** | 窗口创建 + **WebView2 启动** |
+| 1075 → 1132 ms | 57 ms | 构建菜单 |
+| *导航开始于 1036 ms* | | |
+| 导航 → script start | **532 ms** | HTML + 打包体的取用与求值 |
+| → shell bridge | 44 ms | `boot_info` 往返 |
+| → mounted | 12 ms | Vue 挂载 |
+| → engine about to build | **326 ms** | Vue 渲染完到编辑器组件开工 |
+| → editor ready | **393 ms** | 建引擎 + init + 渲染文档 |
+
+**`plugins ready` 只有 57 ms,坐实了那 1 秒是 WebView2 而非本项目的插件初始化。**
+
+**一个被证伪的猜测**:怀疑 393 ms 花在 `muya.init()` 同步实例化 16 个 UI 插件上
+(表情、表格、图片工具等交互才用得到)。用 harness 量了:带插件 6.7 ms、
+去掉插件 3.9 ms,**差值仅 2.8 ms**。不是这里。冷启动的首屏样式/布局/字体
+本机复现不了,只能继续靠日志。
+
+**据此再加两处埋点**:
+`document fetched` / `bundle fetched` 由 Timing API 读出(不是手打的时钟),
+把 532 ms 拆成"取"与"编译执行"——两者的修法相反;
+`editor mounting` 把 326 ms 拆成"等编辑器组件出现"与"编辑器自己的准备"。
+同时把 `engine constructed` 改名为 `engine about to build`:它标在 `new Muya`
+**之前**,旧名字会把读日志的人引向反方向。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
