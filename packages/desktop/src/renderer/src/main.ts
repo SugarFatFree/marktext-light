@@ -80,6 +80,12 @@ import './assets/styles/printService.css'
 // Under the Tauri shell there is no Electron preload injecting `window.electron`
 // & friends, so install the invoke-backed bridge and complete the boot-info
 // handshake before anything reads those globals. A no-op under Electron.
+// At module scope on purpose: by the time this line runs, every static import
+// above has been fetched, parsed and evaluated. It is the first moment the
+// renderer can speak for itself, and the gap between navigation and here is the
+// cost of the bundle rather than of anything the app does.
+markStartup('script start')
+
 async function start(): Promise<void> {
   if (isTauri()) {
     await installTauriBridge()

@@ -115,7 +115,7 @@ import { exportStyledHTML, type HeaderFooterPart } from '@/util/exportHtml'
 import { applyCursor, isIndexCursor } from '@/util/cursor'
 import EditorSearch from '../search/index.vue'
 import bus from '@/bus'
-import { reportStartup } from '@/util/startupTrace'
+import { markStartup, reportStartup } from '@/util/startupTrace'
 import { DEFAULT_EDITOR_FONT_FAMILY, DEFAULT_CODE_FONT_FAMILY } from '@/config'
 import notice from '@/services/notification'
 import Printer from '@/services/printService'
@@ -1797,6 +1797,10 @@ onMounted(() => {
   // The engine stores live DOM nodes and block-tree references and patches the
   // DOM via snabbdom; proxying them silently breaks identity checks so the
   // document tree never renders.
+  // The last stretch a user waits through splits here: constructing the engine
+  // and rendering the document, versus everything the app did to get ready for
+  // it. 550 ms of a 2.3 s startup landed in this range unmeasured.
+  markStartup('engine constructed')
   const muya = markRaw(new Muya(ele, options))
   // The new engine requires an explicit init() after construction (it builds
   // the document tree and instantiates the registered UI plugins).

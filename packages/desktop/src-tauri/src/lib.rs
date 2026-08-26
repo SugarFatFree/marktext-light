@@ -37,6 +37,20 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
+        // Registered last, so its setup runs once every other plugin is
+        // initialised. That splits the stretch before the app's own `setup`:
+        // process spawn and plugin init up to here, window and WebView
+        // creation after it. The first trace put 1.2 s in that range without
+        // saying which half, and on Windows the second half is WebView2
+        // starting, which is not ours to speed up.
+        .plugin(
+            tauri::plugin::Builder::new("startup-probe")
+                .setup(|_app, _api| {
+                    startup::trace("plugins ready");
+                    Ok(())
+                })
+                .build(),
+        )
         .setup(|app| {
             // Resolve the log directory first, so everything recorded before
             // now gets flushed and the rest is written as it happens.
