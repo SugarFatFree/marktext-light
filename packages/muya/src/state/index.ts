@@ -245,6 +245,20 @@ class JSONState {
         return deepClone(this._state);
     }
 
+    /**
+     * The live state, for callers that only walk it.
+     *
+     * `getState()` hands out a structured clone so a caller can keep or edit
+     * what it gets. A caller that only reads pays the whole document for that
+     * guarantee — and some of them run on every keystroke, where the clone is
+     * the entire cost. Anything reached through here MUST NOT be mutated: it is
+     * the document itself, and an edit would bypass the operation log that
+     * undo, redo and the block tree are all kept in step by.
+     */
+    readState(): readonly TState[] {
+        return this._state;
+    }
+
     getMarkdown() {
         // Serialization only reads, so it gets the live state rather than
         // `getState()`'s copy. This runs on every keystroke — the desktop asks
