@@ -4,9 +4,14 @@ import { launchWithMarkdown } from './helpers'
 
 // #2421 — toggling the sidebar via its left-column icons must not lose state.
 // Two bugs: (1) collapsing to the icon strip persisted the clamped 220px width
-// instead of the real width, so re-expanding shrank the sidebar; (2) the tree's
-// collapsed sections (Opened files / Directories) are local refs under a v-if,
-// so collapsing the sidebar destroyed the tree and reset them on re-expand.
+// instead of the real width, so re-expanding shrank the sidebar; (2) a section's
+// collapsed state was a local ref under a v-if, so collapsing the sidebar
+// destroyed the tree and reset it on re-expand — it is written to localStorage
+// now, which is what the second case below actually holds in place.
+//
+// The section it drives is the merged file list. The "Opened files" section this
+// case was written against no longer exists: one list replaced the two, since a
+// file you had open was otherwise listed twice.
 // These drive the real built app.
 
 const filesIcon = (page: Page) =>
@@ -74,13 +79,12 @@ test.describe('#2421 sidebar state survives icon toggle', () => {
   })
 
   test('a collapsed tree section stays collapsed after toggling the sidebar', async() => {
-    const arrow = page.locator('.side-bar .opened-files > .title .icon-arrow').first()
+    const arrow = page.locator('.side-bar .file-list > .title .icon-arrow').first()
     await expect(arrow).toBeVisible()
 
-    // Collapse the "Opened files" section.
     await arrow.click()
     await page.waitForFunction(() => {
-      const a = document.querySelector('.side-bar .opened-files .icon-arrow')
+      const a = document.querySelector('.side-bar .file-list .icon-arrow')
       return !!(a && a.classList.contains('fold'))
     }, null, { timeout: 5000 })
 
@@ -89,12 +93,12 @@ test.describe('#2421 sidebar state survives icon toggle', () => {
     await page.waitForTimeout(250)
     await filesIcon(page).click()
     await page.waitForFunction(() => {
-      const el = document.querySelector('.side-bar .opened-files') as HTMLElement | null
+      const el = document.querySelector('.side-bar .file-list') as HTMLElement | null
       return !!(el && el.offsetParent !== null)
     }, null, { timeout: 5000 })
 
     const stillCollapsed = await page.evaluate(() => {
-      const a = document.querySelector('.side-bar .opened-files .icon-arrow')
+      const a = document.querySelector('.side-bar .file-list .icon-arrow')
       return !!(a && a.classList.contains('fold'))
     })
     expect(stillCollapsed).toBe(true)
