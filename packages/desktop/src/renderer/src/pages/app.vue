@@ -61,6 +61,7 @@ import ImportModal from '@/components/import/index.vue'
 import UnsavedFilesDialog from '@/components/unsavedFilesDialog/index.vue'
 import bus from '@/bus'
 import { isTauri } from '@/tauri-bridge'
+import { markStartup } from '@/util/startupTrace'
 import { showEditorContextMenu } from '@/contextMenu/editor'
 import { DEFAULT_STYLE } from '@/config'
 import { useLayoutStore } from '@/store/layout'
@@ -180,6 +181,13 @@ onMounted(async () => {
 
   mainStore.LISTEN_WIN_STATUS()
   await commandCenterStore.LISTEN_COMMAND_CENTER_BUS()
+  // The editor is gated on `init`, which `LISTEN_FOR_BOOTSTRAP_WINDOW` sets
+  // below — so everything queued ahead of it delays the first document even
+  // though none of it is needed to show one. These three marks say how the
+  // 356 ms between the app mounting and the editor starting divides up:
+  // building the command table, registering listeners either side of the
+  // bootstrap, and finally Vue's re-render once `init` flips.
+  markStartup('commands ready')
   layoutStore.LISTEN_FOR_LAYOUT()
   listenForMainStore.LISTEN_FOR_EDIT()
   preferencesStore.LISTEN_FOR_VIEW()
@@ -198,6 +206,7 @@ onMounted(async () => {
   editorStore.LISTEN_FOR_SAVE()
   editorStore.LISTEN_FOR_SET_PATHNAME()
   editorStore.LISTEN_FOR_BOOTSTRAP_WINDOW()
+  markStartup('bootstrap dispatched')
   editorStore.LISTEN_FOR_SAVE_CLOSE()
   editorStore.LISTEN_FOR_RENAME()
   editorStore.LISTEN_FOR_SET_LINE_ENDING()
@@ -220,6 +229,7 @@ onMounted(async () => {
 
   setupEditorContextMenu()
   setupDragDropHandler()
+  markStartup('listeners registered')
 
   nextTick(() => {
     // `initialState` from bootstrap carries nullable URL params (string|null);

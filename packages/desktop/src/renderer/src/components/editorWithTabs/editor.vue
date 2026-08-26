@@ -1705,8 +1705,9 @@ const resizeObserverForEditor = new ResizeObserver(handleResetPaddingBottom)
 onMounted(() => {
   // This lands after the app's own `mounted` mark rather than inside it: the
   // editor is not part of the first render, so it waits for whatever gates it.
-  // The gap between the two marks is that wait, and the gap forward is the
-  // editor's own setup — 326 ms sat across both with no way to tell which.
+  // Measured on Windows: 356 ms of wait behind this mark and 2 ms ahead of it,
+  // so the editor's own setup is free and the cost is entirely in what the app
+  // does before letting it render.
   markStartup('editor mounting')
   printer = new Printer()
   const ele = editorRef.value
