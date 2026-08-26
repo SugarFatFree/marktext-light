@@ -957,6 +957,28 @@ Flutter 版不到 1 秒。
 插件按注册顺序初始化)、`script start`(JS 解析 vs 等 `boot_info` 往返)、
 `engine constructed`(建引擎 vs 渲染文档)。
 
+**读下一份日志前先量好了引擎自身的地板**(muya 的真实 Chromium harness,
+`new Muya + init()` 热态,即模块已解析完毕之后的纯执行):
+
+| 文档 | 构造 + init |
+|---|---|
+| 1 标题 + 1 段(24 B) | **7.6 ms** |
+| ~4.4 KB | **51.6 ms** |
+| ~90 KB | **712 ms** |
+
+这张表是下一份日志的判读钥匙。`engine constructed → editor ready` 这一段:
+
+- 若为 ~10 ms 量级 → 550 ms 花在**构造之前**(Vue 渲染完到编辑器组件真正开工之间),
+  届时再补一个 `editor mounting` 埋点即可定位;
+- 若接近 550 ms → 用户开的是个大文件,成本在渲染文档本身,属已知的大文件路径。
+
+顺带排除了一个先入为主的猜测:编辑器组件是**静态导入**的(全仓仅
+`sourceCode.vue` 与 `FileIcon` 走 `defineAsyncComponent`),所以这 550 ms
+不可能是"异步块加载",引擎在第一行 JS 跑之前就已解析完毕。
+
+**本机跑不了桌面端 E2E**(无 Xvfb,native-keymap 的 .node 也不在),
+所以渲染层的启动分解只能靠用户回传日志 + muya harness 侧证,不能本机复现。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
