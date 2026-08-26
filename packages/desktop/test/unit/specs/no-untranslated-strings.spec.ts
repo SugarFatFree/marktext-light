@@ -114,4 +114,23 @@ describe('user-visible attributes are translated', () => {
 
     expect(offenders, 'the file picker shows this label to the user').toEqual([])
   })
+
+  it('formats no date against a hardcoded locale', () => {
+    // The uploader's detection time was formatted as `toLocaleString('zh-CN')`,
+    // which is the same bug as an English literal pointed the other way: every
+    // other language got Chinese date conventions. Passing nothing is fine —
+    // that follows the operating system, which is the right default for
+    // diagnostic output.
+    const offenders: string[] = []
+
+    for (const path of filesUnder(RENDERER, '.ts', '.vue')) {
+      const source = readFileSync(path, 'utf-8')
+      const call = /toLocale(?:Date|Time)?String\(\s*(['"])([^'"]+)\1/g
+      for (const [, , locale] of source.matchAll(call)) {
+        offenders.push(`${relative(RENDERER, path)}: toLocale…String('${locale}')`)
+      }
+    }
+
+    expect(offenders, "pass the app's current language instead").toEqual([])
+  })
 })

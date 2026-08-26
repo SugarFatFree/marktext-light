@@ -257,6 +257,7 @@ import {
   onDeactivated
 } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getCurrentLanguage } from '@/i18n'
 import { usePreferencesStore } from '@/store/preferences'
 import getServices from './services'
 import type { UploaderServiceId } from './services'
@@ -605,7 +606,10 @@ const manualDetection = async (): Promise<void> => {
 const formatDetectionTime = (time: string | null | undefined): string => {
   if (!time) return t('preferences.image.uploader.neverDetected')
   const date = new Date(time)
-  return date.toLocaleString('zh-CN', {
+  // Formatted for whoever is reading it. This was pinned to zh-CN, which meant
+  // every other language got Chinese date conventions — the locale codes the
+  // app ships (en, ja, zh-TW, …) are already the BCP-47 tags this expects.
+  return date.toLocaleString(getCurrentLanguage(), {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
