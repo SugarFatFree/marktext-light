@@ -245,7 +245,8 @@
       "createFile": "Crear Archivo",
       "openFolder": "Abrir Carpeta",
       "files": "Archivos",
-      "open": "Abrir…"
+      "open": "Abrir…",
+      "newFilePlaceholder": "Escriba el nombre del archivo .md"
     },
     "toc": {
       "title": "Tabla de Contenidos"

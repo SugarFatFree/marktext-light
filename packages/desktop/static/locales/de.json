@@ -245,7 +245,8 @@
       "createFile": "Datei erstellen",
       "openFolder": "Ordner öffnen",
       "files": "Dateien",
-      "open": "Öffnen…"
+      "open": "Öffnen…",
+      "newFilePlaceholder": ".md-Dateinamen eingeben"
     },
     "toc": {
       "title": "Inhaltsverzeichnis"

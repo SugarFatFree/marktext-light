@@ -245,7 +245,8 @@
       "createFile": "파일 만들기",
       "openFolder": "폴더 열기",
       "files": "파일",
-      "open": "열기…"
+      "open": "열기…",
+      "newFilePlaceholder": ".md 파일 이름 입력"
     },
     "toc": {
       "title": "목차"

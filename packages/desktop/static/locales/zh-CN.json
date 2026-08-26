@@ -245,7 +245,8 @@
       "createFile": "创建文件",
       "openFolder": "打开文件夹",
       "files": "文件",
-      "open": "打开…"
+      "open": "打开…",
+      "newFilePlaceholder": "输入 .md 文件名"
     },
     "toc": {
       "title": "目录"

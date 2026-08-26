@@ -245,7 +245,8 @@
       "createFile": "建立檔案",
       "openFolder": "開啟資料夾",
       "files": "檔案",
-      "open": "開啟…"
+      "open": "開啟…",
+      "newFilePlaceholder": "輸入 .md 檔案名稱"
     },
     "toc": {
       "title": "目錄"

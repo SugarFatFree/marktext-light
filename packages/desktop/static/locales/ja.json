@@ -245,7 +245,8 @@
       "createFile": "ファイルを作成",
       "openFolder": "フォルダを開く",
       "files": "ファイル",
-      "open": "開く…"
+      "open": "開く…",
+      "newFilePlaceholder": ".md ファイル名を入力"
     },
     "toc": {
       "title": "目次"

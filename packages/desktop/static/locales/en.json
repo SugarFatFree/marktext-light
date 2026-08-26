@@ -245,7 +245,8 @@
       "createFile": "Create File",
       "openFolder": "Open Folder",
       "files": "Files",
-      "open": "Open…"
+      "open": "Open…",
+      "newFilePlaceholder": "Enter .md file name"
     },
     "toc": {
       "title": "Table Of Contents"

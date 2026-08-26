@@ -245,7 +245,8 @@
       "createFile": "Criar Arquivo",
       "openFolder": "Abrir Pasta",
       "files": "Arquivos",
-      "open": "Abrir…"
+      "open": "Abrir…",
+      "newFilePlaceholder": "Digite o nome do arquivo .md"
     },
     "toc": {
       "title": "Índice"

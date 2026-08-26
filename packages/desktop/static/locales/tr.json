@@ -245,7 +245,8 @@
       "createFile": "Dosya Oluştur",
       "openFolder": "Klasör Aç",
       "files": "Dosyalar",
-      "open": "Aç…"
+      "open": "Aç…",
+      "newFilePlaceholder": ".md dosya adını girin"
     },
     "toc": {
       "title": "İçindekiler"

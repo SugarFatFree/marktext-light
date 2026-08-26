@@ -245,7 +245,8 @@
       "createFile": "Créer un fichier",
       "openFolder": "Ouvrir un dossier",
       "files": "Fichiers",
-      "open": "Ouvrir…"
+      "open": "Ouvrir…",
+      "newFilePlaceholder": "Saisir le nom du fichier .md"
     },
     "toc": {
       "title": "Table des matières"
