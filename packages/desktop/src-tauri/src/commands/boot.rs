@@ -116,6 +116,10 @@ pub fn load_locale(app: tauri::AppHandle, lang: String) -> Option<serde_json::Va
 
 #[tauri::command]
 pub fn boot_info(app: tauri::AppHandle) -> Result<BootInfo, String> {
+    // The renderer's first call into the shell: everything before this is
+    // process spawn, plugin setup and WebView creation.
+    crate::startup::trace("boot_info: entered");
+
     let resolver = app.path();
 
     let resources = resolver
@@ -150,7 +154,15 @@ pub fn boot_info(app: tauri::AppHandle) -> Result<BootInfo, String> {
         // Auto-update lands in phase 7 (tauri-plugin-updater).
         is_updatable: false,
         markdown_inclusions: MARKDOWN_EXTENSIONS.iter().map(|s| s.to_string()).collect(),
-        initial_file: initial_file_from_args(),
+        initial_file: {
+            // The first file's contents ride along with this one round trip, so
+            // the renderer never makes a second call for them. Traced
+            // separately because a large document makes this read the one part
+            // of `boot_info` that is not constant time.
+            let file = initial_file_from_args();
+            crate::startup::trace("boot_info: initial file read");
+            file
+        },
         locale: crate::menu::i18n::resolve_locale().to_string(),
     })
 }

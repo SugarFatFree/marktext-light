@@ -4,6 +4,7 @@
 
 mod commands;
 mod menu;
+mod startup;
 
 use tauri::{Emitter, Manager};
 
@@ -24,23 +25,8 @@ fn handle_second_instance(app: &tauri::AppHandle, argv: Vec<String>) {
     }
 }
 
-/// Wall-clock since the process began, for the startup trace.
-///
-/// The renderer can time its own half (navigation timing), but everything
-/// before the first line of JavaScript — process spawn, plugin registration,
-/// menu construction, WebView creation — is invisible from there. On a report
-/// of "three seconds to first content" that is exactly the half nobody can see,
-/// so it is printed: one line, on stderr, visible when the binary is run from a
-/// terminal.
-fn trace_startup(stage: &str, started: std::time::Instant) {
-    eprintln!(
-        "[startup] {stage}: {} ms",
-        started.elapsed().as_millis()
-    );
-}
-
 pub fn run() {
-    let started = std::time::Instant::now();
+    startup::begin();
 
     tauri::Builder::default()
         // Must be registered first — plugins run in registration order and this
@@ -51,17 +37,25 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
-        .setup(move |app| {
-            trace_startup("setup entered", started);
+        .setup(|app| {
+            // Resolve the log directory first, so everything recorded before
+            // now gets flushed and the rest is written as it happens.
+            if let Ok(dir) = app.path().app_log_dir().or_else(|_| app.path().app_data_dir()) {
+                startup::attach(dir);
+            }
+            startup::trace("setup entered");
+
             let menu = menu::build_menu(app.handle())?;
             app.set_menu(menu)?;
-            trace_startup("menu built", started);
+            startup::trace("menu built");
+
             Ok(())
         })
         .on_menu_event(|app, event| {
             menu::handle_menu_event(app, event.id().as_ref());
         })
         .invoke_handler(tauri::generate_handler![
+            startup::startup_trace,
             // fs::* — mirror of the mt::fs:: channels
             commands::fs::is_file,
             commands::fs::is_directory,
