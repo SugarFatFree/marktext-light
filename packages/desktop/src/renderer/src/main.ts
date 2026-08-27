@@ -93,6 +93,7 @@ import Main from './Main.vue'
 
 import { installTauriBridge, isTauri } from './tauri-bridge'
 import { markStartup, markNetworkTimings } from './util/startupTrace'
+import { usePreferencesStore } from './store/preferences'
 
 import './assets/styles/index.css'
 import './assets/styles/printService.css'
@@ -145,6 +146,18 @@ async function start(): Promise<void> {
   ;(services as unknown as Array<Record<string, unknown> & { name: string }>).forEach((s) => {
     app.config.globalProperties['$' + s.name] = s[s.name]
   })
+
+  // Before the first render, not after it.
+  //
+  // These five come from the URL the window was opened with, so they are known
+  // here. Applying them from `app.vue`'s `onMounted` meant rendering the shell
+  // once with the defaults, then changing them, then rendering it again — and
+  // that second pass was measured at 207 ms of a 2.2 s startup, the largest
+  // thing left that the app controls. Setting them first means there is nothing
+  // to re-render.
+  if (window.marktext?.initialState) {
+    usePreferencesStore(pinia).SET_USER_PREFERENCE(window.marktext.initialState)
+  }
 
   // Mount the app
   app.mount('#app')

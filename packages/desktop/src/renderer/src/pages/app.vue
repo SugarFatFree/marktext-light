@@ -175,11 +175,11 @@ const setupDragDropHandler = (): void => {
   )
 }
 onMounted(async () => {
-  if (window.marktext?.initialState) {
-    preferencesStore.SET_USER_PREFERENCE(window.marktext.initialState)
-  }
+  // The initial preferences are applied before the app mounts, in `main.ts` —
+  // doing it here rendered the shell twice.
 
-  // Marks the end of the re-render the line above queues, and nothing else.
+  // Marks the end of any re-render queued before the app mounted, and nothing
+  // else.
   //
   // Vue queues its flush as a microtask the moment a reactive value changes, so
   // it is already in the queue here. This one goes in behind it, and the
