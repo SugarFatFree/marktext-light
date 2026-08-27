@@ -44,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, nextTick, onMounted, onUpdated, ref } from 'vue'
+import { computed, watch, nextTick, onMounted, ref } from 'vue'
 import { useMainStore } from '@/store'
 import { storeToRefs } from 'pinia'
 import { addStyles, addThemeStyle, addCustomStyle, type AddStylesOptions } from '@/util/theme'
@@ -84,19 +84,6 @@ const commandCenterStore = useCommandCenterStore()
 const notificationStore = useNotificationStore()
 
 const timer = ref<ReturnType<typeof setTimeout> | null>(null)
-
-// Runs inside the flush, which is where the previous probe could not reach.
-// The flush is queued by the preferences applied in `onMounted` and runs
-// before the command store's continuation, so a mark here bounds it from the
-// inside: close to `microtasks drained` means re-rendering the shell is the
-// 393 ms; close to `mounted` means something else owns it. Only the first
-// update matters — later ones are ordinary work, not startup.
-let shellUpdateMarked = false
-onUpdated(() => {
-  if (shellUpdateMarked) return
-  shellUpdateMarked = true
-  markStartup('shell updated')
-})
 
 const { windowActive, platform, init } = storeToRefs(mainStore)
 const { showTabBar } = storeToRefs(layoutStore)
@@ -192,14 +179,21 @@ onMounted(async () => {
     preferencesStore.SET_USER_PREFERENCE(window.marktext.initialState)
   }
 
-  // Kept for the ordering it demonstrates, not for what it measures: a
-  // `nextTick` registered here chains onto the flush promise, so its callback
-  // is queued only once the flush has resolved — by which time the command
-  // store's own continuation, queued during this same function, has already
-  // run. It lands after `microtasks drained` by construction, and reading that
-  // as "the flush was not the cost" was wrong. `shell updated` below is the
-  // probe that can actually answer it.
-  nextTick(() => markStartup('shell flushed'))
+  // Marks the end of the re-render the line above queues, and nothing else.
+  //
+  // Vue queues its flush as a microtask the moment a reactive value changes, so
+  // it is already in the queue here. This one goes in behind it, and the
+  // command store's continuation — queued while `LISTEN_COMMAND_CENTER_BUS`
+  // runs below — goes in behind that. The order is fixed by when each was
+  // queued: flush, this, `microtasks drained`. So the gap back to `mounted` is
+  // the flush, and only the flush.
+  //
+  // Two earlier attempts could not measure this. A `nextTick` chains onto the
+  // flush promise and is therefore queued after the continuation, landing after
+  // the mark it was meant to bound. An `onUpdated` hook runs after the child
+  // components it mounts, which under Tauri means after `editor ready` has
+  // already closed the trace — it never appeared in a log at all.
+  queueMicrotask(() => markStartup('shell flushed'))
 
   mainStore.LISTEN_WIN_STATUS()
   await commandCenterStore.LISTEN_COMMAND_CENTER_BUS()

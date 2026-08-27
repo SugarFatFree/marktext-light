@@ -27,6 +27,7 @@ const PHASES = [
   'script start',
   'shell bridge',
   'mounted',
+  'shell flushed',
   'microtasks drained',
   'commands sorted',
   'commands ready',
@@ -38,16 +39,16 @@ const PHASES = [
   'editor ready'
 ]
 
-/** Marked from a `nextTick` rather than in line with the code, so where it
- *  lands depends on whether a flush was already pending — which is the thing it
- *  measures. Present, but not in a fixed position. */
-const UNORDERED = ['shell flushed']
+/** Nothing unordered at present. `shell flushed` was, while it came from a
+ *  `nextTick` whose position depended on the very thing it measured; queued as
+ *  a plain microtask it now sits between `mounted` and `microtasks drained` by
+ *  construction, so the order check can hold it there. */
+const UNORDERED: string[] = []
 
-/** `shell updated` comes from the first `onUpdated`, which only fires if
- *  something rendered at mount actually changed. Whether it does is exactly
- *  what the mark is there to find out, so requiring it would be asserting the
- *  answer. Checked for not appearing twice, and nothing else. */
-const OPTIONAL = ['shell updated']
+/** Nothing is optional at present. `shell updated` lived here until it turned
+ *  out never to fire under Tauri at all: an `onUpdated` hook runs after the
+ *  children it mounts, by which time `editor ready` has closed the trace. */
+const OPTIONAL: string[] = []
 
 interface Phase {
   /** Without the measurement, for matching against the lists above. */
