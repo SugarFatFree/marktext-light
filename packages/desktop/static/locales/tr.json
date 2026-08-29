@@ -174,7 +174,9 @@
       "tokyoNight": "Tokyo Night",
       "tokyoNightLight": "Tokyo Night Light",
       "tokyoNightStorm": "Tokyo Night Storm",
-      "ulyssesLight": "Ulysses Light"
+      "ulyssesLight": "Ulysses Light",
+      "followSystem": "Sistemi izle",
+      "light": "Açık"
     }
   },
   "contextMenu": {
@@ -234,11 +236,17 @@
     },
     "tree": {
       "openedFiles": "Açık dosyalar",
+      "recentFiles": "Son kullanılan dosyalar",
+      "clearRecent": "Son kullanılanları temizle",
+      "removeFromRecent": "Son kullanılanlardan kaldır",
       "saveAll": "Tümünü Kaydet",
       "closeAll": "Tümünü Kapat",
       "emptyProject": "Boş proje",
       "createFile": "Dosya Oluştur",
-      "openFolder": "Klasör Aç"
+      "openFolder": "Klasör Aç",
+      "files": "Dosyalar",
+      "open": "Aç…",
+      "newFilePlaceholder": ".md dosya adını girin"
     },
     "toc": {
       "title": "İçindekiler"
@@ -893,7 +901,9 @@
     "unsafeFileTitle": "Güvenli olmayabilecek dosya",
     "unsafeFileMessage": "Bu bağlantı, kod çalıştırabilen bir dosyayı açar",
     "unsafeFileDetail": "\"{name}\" bir yürütülebilir veya betik dosyasıdır. Açmak, bilgisayarınızda program çalıştırabilir. Yalnızca bu belgeye güveniyorsanız devam edin.",
-    "openAnyway": "Yine de aç"
+    "openAnyway": "Yine de aç",
+    "imageFilesFilter": "Görseller",
+    "documentFilesFilter": "Belgeler"
   },
   "error": {
     "configSchemaViolation": "Yapılandırma şeması ihlali",
@@ -909,7 +919,23 @@
   },
   "notifications": {
     "defaultMessage": "Varsayılan mesaj",
-    "defaultTitle": "Bildirim"
+    "defaultTitle": "Bildirim",
+    "fileReadFailedTitle": "Dosya okunamıyor",
+    "fileReadFailedMessage": "{path} okunamadı: {msg}",
+    "deleteFailedTitle": "Silme hatası",
+    "pasteForbiddenTitle": "Yapıştırma engellendi",
+    "pasteSameLocationMessage": "Kaynak ve hedef aynı olamaz.",
+    "pasteFailedTitle": "Yapıştırma hatası",
+    "sideBarErrorTitle": "Kenar çubuğu hatası",
+    "fileAlreadyExistsMessage": "Bu klasörde \"{name}\" adlı bir dosya zaten var.",
+    "directoryAlreadyExistsMessage": "Bu klasörde \"{name}\" adlı bir klasör zaten var.",
+    "spellingTitle": "Yazım denetimi",
+    "spellcheckerDisabledMessage": "Yazım denetimi kapalı olduğu için dil değiştirilemiyor.",
+    "uploadImageTitle": "Görsel yükle",
+    "updateTitle": "Güncelleme",
+    "updateNotAvailableTitle": "Güncelleme yok",
+    "updateDownloadedTitle": "Güncelleme indirildi",
+    "updateAvailableTitle": "Güncelleme mevcut"
   },
   "store": {
     "editor": {

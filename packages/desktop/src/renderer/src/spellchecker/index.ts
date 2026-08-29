@@ -1,3 +1,4 @@
+import { isTauri } from '@/util/isTauri'
 import { isOsx } from '@/util'
 
 /**
@@ -89,8 +90,12 @@ export class SpellChecker {
    * Returns a list of available dictionaries.
    */
   static async getAvailableDictionaries(): Promise<string[]> {
-    if (isOsx) {
-      // NB: macOS uses the OS spell checker and detects language automatically.
+    if (isOsx || isTauri()) {
+      // macOS uses the OS spell checker and detects language automatically, and
+      // so does the WebView this build runs in: setting `spellcheck` on the
+      // editor is all it needs, and it picks languages from the system. Neither
+      // has a dictionary list to offer, and neither has a backend for this
+      // channel — asking anyway returned undefined and threw on `.map`.
       return []
     }
     return window.electron.ipcRenderer.invoke('mt::spellchecker-get-available-dictionaries')

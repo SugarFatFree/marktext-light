@@ -49,6 +49,7 @@ const handleCloseClick = () => {
   width: 46px;
   height: var(--titleBarHeight);
   -webkit-app-region: no-drag;
+  color: var(--sideBarColor);
 }
 
 .frameless-titlebar-button > div {
@@ -63,8 +64,11 @@ const handleCloseClick = () => {
   background-color: rgb(228, 79, 79);
 }
 
+/* Follow the theme's text colour rather than a fixed black, which disappeared
+   into the titlebar on every dark theme. The close button keeps white icons
+   because its hover fill is a saturated red under both. */
 .frameless-titlebar-button svg {
-  fill: #000000;
+  fill: currentColor;
 }
 
 .frameless-titlebar-close:hover svg {

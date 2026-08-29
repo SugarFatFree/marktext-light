@@ -2,6 +2,17 @@ import { expect, test } from '../fixtures/muya';
 import { slowType } from '../helpers/keyboard';
 import { editor, floats } from '../helpers/selectors';
 
+// NOTE: whether the picker actually FILLS is not asserted here, and that is
+// deliberate. The case below says only that its container exists, because the
+// populated state has never been reliable in this harness — an attempt to
+// assert it (`div.item` count > 0, polled for 25 s) failed even with the emoji
+// table prefetched, so the gap is in the typing-to-event path here, not in the
+// picker.
+//
+// The population itself IS covered, in happy-dom:
+// `src/ui/emojiSelector/__tests__/emojiSelector.spec.ts` drives the same event
+// and asserts one `.item` per emoji, grouped by category.
+
 test.describe('emoji picker', () => {
     test('typing a complete :keyword: token triggers the emoji picker', async ({ page }) => {
         await page.evaluate(() => window.muya!.setContent(''));

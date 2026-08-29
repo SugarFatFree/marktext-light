@@ -17,9 +17,12 @@
           @drop.prevent="dropHandler"
         >
           <div class="img-wrapper">
+            <!-- Decorative: the title and description below say what this is,
+                 in the user's language. An alt here would only add a second,
+                 English description for a screen reader to read out. -->
             <img
               :src="`${importIcon.url}`"
-              alt="import file"
+              alt=""
             >
           </div>
           <div>{{ t('import.title') }}</div>

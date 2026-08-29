@@ -174,7 +174,9 @@
       "tokyoNight": "Tokyo Night",
       "tokyoNightLight": "Tokyo Night Light",
       "tokyoNightStorm": "Tokyo Night Storm",
-      "ulyssesLight": "Ulysses Light"
+      "ulyssesLight": "Ulysses Light",
+      "followSystem": "Follow System",
+      "light": "Light"
     }
   },
   "contextMenu": {
@@ -234,11 +236,17 @@
     },
     "tree": {
       "openedFiles": "Opened files",
+      "recentFiles": "Recent files",
+      "clearRecent": "Clear recent files",
+      "removeFromRecent": "Remove from recent files",
       "saveAll": "Save All",
       "closeAll": "Close All",
       "emptyProject": "Empty project",
       "createFile": "Create File",
-      "openFolder": "Open Folder"
+      "openFolder": "Open Folder",
+      "files": "Files",
+      "open": "Open…",
+      "newFilePlaceholder": "Enter .md file name"
     },
     "toc": {
       "title": "Table Of Contents"
@@ -893,7 +901,9 @@
     "unsafeFileTitle": "Potentially unsafe file",
     "unsafeFileMessage": "This link opens a file that can run code",
     "unsafeFileDetail": "\"{name}\" is an executable or script file. Opening it may run programs on your computer. Only continue if you trust this document.",
-    "openAnyway": "Open Anyway"
+    "openAnyway": "Open Anyway",
+    "imageFilesFilter": "Images",
+    "documentFilesFilter": "Documents"
   },
   "error": {
     "configSchemaViolation": "Configuration schema violation",
@@ -909,7 +919,23 @@
   },
   "notifications": {
     "defaultMessage": "Default message",
-    "defaultTitle": "Notification"
+    "defaultTitle": "Notification",
+    "fileReadFailedTitle": "Cannot read file",
+    "fileReadFailedMessage": "{path} could not be read: {msg}",
+    "deleteFailedTitle": "Error while deleting",
+    "pasteForbiddenTitle": "Paste Forbidden",
+    "pasteSameLocationMessage": "Source and destination must not be the same.",
+    "pasteFailedTitle": "Error while pasting",
+    "sideBarErrorTitle": "Error in Side Bar",
+    "fileAlreadyExistsMessage": "A file named \"{name}\" already exists in this folder.",
+    "directoryAlreadyExistsMessage": "A folder named \"{name}\" already exists in this folder.",
+    "spellingTitle": "Spelling",
+    "spellcheckerDisabledMessage": "Cannot change language because spellchecker is disabled.",
+    "uploadImageTitle": "Upload Image",
+    "updateTitle": "Update",
+    "updateNotAvailableTitle": "Update not Available",
+    "updateDownloadedTitle": "Update Downloaded",
+    "updateAvailableTitle": "Update Available"
   },
   "store": {
     "editor": {

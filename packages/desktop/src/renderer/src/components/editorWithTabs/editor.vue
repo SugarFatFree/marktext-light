@@ -115,6 +115,7 @@ import { exportStyledHTML, type HeaderFooterPart } from '@/util/exportHtml'
 import { applyCursor, isIndexCursor } from '@/util/cursor'
 import EditorSearch from '../search/index.vue'
 import bus from '@/bus'
+import { markStartup, reportStartup } from '@/util/startupTrace'
 import { DEFAULT_EDITOR_FONT_FAMILY, DEFAULT_CODE_FONT_FAMILY } from '@/config'
 import notice from '@/services/notification'
 import Printer from '@/services/printService'
@@ -553,6 +554,13 @@ watch(focus, (value) => {
 watch(sourceCode, (isSource) => {
   const windowId = window.marktext?.env?.windowId ?? -1
   if (isSource) {
+    // The engine batches edits and applies them on the next frame, so the last
+    // keystroke before this toggle is still queued. Source mode is seeded from
+    // the markdown the store last received — which only refreshes on
+    // `json-change` — and writes its own content back on exit, so an unflushed
+    // keystroke is first missed and then overwritten. Same hazard as the tab
+    // switch in #2938, and the reason `flush()` exists.
+    editor.value?.flush()
     window.electron.ipcRenderer.send('mt::set-editor-format-menus-enabled', windowId, false)
     return
   }
@@ -909,7 +917,7 @@ const imageAction = async (
         )) as string
       } catch (err) {
         notice.notify({
-          title: 'Upload Image',
+          title: t('notifications.uploadImageTitle'),
           type: 'warning',
           message: err as string
         })
@@ -1279,6 +1287,10 @@ const handleExport = async (options: unknown) => {
   }
 
   const extraCss = await getCssForOptions(opts as unknown as PdfCssOptions)
+  // `getTOC()`/`getMarkdown()` read the applied document, which does not yet
+  // include edits still queued in the engine's frame batch. Exporting right
+  // after a keystroke would otherwise write out a document missing it.
+  editor.value.flush()
   const htmlToc = getHtmlToc(editor.value.getTOC(), opts as unknown as HtmlTocOptions)
   const markdown = editor.value.getMarkdown()
   const header = (opts.header ?? null) as HeaderFooterPart | null
@@ -1495,7 +1507,6 @@ interface FileChangePayload {
   history?: unknown
   scrollTop?: number
   muyaIndexCursor?: unknown
-  blocks?: unknown
   isReload?: boolean
 }
 
@@ -1692,6 +1703,12 @@ const handleLanguageChanged = (newLocale?: unknown) => {
 const resizeObserverForEditor = new ResizeObserver(handleResetPaddingBottom)
 
 onMounted(() => {
+  // This lands after the app's own `mounted` mark rather than inside it: the
+  // editor is not part of the first render, so it waits for whatever gates it.
+  // Measured on Windows: 356 ms of wait behind this mark and 2 ms ahead of it,
+  // so the editor's own setup is free and the cost is entirely in what the app
+  // does before letting it render.
+  markStartup('editor mounting')
   printer = new Printer()
   const ele = editorRef.value
   if (!ele) return
@@ -1786,11 +1803,31 @@ onMounted(() => {
   // The engine stores live DOM nodes and block-tree references and patches the
   // DOM via snabbdom; proxying them silently breaks identity checks so the
   // document tree never renders.
+  // Named for what comes next, not what just happened: the gap forward from
+  // here is the engine building the document and putting it on screen, which
+  // is the part worth telling apart from everything done to get ready for it.
+  //
+  // Carries the document's size because that gap is mostly a function of it —
+  // the engine harness prices a 4 KB document at 52 ms and a 90 KB one at
+  // 712 ms. Without the size in the line, two traces of this phase cannot be
+  // compared at all, and comparing them anyway is how a big document gets
+  // mistaken for a slow shell.
+  markStartup(`engine about to build (${Math.round((props.markdown?.length ?? 0) / 1024)} KB)`)
   const muya = markRaw(new Muya(ele, options))
+  // Construction only sets up the modules; `init()` below is what builds the
+  // document and renders it. Measured against a Chromium harness the split is
+  // roughly 7 ms plus the document, so a constructor that costs more than that
+  // is a different problem from a document that takes a while to draw — and
+  // this phase ran 8.8x slower under Tauri than Electron, which is well past
+  // the 2-3x the rest of startup differs by.
+  markStartup('engine constructed')
   // The new engine requires an explicit init() after construction (it builds
   // the document tree and instantiates the registered UI plugins).
   muya.init()
   editor.value = muya
+  // The last phase a user waits through: the engine has parsed the document
+  // and put it on screen. Prints the renderer's startup line, once.
+  reportStartup('editor ready')
   // The first document's content is set via constructor options, so no
   // `file-loaded` / `setMarkdownToEditor` runs for it — seed its TOC here.
   editorStore.UPDATE_TOC(muya.getTOC())
@@ -1881,8 +1918,7 @@ onMounted(() => {
       // Synthetic, desktop-shaped history so the store's save/dirty tracking
       // keeps working (the engine history shape is incompatible).
       history: makeSyntheticHistory(id, markdown),
-      toc: editor.value.getTOC(),
-      blocks: editor.value.getState()
+      toc: editor.value.getTOC()
     })
   })
 

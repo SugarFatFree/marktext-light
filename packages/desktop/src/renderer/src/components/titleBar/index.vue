@@ -12,8 +12,10 @@
         { active: active },
         { 'tabs-visible': showTabBar },
         { frameless: titleBarStyle === 'custom' },
-        { isOsx: isOsx }
+        { isOsx: isOsx },
+        { 'has-menu-bar': isTauriShell }
       ]"
+      data-tauri-drag-region
     >
       <div
         class="title"
@@ -50,9 +52,10 @@
         <div
           v-if="showCustomTitleBar"
           class="frameless-titlebar-menu title-no-drag"
-          @click.stop="handleMenuClick"
+          :title="t('menu.view.toggleSidebar')"
+          @click.stop="handleSidebarToggle"
         >
-          <span class="text-center-vertical">&#9776;</span>
+          <span class="text-center-vertical">&#9707;</span>
         </div>
         <el-tooltip
           v-if="wordCount"
@@ -81,7 +84,7 @@
         </el-tooltip>
       </div>
       <div
-        v-if="titleBarStyle === 'custom' && !isFullScreen && !isOsx"
+        v-if="titleBarStyle === 'custom' && !isFullScreen && !isOsx && !isTauriShell"
         class="right-toolbar"
         :class="[{ 'title-no-drag': titleBarStyle === 'custom' }]"
       >
@@ -139,6 +142,7 @@
 <script setup lang="ts">
 import { usePreferencesStore } from '@/store/preferences.js'
 import { useLayoutStore } from '@/store/layout.js'
+import { isTauri } from '@/tauri-bridge'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { storeToRefs } from 'pinia'
 import { minimizePath, restorePath, maximizePath, closePath } from '../../assets/window-controls.js'
@@ -171,6 +175,9 @@ const editorStore = useEditorStore()
 const { t } = useI18n()
 
 const isOsx = isOsxPlatform
+// Under the Tauri shell the window controls live in the top menu bar, so the
+// title bar must not render its own duplicate set.
+const isTauriShell = isTauri()
 const HASH = {
   word: {
     short: 'W',
@@ -275,8 +282,10 @@ const handleMinimizeClick = () => {
   window.electron.windowControl.minimize()
 }
 
-const handleMenuClick = () => {
-  window.electron.windowControl.popupApplicationMenu({ x: 23, y: 20 })
+// The application menu is now always-on (native menu bar), so this button
+// toggles the left sidebar instead of popping up the menu.
+const handleSidebarToggle = () => {
+  layoutStore.TOGGLE_LAYOUT_ENTRY('showSideBar')
 }
 
 const rename = () => {
@@ -340,6 +349,10 @@ onBeforeUnmount(() => {
   z-index: 2;
   transition: color 0.4s ease-in-out;
   cursor: default;
+  /* Offset below the always-on top menu bar (its own 30px row) under Tauri. */
+  &.has-menu-bar {
+    top: 30px;
+  }
 }
 .active {
   color: var(--editorColor);
@@ -452,6 +465,7 @@ div.title > span {
   display: block;
   width: 46px;
   height: var(--titleBarHeight);
+  color: var(--sideBarColor);
 }
 .frameless-titlebar-button > div {
   position: absolute;
@@ -470,8 +484,11 @@ div.title > span {
 .frameless-titlebar-toggle:hover {
   background-color: rgba(0, 0, 0, 0.1);
 }
+/* Follow the theme's text colour rather than a fixed black, which disappeared
+   into the titlebar on every dark theme. The close button keeps white icons
+   because its hover fill is a saturated red under both. */
 .frameless-titlebar-button svg {
-  fill: #000000;
+  fill: currentColor;
 }
 .frameless-titlebar-close:hover svg {
   fill: #ffffff;

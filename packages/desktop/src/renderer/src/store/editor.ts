@@ -1,7 +1,6 @@
-import equal from 'deep-equal'
 import bus from '../bus'
 import { getUniqueId, deepClone } from '../util'
-import listToTree, { type ListItem, type TreeNode } from '../util/listToTree'
+import listToTree, { sameHeadings, type ListItem, type TreeNode } from '../util/listToTree'
 import {
   createDocumentState,
   getOptionsFromState,
@@ -19,6 +18,7 @@ import { defineStore } from 'pinia'
 import { usePreferencesStore } from './preferences'
 import { useProjectStore } from './project'
 import { useLayoutStore } from './layout'
+import { useRecentFilesStore } from './recentFiles'
 import { useMainStore } from '.'
 import { t } from '../i18n'
 import { debouncedSendBufferedState, sendBufferedState } from './bufferedState'
@@ -28,8 +28,11 @@ import type {
   LineEnding,
   MarkdownDocument,
   PageOptions,
-  TabOptions
+  TabOptions,
+  BootstrapEditorConfig
 } from '@shared/types/files'
+import { isTauri } from '@/tauri-bridge'
+import { initThemeController } from '@/tauri-bridge/theme'
 
 // ----------------------------------------------------------------------------
 // Local helper types
@@ -104,7 +107,6 @@ interface ContentChangePayload {
   muyaIndexCursor?: unknown
   history?: IFileState['history']
   toc?: TocItem[]
-  blocks?: unknown
 }
 
 interface AffiliationEntry {
@@ -646,6 +648,13 @@ export const useEditorStore = defineStore('editor', {
       const projectStore = useProjectStore()
       const preferencesStore = usePreferencesStore()
       window.electron.ipcRenderer.on('mt::ask-for-close', () => {
+        // Both the snapshot below and the `isSaved` test after it read the
+        // applied document. An edit still queued in the engine's frame batch is
+        // in neither — and if it is the tab's only edit, `isSaved` is still true,
+        // so the window closes with no prompt and the edit is gone. Frames stop
+        // being delivered to a hidden or occluded window, which is exactly the
+        // state a window is in when it gets closed from the taskbar.
+        this.flushActiveEditor()
         sendBufferedState()
           .catch((err) => {
             console.error('Failed to update buffered state before closing', err)
@@ -820,7 +829,7 @@ export const useEditorStore = defineStore('editor', {
       const oldCurrentFile = this.currentFile
       let didUpdateCurrentFile = false
       if (oldCurrentFile == null || oldCurrentFile.id !== currentFile.id) {
-        const { id, markdown, cursor, history, pathname, scrollTop, blocks, muyaIndexCursor } =
+        const { id, markdown, cursor, history, pathname, scrollTop, muyaIndexCursor } =
           currentFile
         // Must run while `currentFile` still points at the outgoing tab, so its
         // flushed edit is attributed to that tab and not lost on switch (#2938).
@@ -843,8 +852,7 @@ export const useEditorStore = defineStore('editor', {
           muyaIndexCursor,
           renderCursor: true,
           history,
-          scrollTop,
-          blocks
+          scrollTop
         })
       }
 
@@ -887,7 +895,7 @@ export const useEditorStore = defineStore('editor', {
         }, 100)
       }, 400)
 
-      window.electron.ipcRenderer.on('mt::bootstrap-editor', (_, config) => {
+      const bootstrapEditor = (config: BootstrapEditorConfig): void => {
         const {
           addBlankTab,
           markdownList,
@@ -923,7 +931,33 @@ export const useEditorStore = defineStore('editor', {
             isFirst = false
           }
         }
-      })
+      }
+
+      window.electron.ipcRenderer.on('mt::bootstrap-editor', (_, config) => bootstrapEditor(config))
+
+      // Under Tauri there is no main process to push `mt::bootstrap-editor`, so
+      // self-bootstrap once the listeners above are set up: open the CLI /
+      // file-association file if one was passed, otherwise a blank tab.
+      if (isTauri()) {
+        const initialFile = (window as unknown as { __MT_INITIAL_FILE__?: MarkdownDocument | null })
+          .__MT_INITIAL_FILE__
+        bootstrapEditor({
+          addBlankTab: !initialFile,
+          markdownList: [],
+          lineEnding: 'lf',
+          // The file drawer is the app's entry point here — it carries the
+          // recent-files list, which is the only navigation that survives a
+          // restart now that tabs are not restored.
+          sideBarVisibility: true,
+          tabBarVisibility: true,
+          sourceCodeModeEnabled: false
+        })
+        if (initialFile) {
+          this.NEW_TAB_WITH_CONTENT({ markdownDocument: initialFile, options: {}, selected: true })
+        }
+        // Keep the theme in sync with the OS and the native Theme menu.
+        initThemeController((theme) => preferencesStore.SET_USER_PREFERENCE({ theme }))
+      }
     },
 
     // Open a new tab, optionally with content.
@@ -1020,7 +1054,7 @@ export const useEditorStore = defineStore('editor', {
           this.tabs[index] ?? this.tabs[index - 1] ?? this.tabs[0] ?? null
         this.currentFile = fileState
         if (fileState && typeof fileState.markdown === 'string') {
-          const { id, markdown, cursor, history, pathname, scrollTop, blocks, muyaIndexCursor } =
+          const { id, markdown, cursor, history, pathname, scrollTop, muyaIndexCursor } =
             fileState
           window.DIRNAME = pathname ? window.path.dirname(pathname) : ''
           bus.emit('file-changed', {
@@ -1030,8 +1064,7 @@ export const useEditorStore = defineStore('editor', {
             muyaIndexCursor,
             renderCursor: true,
             history,
-            scrollTop,
-            blocks
+            scrollTop
           })
         } else {
           window.DIRNAME = ''
@@ -1111,7 +1144,7 @@ export const useEditorStore = defineStore('editor', {
         this.currentFile =
           this.tabs[tabIndex] ?? this.tabs[tabIndex - 1] ?? this.tabs[0] ?? null
         if (this.currentFile && typeof this.currentFile.markdown === 'string') {
-          const { id, markdown, cursor, history, pathname, scrollTop, blocks, muyaIndexCursor } =
+          const { id, markdown, cursor, history, pathname, scrollTop, muyaIndexCursor } =
             this.currentFile
           window.DIRNAME = pathname ? window.path.dirname(pathname) : ''
           bus.emit('file-changed', {
@@ -1121,8 +1154,7 @@ export const useEditorStore = defineStore('editor', {
             muyaIndexCursor,
             renderCursor: true,
             history,
-            scrollTop,
-            blocks
+            scrollTop
           })
         }
       }
@@ -1293,6 +1325,7 @@ export const useEditorStore = defineStore('editor', {
 
       const { currentFile, tabs } = this
       const { pathname } = markdownDocument
+      useRecentFilesStore().ADD_RECENT_FILE(pathname)
       const existingTab = tabs.find((t) =>
         window.fileUtils.isSamePathSync(t.pathname, pathname ?? '')
       )
@@ -1394,8 +1427,7 @@ export const useEditorStore = defineStore('editor', {
       cursor,
       muyaIndexCursor,
       history,
-      toc,
-      blocks
+      toc
     }: ContentChangePayload): void {
       const preferencesStore = usePreferencesStore()
       const { autoSave } = preferencesStore
@@ -1426,10 +1458,9 @@ export const useEditorStore = defineStore('editor', {
       if (cursor) tab.cursor = cursor
       if (muyaIndexCursor) tab.muyaIndexCursor = muyaIndexCursor
       if (history) tab.history = history
-      if (blocks) tab.blocks = blocks
 
       // Only update TOC if it's the current file
-      if (id === this.currentFile?.id && toc && !equal(toc, this.listToc)) {
+      if (id === this.currentFile?.id && toc && !sameHeadings(toc, this.listToc)) {
         this.listToc = toc
         this.toc = listToTree<TocItem>(toc)
       }

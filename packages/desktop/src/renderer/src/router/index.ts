@@ -1,16 +1,30 @@
 import type { RouteRecordRaw } from 'vue-router'
+
+// The settings tree is loaded on demand: a window only ever visits one of these
+// two, so bundling the whole preferences UI into the editor window would cost
+// first paint for code it never runs.
+//
+// The editor page is NOT deferred, and must not be. Electron's main process
+// sends `mt::bootstrap-editor` from `webContents.once('did-finish-load')`,
+// which fires once the page's *static* imports have loaded. Behind a dynamic
+// import, `app.vue` mounts after that — its `onMounted` registers the listener
+// too late, the message is gone, and the editor window stays blank forever.
+// The editor window needs this chunk immediately in any case, so deferring it
+// bought that window nothing.
+//
 // .vue extensions are explicit so TS resolves them through the *.vue module
 // shim in src/types/renderer.d.ts. Vite handles extension-less imports at
 // runtime, but vue-tsc needs the suffix.
 import App from '@/pages/app.vue'
-import Preference from '@/pages/preference.vue'
-import General from '@/prefComponents/general/index.vue'
-import Editor from '@/prefComponents/editor/index.vue'
-import Markdown from '@/prefComponents/markdown/index.vue'
-import SpellChecker from '@/prefComponents/spellchecker/index.vue'
-import Theme from '@/prefComponents/theme/index.vue'
-import Image from '@/prefComponents/image/index.vue'
-import Keybindings from '@/prefComponents/keybindings/index.vue'
+
+const Preference = () => import('@/pages/preference.vue')
+const General = () => import('@/prefComponents/general/index.vue')
+const Editor = () => import('@/prefComponents/editor/index.vue')
+const Markdown = () => import('@/prefComponents/markdown/index.vue')
+const SpellChecker = () => import('@/prefComponents/spellchecker/index.vue')
+const Theme = () => import('@/prefComponents/theme/index.vue')
+const Image = () => import('@/prefComponents/image/index.vue')
+const Keybindings = () => import('@/prefComponents/keybindings/index.vue')
 
 const parseSettingsPage = (type: string | null | undefined): string => {
   let pageUrl = '/preference'

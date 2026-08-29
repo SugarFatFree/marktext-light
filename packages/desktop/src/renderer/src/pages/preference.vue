@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, onMounted, nextTick } from 'vue'
+import { computed, watch, onMounted, nextTick, getCurrentInstance } from 'vue'
 import { usePreferencesStore } from '@/store/preferences'
 import { storeToRefs } from 'pinia'
 import TitleBar from '@/prefComponents/common/titlebar.vue'
@@ -24,6 +24,12 @@ import SideBar from '@/prefComponents/sideBar/index.vue'
 import { addThemeStyle } from '@/util/theme'
 import { DEFAULT_STYLE } from '@/config'
 import { isOsx } from '@/util'
+import { registerSettingsComponents } from '@/prefComponents/settingsComponents'
+
+// The settings tree's own Element Plus components, registered here rather than
+// at startup so the editor window does not pay for them. Setup runs before this
+// component and its router children render, which is when Vue resolves tags.
+registerSettingsComponents(getCurrentInstance()!.appContext.app)
 
 // Store
 const preferencesStore = usePreferencesStore()

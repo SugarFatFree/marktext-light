@@ -174,7 +174,9 @@
       "tokyoNight": "Tokyo Night",
       "tokyoNightLight": "Tokyo Night Hell",
       "tokyoNightStorm": "Tokyo Night Storm",
-      "ulyssesLight": "Ulysses Hell"
+      "ulyssesLight": "Ulysses Hell",
+      "followSystem": "Systemeinstellung folgen",
+      "light": "Hell"
     }
   },
   "contextMenu": {
@@ -234,11 +236,17 @@
     },
     "tree": {
       "openedFiles": "Geöffnete Dateien",
+      "recentFiles": "Zuletzt verwendet",
+      "clearRecent": "Zuletzt verwendete löschen",
+      "removeFromRecent": "Aus zuletzt verwendeten entfernen",
       "saveAll": "Alle speichern",
       "closeAll": "Alle schließen",
       "emptyProject": "Leeres Projekt",
       "createFile": "Datei erstellen",
-      "openFolder": "Ordner öffnen"
+      "openFolder": "Ordner öffnen",
+      "files": "Dateien",
+      "open": "Öffnen…",
+      "newFilePlaceholder": ".md-Dateinamen eingeben"
     },
     "toc": {
       "title": "Inhaltsverzeichnis"
@@ -893,7 +901,9 @@
     "unsafeFileTitle": "Möglicherweise unsichere Datei",
     "unsafeFileMessage": "Dieser Link öffnet eine Datei, die Code ausführen kann",
     "unsafeFileDetail": "„{name}“ ist eine ausführbare Datei oder ein Skript. Das Öffnen kann Programme auf Ihrem Computer ausführen. Fahren Sie nur fort, wenn Sie diesem Dokument vertrauen.",
-    "openAnyway": "Trotzdem öffnen"
+    "openAnyway": "Trotzdem öffnen",
+    "imageFilesFilter": "Bilder",
+    "documentFilesFilter": "Dokumente"
   },
   "error": {
     "configSchemaViolation": "Konfigurationsschema-Verletzung",
@@ -909,7 +919,23 @@
   },
   "notifications": {
     "defaultMessage": "Standardnachricht",
-    "defaultTitle": "Benachrichtigung"
+    "defaultTitle": "Benachrichtigung",
+    "fileReadFailedTitle": "Datei kann nicht gelesen werden",
+    "fileReadFailedMessage": "{path} konnte nicht gelesen werden: {msg}",
+    "deleteFailedTitle": "Fehler beim Löschen",
+    "pasteForbiddenTitle": "Einfügen nicht möglich",
+    "pasteSameLocationMessage": "Quelle und Ziel dürfen nicht identisch sein.",
+    "pasteFailedTitle": "Fehler beim Einfügen",
+    "sideBarErrorTitle": "Fehler in der Seitenleiste",
+    "fileAlreadyExistsMessage": "Eine Datei mit dem Namen „{name}“ existiert bereits in diesem Ordner.",
+    "directoryAlreadyExistsMessage": "Ein Ordner mit dem Namen „{name}“ existiert bereits in diesem Ordner.",
+    "spellingTitle": "Rechtschreibung",
+    "spellcheckerDisabledMessage": "Sprache kann nicht geändert werden, da die Rechtschreibprüfung deaktiviert ist.",
+    "uploadImageTitle": "Bild hochladen",
+    "updateTitle": "Update",
+    "updateNotAvailableTitle": "Kein Update verfügbar",
+    "updateDownloadedTitle": "Update heruntergeladen",
+    "updateAvailableTitle": "Update verfügbar"
   },
   "store": {
     "editor": {

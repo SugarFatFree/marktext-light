@@ -15,6 +15,23 @@ class InlineRenderer {
     public labels: Labels = new Map();
     public renderer: Renderer;
 
+    // Link reference definitions belong to the document, not to the block being
+    // painted — but `patch` runs once per content block, and collecting them
+    // there deep-cloned and walked the whole document every time. Opening a
+    // document was O(blocks²): 400 sections of a three-item list is 15 KB of
+    // markdown and took over six seconds, and ~850 KB of prose left a real
+    // window unresponsive past a 105 s timeout.
+    //
+    // They can only change when the document does, so collect once per document
+    // version and reuse the map until that version moves.
+    //
+    // Keyed on the version rather than a `json-change` subscription: replacing
+    // the content rebuilds and repaints the tree BEFORE that event is emitted,
+    // so an event-driven cache serves the outgoing document's definitions for
+    // exactly the repaint that needed the new ones. -1 so the first patch of a
+    // fresh document always collects.
+    private _labelsVersion = -1;
+
     constructor(public muya: Muya) {
         this.renderer = new Renderer(muya, this);
     }
@@ -60,7 +77,11 @@ class InlineRenderer {
     }
 
     patch(block: Format, cursor?: IRenderCursor, highlights: IHighlight[] = []) {
-        this._collectReferenceDefinitions();
+        const { version } = this.muya.editor.jsonState;
+        if (this._labelsVersion !== version) {
+            this._collectReferenceDefinitions();
+            this._labelsVersion = version;
+        }
         const { domNode } = block;
         if (block.isParent())
             debug.error('Patch can only handle content block');
@@ -75,10 +96,15 @@ class InlineRenderer {
     }
 
     private _collectReferenceDefinitions() {
-        const state = this.muya.editor.jsonState.getState();
+        // Reads the live document rather than a copy of it. This runs once per
+        // document version — which is once per keystroke — and `getState()`
+        // clones the whole document, so on a large file the clone was the cost
+        // of typing: 17 ms a keystroke at 1000 blocks against 122 ms at 8000.
+        // The walk below only looks.
+        const state = this.muya.editor.jsonState.readState();
         const labels = new Map();
 
-        const travel = (sts: TState[]) => {
+        const travel = (sts: readonly TState[]) => {
             if (Array.isArray(sts) && sts.length) {
                 for (const st of sts) {
                     if (st.name === 'paragraph') {

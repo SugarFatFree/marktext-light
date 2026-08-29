@@ -48,12 +48,25 @@ describe('getCssForOptions', () => {
     const { getCssForOptions } = await loadPdf()
     // Remove the disk surfaces entirely: if academic/liber tried a disk read
     // these would throw. They must not.
+    //
+    // Put back explicitly rather than leaving it to the next `beforeEach`.
+    // This file has twice failed a full-suite run with `window.marktext`
+    // missing where that hook had just set it, twice cost an afternoon
+    // attributing it, and never reproduced alone. Whatever the mechanism,
+    // a test that borrows a global and does not return it is the only thing
+    // here that could leave one missing — so it returns it.
     const w = globalThis as unknown as { window: Record<string, unknown> }
+    const borrowed = { marktext: w.window.marktext, fileUtils: w.window.fileUtils }
     delete w.window.marktext
     delete w.window.fileUtils
 
-    await expect(getCssForOptions({ theme: 'academic' })).resolves.toBeTypeOf('string')
-    await expect(getCssForOptions({ theme: 'liber' })).resolves.toBeTypeOf('string')
+    try {
+      await expect(getCssForOptions({ theme: 'academic' })).resolves.toBeTypeOf('string')
+      await expect(getCssForOptions({ theme: 'liber' })).resolves.toBeTypeOf('string')
+    } finally {
+      w.window.marktext = borrowed.marktext
+      w.window.fileUtils = borrowed.fileUtils
+    }
   })
 
   it('appends no theme CSS for theme:"default" (disk lookup misses) or {}', async() => {

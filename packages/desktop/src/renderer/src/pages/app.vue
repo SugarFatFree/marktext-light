@@ -1,38 +1,44 @@
 <template>
-  <div class="editor-container">
-    <side-bar v-if="init" />
+  <div class="app-shell">
+    <!-- Topmost full-width row: menu bar + window controls (Tauri, frameless). -->
+    <menu-bar />
 
-    <div class="editor-middle">
-      <title-bar
-        :project="projectTree"
-        :pathname="pathname"
-        :filename="filename"
-        :active="windowActive"
-        :word-count="wordCount"
-        :platform="platform"
-        :is-saved="isSaved"
-      />
+    <div class="editor-container">
+      <side-bar v-if="init" />
 
-      <div
-        v-if="!init"
-        class="editor-placeholder"
-      />
-      <recent v-if="!hasCurrentFile && init" />
-      <editor-with-tabs
-        v-if="hasCurrentFile && init"
-        :markdown="markdown"
-        :cursor="cursor"
-        :muya-index-cursor="muyaIndexCursor"
-        :source-code="sourceCode"
-        :show-tab-bar="showTabBar"
-        :text-direction="textDirection"
-        :platform="platform"
-      />
-      <command-palette />
-      <about-dialog />
-      <export-setting-dialog />
-      <rename />
-      <import-modal />
+      <div class="editor-middle">
+        <title-bar
+          :project="projectTree"
+          :pathname="pathname"
+          :filename="filename"
+          :active="windowActive"
+          :word-count="wordCount"
+          :platform="platform"
+          :is-saved="isSaved"
+        />
+
+        <div
+          v-if="!init"
+          class="editor-placeholder"
+        />
+        <recent v-if="!hasCurrentFile && init" />
+        <editor-with-tabs
+          v-if="hasCurrentFile && init"
+          :markdown="markdown"
+          :cursor="cursor"
+          :muya-index-cursor="muyaIndexCursor"
+          :source-code="sourceCode"
+          :show-tab-bar="showTabBar"
+          :text-direction="textDirection"
+          :platform="platform"
+        />
+        <command-palette />
+        <about-dialog />
+        <export-setting-dialog />
+        <rename />
+        <import-modal />
+        <unsaved-files-dialog />
+      </div>
     </div>
   </div>
 </template>
@@ -45,13 +51,18 @@ import { addStyles, addThemeStyle, addCustomStyle, type AddStylesOptions } from 
 import Recent from '@/components/recent/index.vue'
 import EditorWithTabs from '@/components/editorWithTabs/index.vue'
 import TitleBar from '@/components/titleBar/index.vue'
+import MenuBar from '@/components/menuBar/index.vue'
 import SideBar from '@/components/sideBar/index.vue'
 import AboutDialog from '@/components/about/index.vue'
 import CommandPalette from '@/components/commandPalette/index.vue'
 import ExportSettingDialog from '@/components/exportSettings/index.vue'
 import Rename from '@/components/rename/index.vue'
 import ImportModal from '@/components/import/index.vue'
+import UnsavedFilesDialog from '@/components/unsavedFilesDialog/index.vue'
 import bus from '@/bus'
+import { isTauri } from '@/tauri-bridge'
+import { markStartup } from '@/util/startupTrace'
+import { showEditorContextMenu } from '@/contextMenu/editor'
 import { DEFAULT_STYLE } from '@/config'
 import { useLayoutStore } from '@/store/layout'
 import { useListenForMainStore } from '@/store/listenForMain'
@@ -119,6 +130,14 @@ watch(zoom, (zoomValue) => {
   bus.emit('mt::window-zoom', zoomValue)
 })
 
+// Electron built the editor's context menu in the main process from a
+// `webContents` hook; a WebView has none, so the renderer raises it. Guarded so
+// the Electron build keeps its native menu rather than showing two.
+const setupEditorContextMenu = (): void => {
+  if (!isTauri()) return
+  window.addEventListener('contextmenu', showEditorContextMenu)
+}
+
 const setupDragDropHandler = (): void => {
   window.addEventListener(
     'dragover',
@@ -156,12 +175,36 @@ const setupDragDropHandler = (): void => {
   )
 }
 onMounted(async () => {
-  if (window.marktext?.initialState) {
-    preferencesStore.SET_USER_PREFERENCE(window.marktext.initialState)
-  }
+  // The initial preferences are applied before the app mounts, in `main.ts` —
+  // doing it here rendered the shell twice.
+
+  // Marks the end of any re-render queued before the app mounted, and nothing
+  // else.
+  //
+  // Vue queues its flush as a microtask the moment a reactive value changes, so
+  // it is already in the queue here. This one goes in behind it, and the
+  // command store's continuation — queued while `LISTEN_COMMAND_CENTER_BUS`
+  // runs below — goes in behind that. The order is fixed by when each was
+  // queued: flush, this, `microtasks drained`. So the gap back to `mounted` is
+  // the flush, and only the flush.
+  //
+  // Two earlier attempts could not measure this. A `nextTick` chains onto the
+  // flush promise and is therefore queued after the continuation, landing after
+  // the mark it was meant to bound. An `onUpdated` hook runs after the child
+  // components it mounts, which under Tauri means after `editor ready` has
+  // already closed the trace — it never appeared in a log at all.
+  queueMicrotask(() => markStartup('shell flushed'))
 
   mainStore.LISTEN_WIN_STATUS()
   await commandCenterStore.LISTEN_COMMAND_CENTER_BUS()
+  // The editor is gated on `init`, which `LISTEN_FOR_BOOTSTRAP_WINDOW` sets
+  // below — so everything queued ahead of it delays the first document even
+  // though none of it is needed to show one.
+  //
+  // This mark closes the command store's share of that wait: the listener
+  // registrations after its own `commands sorted`. It is not where the command
+  // table is built — that happens before the app is even marked mounted.
+  markStartup('commands ready')
   layoutStore.LISTEN_FOR_LAYOUT()
   listenForMainStore.LISTEN_FOR_EDIT()
   preferencesStore.LISTEN_FOR_VIEW()
@@ -180,6 +223,7 @@ onMounted(async () => {
   editorStore.LISTEN_FOR_SAVE()
   editorStore.LISTEN_FOR_SET_PATHNAME()
   editorStore.LISTEN_FOR_BOOTSTRAP_WINDOW()
+  markStartup('bootstrap dispatched')
   editorStore.LISTEN_FOR_SAVE_CLOSE()
   editorStore.LISTEN_FOR_RENAME()
   editorStore.LISTEN_FOR_SET_LINE_ENDING()
@@ -200,7 +244,9 @@ onMounted(async () => {
   // module: notification
   notificationStore.listenForNotification()
 
+  setupEditorContextMenu()
   setupDragDropHandler()
+  markStartup('listeners registered')
 
   nextTick(() => {
     // `initialState` from bootstrap carries nullable URL params (string|null);
@@ -219,8 +265,16 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.editor-placeholder,
-.editor-container {
+.app-shell {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.editor-placeholder {
   display: flex;
   flex-direction: row;
   position: absolute;
@@ -230,6 +284,13 @@ onMounted(async () => {
   left: 0;
   right: 0;
   bottom: 0;
+}
+.editor-container {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
 }
 .editor-container .hide {
   z-index: -1;
@@ -244,7 +305,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 100vh;
+  min-height: 0;
   position: relative;
   & > .editor {
     flex: 1;

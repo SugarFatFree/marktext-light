@@ -212,6 +212,18 @@ const COMMAND_KEY_MAP: Record<string, string> = {
   'docs.user-guide': 'commands.docs.userGuide',
   'docs.markdown-syntax': 'commands.docs.markdownSyntax',
 
+  // These point at the `menu.*` keys rather than `commands.*` ones. The menu
+  // already names each of these links, in all ten locales, in exactly the words
+  // the palette wants — inventing a parallel set would mean ten translations
+  // per entry that say the same thing and can drift apart.
+  'help.changelog': 'menu.help.changelog',
+  'help.follow-us': 'menu.help.followUs',
+  'help.support': 'menu.help.support',
+  'help.ask-question': 'menu.help.askQuestion',
+  'help.report-bug': 'menu.help.reportBug',
+  'help.view-source': 'menu.help.viewSource',
+  'help.license': 'menu.help.license',
+
   // ============================================
   // # Spell Checker
   // ============================================

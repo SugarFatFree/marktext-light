@@ -4,6 +4,7 @@ import log from 'electron-log'
 import bus from '../bus'
 import { isOsx } from '@/util'
 import { acceleratorToTokens } from '@/util/accelerator'
+import { markStartup } from '@/util/startupTrace'
 
 import staticCommands, {
   RootCommand,
@@ -30,8 +31,20 @@ export const useCommandCenterStore = defineStore('commandCenter', () => {
   }
 
   async function LISTEN_COMMAND_CENTER_BUS(): Promise<void> {
-    rootCommand.value.subcommands = await getCommandsWithDescriptions()
+    // Built before the await suspends, so it is already done by the time the
+    // app marks itself mounted — the 397 ms measured between that mark and
+    // `commands ready` was never this table, whatever the name suggested.
+    const commands = await getCommandsWithDescriptions()
+
+    // Everything queued ahead of this continuation has now run, chiefly Vue
+    // flushing the re-render that `SET_USER_PREFERENCE` triggered during mount.
+    // Priced locally, the two steps below come to about 12 ms, so if the 397 ms
+    // is still ahead of this mark it belongs to that flush and not to commands.
+    markStartup('microtasks drained')
+
+    rootCommand.value.subcommands = commands
     SORT_COMMANDS()
+    markStartup('commands sorted')
 
     // Listen for language changes and update command descriptions.
     bus.on('language-changed', async() => {

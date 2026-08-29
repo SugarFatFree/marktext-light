@@ -91,3 +91,35 @@ const listToTree = <T extends ListItem>(list: T[]): Array<TreeNode<T>> => {
 }
 
 export default listToTree
+
+export /**
+ * Whether two heading lists describe the same table of contents.
+ *
+ * This runs on every keystroke, against a list with one entry per heading, and
+ * it used to be `deep-equal`. In a CPU profile of typing in a 210 KB document,
+ * that one call and its type brand-checks (`isMap`, `isWeakSet`,
+ * `tryBigIntObject`, …) accounted for more than 40% of the samples — for a
+ * comparison of flat objects holding strings and numbers.
+ *
+ * Entries carry an index signature, so the keys are not fixed and cannot be
+ * hardcoded. Values are compared with `Object.is`, which means two structurally
+ * equal but distinct objects would read as different. That direction is safe:
+ * the only cost of a false "changed" is recomputing the TOC. A false
+ * "unchanged" would leave a stale sidebar, and cannot happen here.
+ */
+const sameHeadings = <T extends ListItem>(next: T[], current: T[]): boolean => {
+  if (next === current) return true
+  if (next.length !== current.length) return false
+
+  for (let i = 0; i < next.length; i++) {
+    const a = next[i] as Record<string, unknown>
+    const b = current[i] as Record<string, unknown>
+    const keys = Object.keys(a)
+    if (keys.length !== Object.keys(b).length) return false
+    for (const key of keys) {
+      if (!Object.is(a[key], b[key])) return false
+    }
+  }
+
+  return true
+}

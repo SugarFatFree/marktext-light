@@ -1,10 +1,12 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+    cancelLineNumberReposition,
     computeLineCount,
     LINE_NUMBERS_ROWS_CLASS,
     lineNumbersWrapperHTML,
     repositionLineNumberSpans,
+    scheduleLineNumberReposition,
     syncLineNumbersSpans,
 } from '../codeBlockLineNumbers';
 
@@ -144,5 +146,144 @@ describe('repositionLineNumberSpans', () => {
         expect((wrapper.children[0] as HTMLElement).style.top).toBe('0px');
         expect((wrapper.children[1] as HTMLElement).style.top).toBe('30px');
         expect((wrapper.children[2] as HTMLElement).style.top).toBe('60px');
+    });
+
+    it('measures every line before positioning any of them', () => {
+        // Reading a rect after writing a style forces the browser to lay the
+        // whole document out again, and this runs per line of every code block
+        // — 45% of the time to open a file made of them, before the two passes
+        // were separated.
+        //
+        // Interleaving them back would produce identical output, so nothing
+        // above would notice. This watches the order of the calls instead.
+        const wrapper = document.createElement('span');
+        syncLineNumbersSpans(wrapper, 3);
+        const codeEl = document.createElement('code');
+        codeEl.appendChild(document.createTextNode('a\nb\nc'));
+
+        const order: string[] = [];
+        const rangeProto = Range.prototype as unknown as {
+            getBoundingClientRect: () => { top: number };
+        };
+        const origRangeRect = rangeProto.getBoundingClientRect;
+        rangeProto.getBoundingClientRect = () => {
+            order.push('read');
+            return { top: 0 };
+        };
+        for (const span of Array.from(wrapper.children)) {
+            const style = (span as HTMLElement).style;
+            const descriptor = Object.getOwnPropertyDescriptor(
+                Object.getPrototypeOf(style),
+                'top',
+            )!;
+            Object.defineProperty(style, 'top', {
+                configurable: true,
+                get: () => descriptor.get!.call(style),
+                set: (value: string) => {
+                    order.push('write');
+                    descriptor.set!.call(style, value);
+                },
+            });
+        }
+
+        try {
+            repositionLineNumberSpans(wrapper, codeEl);
+        }
+        finally {
+            rangeProto.getBoundingClientRect = origRangeRect;
+        }
+
+        expect(order).toContain('read');
+        expect(order).toContain('write');
+        expect(order.indexOf('write'), 'a line was positioned before the last one was measured')
+            .toBeGreaterThan(order.lastIndexOf('read'));
+    });
+});
+
+describe('scheduleLineNumberReposition', () => {
+    /** Watches reads and writes across several blocks at once. */
+    function watchOrder(wrappers: HTMLElement[]): { order: string[]; restore: () => void } {
+        const order: string[] = [];
+        const rangeProto = Range.prototype as unknown as {
+            getBoundingClientRect: () => { top: number };
+        };
+        const origRangeRect = rangeProto.getBoundingClientRect;
+        rangeProto.getBoundingClientRect = () => {
+            order.push('read');
+            return { top: 0 };
+        };
+        for (const wrapper of wrappers) {
+            for (const span of Array.from(wrapper.children)) {
+                const style = (span as HTMLElement).style;
+                const descriptor = Object.getOwnPropertyDescriptor(
+                    Object.getPrototypeOf(style),
+                    'top',
+                )!;
+                Object.defineProperty(style, 'top', {
+                    configurable: true,
+                    get: () => descriptor.get!.call(style),
+                    set: (value: string) => {
+                        order.push('write');
+                        descriptor.set!.call(style, value);
+                    },
+                });
+            }
+        }
+
+        const restore = () => {
+            rangeProto.getBoundingClientRect = origRangeRect;
+        };
+
+        return { order, restore };
+    }
+
+    function makeBlock(): { wrapper: HTMLElement; codeEl: HTMLElement } {
+        const wrapper = document.createElement('span');
+        syncLineNumbersSpans(wrapper, 3);
+        const codeEl = document.createElement('code');
+        codeEl.appendChild(document.createTextNode('a\nb\nc'));
+
+        return { wrapper, codeEl };
+    }
+
+    it('measures every queued block before positioning any of them', async () => {
+        // Separating the two passes within one block leaves one forced layout
+        // per block, and opening a document resizes every code block at once —
+        // still quadratic, and measurably so: 16.6 ms/KB at 220 blocks against
+        // 23.6 at 880. Batching the whole set into one frame flattened it.
+        //
+        // As with the single-block case, interleaving the blocks again would
+        // produce identical output. Only the call order shows it.
+        const blocks = [makeBlock(), makeBlock(), makeBlock()];
+        const { order, restore } = watchOrder(blocks.map(b => b.wrapper));
+
+        try {
+            for (const { wrapper, codeEl } of blocks)
+                scheduleLineNumberReposition(wrapper, codeEl);
+
+            await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        }
+        finally {
+            restore();
+        }
+
+        expect(order).toContain('read');
+        expect(order).toContain('write');
+        expect(order.indexOf('write'), 'a block was positioned before another was measured')
+            .toBeGreaterThan(order.lastIndexOf('read'));
+    });
+
+    it('does not position a block that was cancelled before the frame ran', async () => {
+        const kept = makeBlock();
+        const dropped = makeBlock();
+
+        scheduleLineNumberReposition(kept.wrapper, kept.codeEl);
+        scheduleLineNumberReposition(dropped.wrapper, dropped.codeEl);
+        cancelLineNumberReposition(dropped.wrapper);
+
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
+        expect((kept.wrapper.children[0] as HTMLElement).style.top).toBe('0px');
+        expect((dropped.wrapper.children[0] as HTMLElement).style.top).toBe('');
     });
 });

@@ -174,7 +174,9 @@
       "tokyoNight": "Tokyo Night",
       "tokyoNightLight": "Tokyo Night 浅色",
       "tokyoNightStorm": "Tokyo Night Storm",
-      "ulyssesLight": "Ulysses 浅色"
+      "ulyssesLight": "Ulysses 浅色",
+      "followSystem": "跟随系统",
+      "light": "浅色"
     }
   },
   "contextMenu": {
@@ -234,11 +236,17 @@
     },
     "tree": {
       "openedFiles": "已打开的文件",
+      "recentFiles": "最近文件",
+      "clearRecent": "清空最近文件",
+      "removeFromRecent": "从最近文件中移除",
       "saveAll": "保存全部",
       "closeAll": "关闭全部",
       "emptyProject": "空项目",
       "createFile": "创建文件",
-      "openFolder": "打开文件夹"
+      "openFolder": "打开文件夹",
+      "files": "文件",
+      "open": "打开…",
+      "newFilePlaceholder": "输入 .md 文件名"
     },
     "toc": {
       "title": "目录"
@@ -893,7 +901,9 @@
     "unsafeFileTitle": "潜在不安全的文件",
     "unsafeFileMessage": "此链接将打开一个可执行代码的文件",
     "unsafeFileDetail": "“{name}”是可执行文件或脚本文件。打开它可能会在你的计算机上运行程序。请仅在信任此文档时继续。",
-    "openAnyway": "仍然打开"
+    "openAnyway": "仍然打开",
+    "imageFilesFilter": "图片",
+    "documentFilesFilter": "文档"
   },
   "error": {
     "configSchemaViolation": "配置架构违规",
@@ -909,7 +919,23 @@
   },
   "notifications": {
     "defaultMessage": "默认消息",
-    "defaultTitle": "通知"
+    "defaultTitle": "通知",
+    "fileReadFailedTitle": "无法读取文件",
+    "fileReadFailedMessage": "{path} 读取失败：{msg}",
+    "deleteFailedTitle": "删除失败",
+    "pasteForbiddenTitle": "无法粘贴",
+    "pasteSameLocationMessage": "源位置和目标位置不能相同。",
+    "pasteFailedTitle": "粘贴失败",
+    "sideBarErrorTitle": "侧边栏错误",
+    "fileAlreadyExistsMessage": "此文件夹中已存在名为“{name}”的文件。",
+    "directoryAlreadyExistsMessage": "此文件夹中已存在名为“{name}”的文件夹。",
+    "spellingTitle": "拼写检查",
+    "spellcheckerDisabledMessage": "拼写检查已关闭，无法切换语言。",
+    "uploadImageTitle": "上传图片",
+    "updateTitle": "更新",
+    "updateNotAvailableTitle": "暂无更新",
+    "updateDownloadedTitle": "更新已下载",
+    "updateAvailableTitle": "有可用更新"
   },
   "store": {
     "editor": {

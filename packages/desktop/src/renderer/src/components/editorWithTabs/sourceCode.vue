@@ -325,10 +325,8 @@ onMounted(() => {
   if (!currentTab.value) return
   const { id } = currentTab.value
   // reset currentTab scrollTop position because the codeMirror scroll position is completely different from the muya scroll position
-  // reset blocks as well because the blocks are only valid in muya
   // reset cursor because this is a direct "key-cursor", not a muyaIndexCursor, which is {focus: number, anchor: number}
   currentTab.value.scrollTop = 0
-  currentTab.value.blocks = undefined
   currentTab.value.cursor = undefined
 
   const { markdown, muyaIndexCursor, textDirection } = props

@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia'
 import notice from '../services/notification'
+import { t } from '../i18n'
 
 export const useAutoUpdatesStore = defineStore('autoUpdates', () => {
   function LISTEN_FOR_UPDATE(): void {
     window.electron.ipcRenderer.on('mt::UPDATE_ERROR', (_e, message) => {
       notice.notify({
-        title: 'Update',
+        title: t('notifications.updateTitle'),
         type: 'error',
         time: 10000,
         message: String(message ?? '')
@@ -13,14 +14,14 @@ export const useAutoUpdatesStore = defineStore('autoUpdates', () => {
     })
     window.electron.ipcRenderer.on('mt::UPDATE_NOT_AVAILABLE', (_e, message) => {
       notice.notify({
-        title: 'Update not Available',
+        title: t('notifications.updateNotAvailableTitle'),
         type: 'primary',
         message: String(message ?? '')
       })
     })
     window.electron.ipcRenderer.on('mt::UPDATE_DOWNLOADED', (_e, message) => {
       notice.notify({
-        title: 'Update Downloaded',
+        title: t('notifications.updateDownloadedTitle'),
         type: 'info',
         message: String(message ?? '')
       })
@@ -28,7 +29,7 @@ export const useAutoUpdatesStore = defineStore('autoUpdates', () => {
     window.electron.ipcRenderer.on('mt::UPDATE_AVAILABLE', (_e, message) => {
       notice
         .notify({
-          title: 'Update Available',
+          title: t('notifications.updateAvailableTitle'),
           type: 'primary',
           message: String(message ?? ''),
           showConfirm: true

@@ -174,7 +174,9 @@
       "tokyoNight": "Tokyo Night",
       "tokyoNightLight": "Tokyo Night 淺色",
       "tokyoNightStorm": "Tokyo Night Storm",
-      "ulyssesLight": "Ulysses 淺色"
+      "ulyssesLight": "Ulysses 淺色",
+      "followSystem": "跟隨系統",
+      "light": "淺色"
     }
   },
   "contextMenu": {
@@ -234,11 +236,17 @@
     },
     "tree": {
       "openedFiles": "已開啟的檔案",
+      "recentFiles": "最近檔案",
+      "clearRecent": "清除最近檔案",
+      "removeFromRecent": "從最近檔案中移除",
       "saveAll": "全部儲存",
       "closeAll": "全部關閉",
       "emptyProject": "空專案",
       "createFile": "建立檔案",
-      "openFolder": "開啟資料夾"
+      "openFolder": "開啟資料夾",
+      "files": "檔案",
+      "open": "開啟…",
+      "newFilePlaceholder": "輸入 .md 檔案名稱"
     },
     "toc": {
       "title": "目錄"
@@ -893,7 +901,9 @@
     "unsafeFileTitle": "潛在不安全的檔案",
     "unsafeFileMessage": "此連結將開啟一個可執行程式碼的檔案",
     "unsafeFileDetail": "「{name}」是可執行檔或指令碼檔案。開啟它可能會在你的電腦上執行程式。請僅在信任此文件時繼續。",
-    "openAnyway": "仍要開啟"
+    "openAnyway": "仍要開啟",
+    "imageFilesFilter": "圖片",
+    "documentFilesFilter": "文件"
   },
   "error": {
     "configSchemaViolation": "設定結構違規",
@@ -909,7 +919,23 @@
   },
   "notifications": {
     "defaultMessage": "預設訊息",
-    "defaultTitle": "通知"
+    "defaultTitle": "通知",
+    "fileReadFailedTitle": "無法讀取檔案",
+    "fileReadFailedMessage": "{path} 讀取失敗：{msg}",
+    "deleteFailedTitle": "刪除失敗",
+    "pasteForbiddenTitle": "無法貼上",
+    "pasteSameLocationMessage": "來源位置和目標位置不能相同。",
+    "pasteFailedTitle": "貼上失敗",
+    "sideBarErrorTitle": "側邊欄錯誤",
+    "fileAlreadyExistsMessage": "此資料夾中已存在名為「{name}」的檔案。",
+    "directoryAlreadyExistsMessage": "此資料夾中已存在名為「{name}」的資料夾。",
+    "spellingTitle": "拼字檢查",
+    "spellcheckerDisabledMessage": "拼字檢查已關閉，無法切換語言。",
+    "uploadImageTitle": "上傳圖片",
+    "updateTitle": "更新",
+    "updateNotAvailableTitle": "暫無更新",
+    "updateDownloadedTitle": "更新已下載",
+    "updateAvailableTitle": "有可用更新"
   },
   "store": {
     "editor": {

@@ -174,7 +174,9 @@
       "tokyoNight": "Tokyo Night",
       "tokyoNightLight": "Tokyo Night Claro",
       "tokyoNightStorm": "Tokyo Night Storm",
-      "ulyssesLight": "Ulises Claro"
+      "ulyssesLight": "Ulises Claro",
+      "followSystem": "Seguir al sistema",
+      "light": "Claro"
     }
   },
   "contextMenu": {
@@ -234,11 +236,17 @@
     },
     "tree": {
       "openedFiles": "Archivos abiertos",
+      "recentFiles": "Archivos recientes",
+      "clearRecent": "Borrar archivos recientes",
+      "removeFromRecent": "Quitar de archivos recientes",
       "saveAll": "Guardar",
       "closeAll": "Cerrar",
       "emptyProject": "Proyecto vacío",
       "createFile": "Crear Archivo",
-      "openFolder": "Abrir Carpeta"
+      "openFolder": "Abrir Carpeta",
+      "files": "Archivos",
+      "open": "Abrir…",
+      "newFilePlaceholder": "Escriba el nombre del archivo .md"
     },
     "toc": {
       "title": "Tabla de Contenidos"
@@ -893,7 +901,9 @@
     "unsafeFileTitle": "Archivo potencialmente peligroso",
     "unsafeFileMessage": "Este enlace abre un archivo que puede ejecutar código",
     "unsafeFileDetail": "«{name}» es un archivo ejecutable o de script. Abrirlo podría ejecutar programas en tu equipo. Continúa solo si confías en este documento.",
-    "openAnyway": "Abrir de todos modos"
+    "openAnyway": "Abrir de todos modos",
+    "imageFilesFilter": "Imágenes",
+    "documentFilesFilter": "Documentos"
   },
   "error": {
     "configSchemaViolation": "Violación del esquema de configuración",
@@ -909,7 +919,23 @@
   },
   "notifications": {
     "defaultMessage": "Mensaje predeterminado",
-    "defaultTitle": "Notificación"
+    "defaultTitle": "Notificación",
+    "fileReadFailedTitle": "No se puede leer el archivo",
+    "fileReadFailedMessage": "No se pudo leer {path}: {msg}",
+    "deleteFailedTitle": "Error al eliminar",
+    "pasteForbiddenTitle": "Pegado no permitido",
+    "pasteSameLocationMessage": "El origen y el destino no pueden ser el mismo.",
+    "pasteFailedTitle": "Error al pegar",
+    "sideBarErrorTitle": "Error en la barra lateral",
+    "fileAlreadyExistsMessage": "Ya existe un archivo llamado «{name}» en esta carpeta.",
+    "directoryAlreadyExistsMessage": "Ya existe una carpeta llamada «{name}» en esta carpeta.",
+    "spellingTitle": "Ortografía",
+    "spellcheckerDisabledMessage": "No se puede cambiar el idioma porque el corrector ortográfico está desactivado.",
+    "uploadImageTitle": "Subir imagen",
+    "updateTitle": "Actualización",
+    "updateNotAvailableTitle": "No hay actualizaciones",
+    "updateDownloadedTitle": "Actualización descargada",
+    "updateAvailableTitle": "Actualización disponible"
   },
   "store": {
     "editor": {

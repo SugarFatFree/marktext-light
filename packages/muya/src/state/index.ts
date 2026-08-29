@@ -51,9 +51,24 @@ class JSONState {
     private _rafId: number | null = null;
 
     private _state: TState[] = [];
+    private _version = 0;
 
     constructor(private _muya: Muya, stateOrMarkdown: TState[] | string) {
         this.setContent(stateOrMarkdown);
+    }
+
+    /**
+     * Bumped on every change to the document.
+     *
+     * Lets a consumer cache something derived from the whole document — the
+     * inline renderer's link reference definitions — and notice when it has
+     * gone stale. A `json-change` subscription cannot do that job: the tree is
+     * rebuilt and repainted before the event is emitted, so a cache keyed on
+     * the event still serves the previous document during the repaint that
+     * matters.
+     */
+    get version() {
+        return this._version;
     }
 
     private _apply(op: JSONOp) {
@@ -63,6 +78,7 @@ class JSONState {
         if (op === null)
             return;
         this._state = asState(json1.type.apply(asDoc(this._state), op));
+        this._version++;
     }
 
     setContent(content: TState[] | string) {
@@ -84,10 +100,12 @@ class JSONState {
 
     private _setState(state: TState[]) {
         this._state = state;
+        this._version++;
     }
 
     private _setMarkdown(markdown: string) {
         this._state = this.markdownToState(markdown);
+        this._version++;
     }
 
     // Parse markdown into a block-state array with the editor's current
@@ -206,16 +224,20 @@ class JSONState {
     }
 
     dispatch(op: JSONOp, source = 'user' /* user, api */) {
+        // `prevDoc` is a full copy of the document, taken on every dispatch —
+        // which means on every keystroke. History needs it: the inverse
+        // operation for undo is computed against the document as it was.
+        //
+        // A `doc` (the state *after* the op) used to be copied alongside it and
+        // emitted too. Nothing ever read it, so it was a second whole-document
+        // clone per keystroke for nobody.
         const prevDoc = this.getState();
         this._apply(op);
-        // TODO: remove doc in future
-        const doc = this.getState();
         debug.log(JSON.stringify(op));
         this._muya.eventCenter.emit('json-change', {
             op,
             source,
             prevDoc,
-            doc,
         });
     }
 
@@ -223,8 +245,28 @@ class JSONState {
         return deepClone(this._state);
     }
 
+    /**
+     * The live state, for callers that only walk it.
+     *
+     * `getState()` hands out a structured clone so a caller can keep or edit
+     * what it gets. A caller that only reads pays the whole document for that
+     * guarantee — and some of them run on every keystroke, where the clone is
+     * the entire cost. Anything reached through here MUST NOT be mutated: it is
+     * the document itself, and an edit would bypass the operation log that
+     * undo, redo and the block tree are all kept in step by.
+     */
+    readState(): readonly TState[] {
+        return this._state;
+    }
+
     getMarkdown() {
-        return this.getMarkdownFromState(this.getState());
+        // Serialization only reads, so it gets the live state rather than
+        // `getState()`'s copy. This runs on every keystroke — the desktop asks
+        // for the markdown on each `json-change` to drive save state — and the
+        // copy was a whole extra pass over the document for a consumer that
+        // never writes to it. `getMarkdownLeavesStateUntouched` in
+        // `__tests__/getMarkdownNoClone.spec.ts` holds the serializer to that.
+        return this.getMarkdownFromState(this._state);
     }
 
     getTOC() {
@@ -280,8 +322,6 @@ class JSONState {
         );
         const prevDoc = this.getState();
         this._apply(op);
-        // TODO: remove doc in future
-        const doc = this.getState();
         // Clear before emitting: a listener that edits synchronously then starts
         // a fresh batch instead of mutating the one being flushed.
         this._operationCache = [];
@@ -293,7 +333,6 @@ class JSONState {
             op,
             source: 'user',
             prevDoc,
-            doc,
         });
     }
 }

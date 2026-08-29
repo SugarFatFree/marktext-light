@@ -4,24 +4,57 @@
       <!-- Placeholder -->
     </div>
 
-    <!-- Opened tabs -->
-    <div v-if="openedFilesInSidebar" class="opened-files">
+    <!-- Everything you have opened recently; the ones still open are marked.
+         Two sections used to split these, which meant a file you had open was
+         listed twice and the same click did different things depending on which
+         copy you hit. -->
+    <div class="file-list">
       <div class="title">
         <el-icon
           class="icon-arrow"
-          :class="{ fold: !showOpenedFiles }"
+          :class="{ fold: !showFileList }"
           :size="12"
-          @click.stop="toggleOpenedFiles()"
+          @click.stop="toggleFileList()"
         >
           <ArrowRight />
         </el-icon>
         <span
           class="default-cursor text-overflow"
-          @click.stop="toggleOpenedFiles()"
+          @click.stop="toggleFileList()"
         >{{
-          t('sideBar.tree.openedFiles')
+          t('sideBar.tree.files')
         }}</span>
+        <!-- Always visible, unlike its neighbours: with the standing button
+             gone this is the drawer's only way in, and an empty drawer is
+             exactly when nothing is there to hint that hovering reveals it.
+             The choice happens before the dialog rather than inside it —
+             Windows and GTK pickers choose files or directories, not either. -->
+        <el-dropdown
+          class="open-entry"
+          trigger="click"
+          @command="openTarget"
+        >
+          <a
+            href="javascript:;"
+            :title="t('sideBar.tree.open')"
+          >
+            <el-icon :size="14">
+              <FolderOpened />
+            </el-icon>
+          </a>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="file">
+                {{ t('menu.file.openFile') }}
+              </el-dropdown-item>
+              <el-dropdown-item command="folder">
+                {{ t('menu.file.openFolder') }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
         <a
+          v-if="hasOpenTabs"
           href="javascript:;"
           :title="t('sideBar.tree.saveAll')"
           @click.stop="saveAll(false)"
@@ -35,8 +68,8 @@
         </a>
         <a
           href="javascript:;"
-          :title="t('sideBar.tree.closeAll')"
-          @click.stop="saveAll(true)"
+          :title="t('sideBar.tree.clearRecent')"
+          @click.stop="clearRecentFiles"
         >
           <svg
             class="icon"
@@ -47,14 +80,14 @@
         </a>
       </div>
       <div
-        v-show="showOpenedFiles"
-        class="opened-files-list"
+        v-show="showFileList"
+        class="file-list-items"
       >
         <transition-group name="list">
-          <opened-file
-            v-for="tab of tabs"
-            :key="tab.id"
-            :file="tab"
+          <file-row
+            v-for="entry of fileEntries"
+            :key="entry.key"
+            :entry="entry"
           />
         </transition-group>
       </div>
@@ -98,7 +131,7 @@
           v-show="createCacheDirname === projectTree.pathname"
           ref="input"
           v-model="createName"
-          placeholder="Enter .md file name"
+          :placeholder="t('sideBar.tree.newFilePlaceholder')"
           type="text"
           class="new-input"
           :style="{ 'margin-left': `${depth * 5 + 15}px` }"
@@ -130,21 +163,6 @@
         </div>
       </div>
     </div>
-    <div
-      v-else
-      class="open-project"
-    >
-      <div class="centered-group">
-        <el-button
-          text
-          bg
-          type="primary"
-          @click="openFolder"
-        >
-          {{ t('sideBar.tree.openFolder') }}
-        </el-button>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -154,24 +172,24 @@ import { storeToRefs } from 'pinia'
 import { useProjectStore } from '@/store/project'
 import { useEditorStore } from '@/store/editor'
 import { usePreferencesStore } from '@/store/preferences'
+import { useRecentFilesStore } from '@/store/recentFiles'
 import Folder from './treeFolder.vue'
 import File from './treeFile.vue'
-import OpenedFile from './treeOpenedTab.vue'
+import FileRow from './treeFileRow.vue'
+import { mergeFileEntries } from './mergeFileEntries'
 import bus from '../../bus'
 import { showContextMenu } from '../../contextMenu/sideBar'
 import { useI18n } from 'vue-i18n'
-import { ArrowRight } from '@element-plus/icons-vue'
-import type { TreeNode, TabDescriptor } from './types'
+import { ArrowRight, FolderOpened } from '@element-plus/icons-vue'
+import type { FileEntry, TreeNode, TabDescriptor } from './types'
 
 const { t } = useI18n()
 
 const props = defineProps<{
-  // The project store seeds `projectTree` as `null` until a folder is
-  // opened; the template renders the "open project" empty-state behind
-  // `v-if="projectTree"`. Type the prop nullable to match runtime + the
-  // template guard.
+  // The project store seeds `projectTree` as `null` until a folder is opened,
+  // and the whole tree section hides behind `v-if="projectTree"` until then.
+  // Type the prop nullable to match runtime + the template guard.
   projectTree: TreeNode | null
-  openedFiles?: TabDescriptor[]
   tabs?: TabDescriptor[]
 }>()
 
@@ -181,21 +199,46 @@ const depth = 0
 // refs reset to expanded on re-open. Back them with localStorage (like the
 // sidebar width) so the state survives a re-mount and app restart.
 const SHOW_DIRECTORIES_KEY = 'side-bar-show-directories'
-const SHOW_OPENED_FILES_KEY = 'side-bar-show-opened-files'
+// One key for the merged list. The two old ones are left behind rather than
+// migrated: the worst a stale entry does is collapse a section once.
+const SHOW_FILE_LIST_KEY = 'side-bar-show-files'
 const readSectionExpanded = (key: string): boolean => localStorage.getItem(key) !== 'false'
 const showDirectories = ref(readSectionExpanded(SHOW_DIRECTORIES_KEY))
-const showOpenedFiles = ref(readSectionExpanded(SHOW_OPENED_FILES_KEY))
+const showFileList = ref(readSectionExpanded(SHOW_FILE_LIST_KEY))
 const createName = ref('')
 const input = ref<HTMLInputElement | null>(null)
 
 const projectStore = useProjectStore()
 const editorStore = useEditorStore()
 const preferencesStore = usePreferencesStore()
+const recentFilesStore = useRecentFilesStore()
 
 // Computed properties
 const { createCache } = storeToRefs(projectStore)
 const { clipboard } = storeToRefs(projectStore)
 const { openedFilesInSidebar } = storeToRefs(preferencesStore)
+const { recentFiles } = storeToRefs(recentFilesStore)
+
+/**
+ * The merged list: everything opened recently, with the ones still open marked.
+ *
+ * Recency order comes from the recent-files store, and every saved file that
+ * gets opened is recorded there, so open files sit near the top by themselves —
+ * no need to group them and reintroduce the split this replaces.
+ *
+ * Untitled documents are the exception: they have a tab but no path, so the
+ * store never sees them. They go first, since they exist only in this session
+ * and nothing else in the drawer would show them.
+ *
+ * `openedFilesInSidebar` still means what its label says. Turned off, the list
+ * is the recent files alone: no marks, and no untitled rows.
+ */
+/** Whether "save all" has anything to act on. */
+const hasOpenTabs = computed(() => (props.tabs ?? []).length > 0)
+
+const fileEntries = computed<FileEntry[]>(() =>
+  mergeFileEntries(props.tabs ?? [], recentFiles.value, openedFilesInSidebar.value)
+)
 
 // The createCache state is `{ dirname, type }` while an input is shown, and
 // `{}` otherwise. Expose a typed accessor for the template so we don't have
@@ -206,8 +249,12 @@ const createCacheDirname = computed<string | undefined>(() => {
 })
 
 // Methods
-const openFolder = (): void => {
-  projectStore.ASK_FOR_OPEN_PROJECT()
+const openTarget = (command: string): void => {
+  if (command === 'folder') {
+    projectStore.ASK_FOR_OPEN_PROJECT()
+    return
+  }
+  window.electron.ipcRenderer.send('mt::cmd-open-file')
 }
 
 const saveAll = (isClose: boolean): void => {
@@ -224,9 +271,13 @@ const handleRootContextMenu = (event: MouseEvent): void => {
   showContextMenu(event, !!clipboard.value)
 }
 
-const toggleOpenedFiles = (): void => {
-  showOpenedFiles.value = !showOpenedFiles.value
-  localStorage.setItem(SHOW_OPENED_FILES_KEY, String(showOpenedFiles.value))
+const toggleFileList = (): void => {
+  showFileList.value = !showFileList.value
+  localStorage.setItem(SHOW_FILE_LIST_KEY, String(showFileList.value))
+}
+
+const clearRecentFiles = (): void => {
+  recentFilesStore.CLEAR_RECENT_FILES()
 }
 
 const toggleDirectories = (): void => {
@@ -322,52 +373,110 @@ onMounted(() => {
   transform: rotate(0);
 }
 
-.opened-files > .title,
+.file-list > .title,
 .project-tree > .title {
   height: 30px;
   line-height: 30px;
   font-size: 14px;
 }
 
-.opened-files .title {
+.file-list .title {
   padding-right: 15px;
   display: flex;
   align-items: center;
 }
 
-.opened-files .title > span {
+.file-list .title > span {
   flex: 1;
 }
 
-.opened-files .title > a {
+.file-list .title > a {
   display: none;
   text-decoration: none;
   color: var(--sideBarColor);
   margin-left: 8px;
 }
-.opened-files div.title:hover > a,
-.opened-files div.title > a:hover {
+.file-list div.title:hover > a,
+.file-list div.title > a:hover {
   display: block;
 }
 
-.opened-files div.title:hover > a:hover,
-.opened-files div.title > a:hover:hover {
+.file-list div.title:hover > a:hover,
+.file-list div.title > a:hover:hover {
   color: var(--highlightThemeColor);
 }
-.opened-files {
+
+.file-list .title > .open-entry {
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+  outline: none;
+}
+
+.file-list .title > .open-entry > a {
+  display: flex;
+  text-decoration: none;
+  color: var(--sideBarColor);
+}
+
+.file-list .title > .open-entry > a:hover {
+  color: var(--highlightThemeColor);
+}
+.file-list {
   display: flex;
   flex-direction: column;
 }
 .default-cursor {
   cursor: pointer;
 }
-.opened-files .opened-files-list {
+.file-list .file-list-items {
   max-height: 112px;
   overflow: auto;
   flex: 1;
 }
 
-.opened-files .opened-files-list::-webkit-scrollbar:vertical {
+.file-list .file-list-items::-webkit-scrollbar:vertical {
+  width: 8px;
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.file-list .title {
+  padding-right: 15px;
+  display: flex;
+  align-items: center;
+}
+
+.file-list .title > span {
+  flex: 1;
+}
+
+.file-list .title > a {
+  display: none;
+  text-decoration: none;
+  color: var(--sideBarColor);
+  margin-left: 8px;
+}
+
+.file-list div.title:hover > a,
+.file-list div.title > a:hover {
+  display: block;
+}
+
+.file-list div.title:hover > a:hover {
+  color: var(--highlightThemeColor);
+}
+
+.file-list .file-list-items {
+  max-height: 168px;
+  overflow: auto;
+  flex: 1;
+}
+
+.file-list .file-list-items::-webkit-scrollbar:vertical {
   width: 8px;
 }
 
@@ -416,32 +525,11 @@ onMounted(() => {
 .project-tree div.title:hover > a {
   opacity: 1;
 }
-.open-project {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  align-items: center;
-  padding-bottom: 100px;
-}
-
-.open-project .centered-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.open-project .el-button {
-  margin-top: 20px;
-}
-.open-project .el-button.is-text.is-has-bg,
 .empty-project .el-button.is-text.is-has-bg {
   background-color: var(--buttonPrimaryBgColor);
   color: var(--buttonPrimaryFontColor);
   border-color: transparent;
 }
-.open-project .el-button.is-text.is-has-bg:hover,
-.open-project .el-button.is-text.is-has-bg:focus,
 .empty-project .el-button.is-text.is-has-bg:hover,
 .empty-project .el-button.is-text.is-has-bg:focus {
   background-color: var(--buttonPrimaryBgColorHover);

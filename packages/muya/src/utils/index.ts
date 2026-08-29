@@ -180,20 +180,108 @@ export function escapeInBlockHtml(html: string) {
     );
 }
 
+/**
+ * The characters JavaScript's `\s` matches, by code point.
+ *
+ * Written out rather than tested with a regex: this runs once per character of
+ * the document, and `/\s/.test(str[i])` allocates a one-character string and
+ * enters the regex engine each time. Measured on 200 KB, that alone made a
+ * single-pass count slower than the multi-pass one it replaced.
+ */
+function isWhitespace(code: number): boolean {
+    if (code === 0x20 || (code >= 0x09 && code <= 0x0D))
+        return true;
+    if (code < 0xA0)
+        return false;
+
+    return code === 0xA0
+        || code === 0x1680
+        || (code >= 0x2000 && code <= 0x200A)
+        || code === 0x2028
+        || code === 0x2029
+        || code === 0x202F
+        || code === 0x205F
+        || code === 0x3000
+        || code === 0xFEFF;
+}
+
+const CJK_FIRST = 0x4E00;
+const CJK_LAST = 0x9FA5;
+const PARAGRAPH_BREAK = /\n{2,}/g;
+
+/**
+ * Word, character and paragraph counts for the status bar.
+ *
+ * Counted in one pass, without building the intermediate strings and arrays the
+ * definition suggests. It used to copy the document with the CJK removed, split
+ * that into every whitespace-separated token — tens of thousands of strings for
+ * a large file — filter the array, then reduce it. The desktop calls this on
+ * every keystroke, over the whole document.
+ *
+ * The definitions are unchanged and pinned by a differential test against the
+ * original implementation:
+ *   - a CJK character counts as its own word, and does NOT break the token
+ *     around it (the old code deleted those characters and split what was left,
+ *     so `ab<CJK>cd` was one token)
+ *   - `character` counts non-whitespace only, CJK included
+ *   - `paragraph` counts the non-empty runs between blank lines
+ */
 export function wordCount(markdown: string) {
-    const paragraph = markdown.split(/\n{2,}/).filter(line => line).length;
-    let word = 0;
-    let character = 0;
-    let all = 0;
+    let cjk = 0;
+    let tokens = 0;
+    let characters = 0;
+    let inToken = false;
 
-    const removedChinese = markdown.replace(/[\u4E00-\u9FA5]/g, '');
-    const tokens = removedChinese.split(/\s+/).filter(t => t);
-    const chineseWordLength = markdown.length - removedChinese.length;
-    word += chineseWordLength + tokens.length;
-    character += tokens.reduce((acc, t) => acc + t.length, 0) + chineseWordLength;
-    all += markdown.length;
+    for (let i = 0; i < markdown.length; i++) {
+        const code = markdown.charCodeAt(i);
+        if (code >= CJK_FIRST && code <= CJK_LAST) {
+            cjk++;
+            continue;
+        }
+        if (isWhitespace(code)) {
+            inToken = false;
+            continue;
+        }
+        characters++;
+        if (!inToken) {
+            inToken = true;
+            tokens++;
+        }
+    }
 
-    return { word, paragraph, character, all };
+    return {
+        word: cjk + tokens,
+        paragraph: countParagraphs(markdown),
+        character: characters + cjk,
+        all: markdown.length,
+    };
+}
+
+/**
+ * Non-empty runs between blank lines, i.e. `split(/\n{2,}/).filter(Boolean).length`
+ * without materialising the pieces. Splitting on N separators yields N+1 pieces,
+ * and a piece is empty only where the document opens or closes with one.
+ */
+function countParagraphs(markdown: string): number {
+    if (markdown.length === 0)
+        return 0;
+
+    PARAGRAPH_BREAK.lastIndex = 0;
+    let separators = 0;
+    let match = PARAGRAPH_BREAK.exec(markdown);
+    let opensWithBreak = false;
+    let lastEnd = -1;
+    while (match !== null) {
+        if (match.index === 0)
+            opensWithBreak = true;
+        lastEnd = match.index + match[0].length;
+        separators++;
+        match = PARAGRAPH_BREAK.exec(markdown);
+    }
+
+    const closesWithBreak = lastEnd === markdown.length;
+
+    return separators + 1 - (opensWithBreak ? 1 : 0) - (closesWithBreak ? 1 : 0);
 }
 
 export function sanitize(html: string, purifyOptions: Config, disableHtml: boolean) {

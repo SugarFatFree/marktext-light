@@ -261,6 +261,8 @@ export interface IpcMainEventChannels {
   'mt::rg::progress': [payload: unknown]
   'mt::screenshot-captured': [filePath: string]
   'mt::set-line-ending': [lineEnding: LineEnding]
+  // Tauri Theme menu → renderer. Value is 'system' | 'light' | 'dark' | themeId.
+  'mt::set-theme': [choice: string]
   'mt::set-pathname': [payload: { id: string; pathname: string; filename: string }]
   'mt::set-view-layout': [layout: unknown]
   'mt::show-command-palette': []
@@ -315,6 +317,11 @@ export interface BootInfo {
   }
   isUpdatable: boolean
   MARKDOWN_INCLUSIONS: string[]
+  // File to open on launch (CLI arg / file association), resolved by the Tauri
+  // backend. Absent under Electron.
+  initialFile?: { markdown: string; filename: string; pathname: string } | null
+  // OS UI language resolved to an available locale (e.g. 'zh-CN'). Tauri only.
+  locale?: string
 }
 
 // =================================================================

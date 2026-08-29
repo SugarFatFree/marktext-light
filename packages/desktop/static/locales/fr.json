@@ -174,7 +174,9 @@
       "tokyoNight": "Tokyo Night",
       "tokyoNightLight": "Tokyo Night Clair",
       "tokyoNightStorm": "Tokyo Night Storm",
-      "ulyssesLight": "Ulysses Clair"
+      "ulyssesLight": "Ulysses Clair",
+      "followSystem": "Suivre le système",
+      "light": "Clair"
     }
   },
   "contextMenu": {
@@ -234,11 +236,17 @@
     },
     "tree": {
       "openedFiles": "Fichiers ouverts",
+      "recentFiles": "Fichiers récents",
+      "clearRecent": "Effacer les fichiers récents",
+      "removeFromRecent": "Retirer des fichiers récents",
       "saveAll": "Tout enregistrer",
       "closeAll": "Tout fermer",
       "emptyProject": "Projet vide",
       "createFile": "Créer un fichier",
-      "openFolder": "Ouvrir un dossier"
+      "openFolder": "Ouvrir un dossier",
+      "files": "Fichiers",
+      "open": "Ouvrir…",
+      "newFilePlaceholder": "Saisir le nom du fichier .md"
     },
     "toc": {
       "title": "Table des matières"
@@ -893,7 +901,9 @@
     "unsafeFileTitle": "Fichier potentiellement dangereux",
     "unsafeFileMessage": "Ce lien ouvre un fichier pouvant exécuter du code",
     "unsafeFileDetail": "« {name} » est un fichier exécutable ou un script. L’ouvrir pourrait exécuter des programmes sur votre ordinateur. Ne continuez que si vous faites confiance à ce document.",
-    "openAnyway": "Ouvrir quand même"
+    "openAnyway": "Ouvrir quand même",
+    "imageFilesFilter": "Images",
+    "documentFilesFilter": "Documents"
   },
   "error": {
     "configSchemaViolation": "Violation du schéma de configuration",
@@ -909,7 +919,23 @@
   },
   "notifications": {
     "defaultMessage": "Message par défaut",
-    "defaultTitle": "Notification"
+    "defaultTitle": "Notification",
+    "fileReadFailedTitle": "Impossible de lire le fichier",
+    "fileReadFailedMessage": "Impossible de lire {path} : {msg}",
+    "deleteFailedTitle": "Erreur lors de la suppression",
+    "pasteForbiddenTitle": "Collage impossible",
+    "pasteSameLocationMessage": "La source et la destination ne peuvent pas être identiques.",
+    "pasteFailedTitle": "Erreur lors du collage",
+    "sideBarErrorTitle": "Erreur dans la barre latérale",
+    "fileAlreadyExistsMessage": "Un fichier nommé « {name} » existe déjà dans ce dossier.",
+    "directoryAlreadyExistsMessage": "Un dossier nommé « {name} » existe déjà dans ce dossier.",
+    "spellingTitle": "Orthographe",
+    "spellcheckerDisabledMessage": "Impossible de changer de langue car le correcteur orthographique est désactivé.",
+    "uploadImageTitle": "Téléverser une image",
+    "updateTitle": "Mise à jour",
+    "updateNotAvailableTitle": "Aucune mise à jour disponible",
+    "updateDownloadedTitle": "Mise à jour téléchargée",
+    "updateAvailableTitle": "Mise à jour disponible"
   },
   "store": {
     "editor": {

@@ -4,6 +4,7 @@ import { delay, isOsx } from '@/util'
 import { isUpdatable } from './utils'
 import getCommandDescriptionById from './descriptions'
 import { t } from '../i18n'
+import { usePreferencesStore } from '@/store/preferences'
 
 export { default as FileEncodingCommand } from './fileEncoding'
 export { default as LineEndingCommand } from './lineEnding'
@@ -460,6 +461,24 @@ const commands: CommandDescriptor[] = [
     }
   },
   {
+    // Upstream computed these in the main process from the window's own zoom
+    // factor (src/main/windows/utils.ts); with no main process the step is
+    // taken from the preference the renderer already keeps in sync, and the
+    // same bounds and increment apply.
+    id: 'window.zoomIn',
+    execute: async() => {
+      const { zoom } = usePreferencesStore()
+      bus.emit('mt::window-zoom', Math.min(2.0, zoom + 0.125))
+    }
+  },
+  {
+    id: 'window.zoomOut',
+    execute: async() => {
+      const { zoom } = usePreferencesStore()
+      bus.emit('mt::window-zoom', Math.max(0.5, zoom - 0.125))
+    }
+  },
+  {
     id: 'window.toggle-full-screen',
     execute: async() => {
       window.electron.windowControl.toggleFullScreen()
@@ -659,6 +678,54 @@ const commands: CommandDescriptor[] = [
     execute: async() => {
       window.electron.shell.openExternal(
         'https://marktext.me/docs/markdown-syntax'
+      )
+    }
+  },
+  // The rest of upstream's Help menu (src/main/menu/templates/help.ts). It
+  // opened these straight from the main process; here they are commands so the
+  // native menu and the custom menu bar can both reach them through the one
+  // dispatch path they already share.
+  {
+    id: 'help.changelog',
+    execute: async() => {
+      window.electron.shell.openExternal('https://github.com/marktext/marktext/releases')
+    }
+  },
+  {
+    id: 'help.follow-us',
+    execute: async() => {
+      window.electron.shell.openExternal('https://twitter.com/marktextapp')
+    }
+  },
+  {
+    id: 'help.support',
+    execute: async() => {
+      window.electron.shell.openExternal('https://github.com/sponsors/marktext')
+    }
+  },
+  {
+    id: 'help.ask-question',
+    execute: async() => {
+      window.electron.shell.openExternal('https://github.com/marktext/marktext/discussions')
+    }
+  },
+  {
+    id: 'help.report-bug',
+    execute: async() => {
+      window.electron.shell.openExternal('https://github.com/marktext/marktext/issues')
+    }
+  },
+  {
+    id: 'help.view-source',
+    execute: async() => {
+      window.electron.shell.openExternal('https://github.com/marktext/marktext')
+    }
+  },
+  {
+    id: 'help.license',
+    execute: async() => {
+      window.electron.shell.openExternal(
+        'https://github.com/marktext/marktext/blob/develop/LICENSE'
       )
     }
   },

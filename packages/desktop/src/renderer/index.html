@@ -3,6 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <title>MarkText</title>
+    <!--
+      The page is on screen for half a second before the app's stylesheet
+      arrives — long enough to see. Without this it is painted white, which in
+      dark mode is a flash between the window (a dark grey, set in
+      tauri.conf.json) and the editor. `color-scheme` makes the browser pick the
+      canvas colour from the OS preference, so the gap matches whichever theme
+      is about to load.
+
+      Not the app's own theme colours: those live in a stylesheet that has not
+      loaded yet, and a value hardcoded here would be a third opinion to keep in
+      step with the other two.
+    -->
+    <meta name="color-scheme" content="light dark" />
     <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
     <meta
       http-equiv="Content-Security-Policy"

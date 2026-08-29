@@ -62,8 +62,20 @@ export class LinkedList<T extends ILinkedNode> {
         this.length += 1;
     }
 
+    // Counts while walking rather than collecting the list and searching it.
+    // Both are O(n); only one of them allocates an array the size of the
+    // document to answer a question about one node. Every block's `path`
+    // resolves through here, and a path is read on each selection change.
     offset(node: T) {
-        return [...this.iterator()].indexOf(node);
+        let index = 0;
+
+        for (const current of this.iterator()) {
+            if (current === node)
+                return index;
+            index++;
+        }
+
+        return -1;
     }
 
     remove(node: T) {

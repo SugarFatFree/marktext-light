@@ -60,3 +60,19 @@ export interface SearchResult {
 
 // The sideBar consumes the same per-tab state shape as the editor store.
 export type TabDescriptor = IFileState
+
+/**
+ * One row of the merged file list: everything you have opened recently, with
+ * the ones still open marked.
+ *
+ * `tab` is the open tab or null. An untitled document has a tab but no
+ * pathname, and so cannot appear in the recent list — it is carried here so
+ * merging the two sections does not make it disappear from the drawer.
+ */
+export interface FileEntry {
+  /** Stable across re-renders: the tab id when open, else the path. */
+  key: string
+  filename: string
+  pathname: string
+  tab: TabDescriptor | null
+}

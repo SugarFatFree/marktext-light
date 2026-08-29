@@ -174,7 +174,9 @@
       "tokyoNight": "Tokyo Night",
       "tokyoNightLight": "Tokyo Night 라이트",
       "tokyoNightStorm": "Tokyo Night Storm",
-      "ulyssesLight": "율리시스 라이트"
+      "ulyssesLight": "율리시스 라이트",
+      "followSystem": "시스템 설정 따르기",
+      "light": "밝게"
     }
   },
   "contextMenu": {
@@ -234,11 +236,17 @@
     },
     "tree": {
       "openedFiles": "열린 파일",
+      "recentFiles": "최근 파일",
+      "clearRecent": "최근 파일 지우기",
+      "removeFromRecent": "최근 파일에서 제거",
       "saveAll": "모두 저장",
       "closeAll": "모두 닫기",
       "emptyProject": "빈 프로젝트",
       "createFile": "파일 만들기",
-      "openFolder": "폴더 열기"
+      "openFolder": "폴더 열기",
+      "files": "파일",
+      "open": "열기…",
+      "newFilePlaceholder": ".md 파일 이름 입력"
     },
     "toc": {
       "title": "목차"
@@ -893,7 +901,9 @@
     "unsafeFileTitle": "안전하지 않을 수 있는 파일",
     "unsafeFileMessage": "이 링크는 코드를 실행할 수 있는 파일을 엽니다",
     "unsafeFileDetail": "\"{name}\"은(는) 실행 파일 또는 스크립트 파일입니다. 열면 컴퓨터에서 프로그램이 실행될 수 있습니다. 이 문서를 신뢰하는 경우에만 계속하세요.",
-    "openAnyway": "그래도 열기"
+    "openAnyway": "그래도 열기",
+    "imageFilesFilter": "이미지",
+    "documentFilesFilter": "문서"
   },
   "error": {
     "configSchemaViolation": "구성 스키마 위반",
@@ -909,7 +919,23 @@
   },
   "notifications": {
     "defaultMessage": "기본 메시지",
-    "defaultTitle": "알림"
+    "defaultTitle": "알림",
+    "fileReadFailedTitle": "파일을 읽을 수 없습니다",
+    "fileReadFailedMessage": "{path}을(를) 읽지 못했습니다: {msg}",
+    "deleteFailedTitle": "삭제 오류",
+    "pasteForbiddenTitle": "붙여넣기 불가",
+    "pasteSameLocationMessage": "원본과 대상이 같을 수 없습니다.",
+    "pasteFailedTitle": "붙여넣기 오류",
+    "sideBarErrorTitle": "사이드바 오류",
+    "fileAlreadyExistsMessage": "이 폴더에 \"{name}\" 파일이 이미 있습니다.",
+    "directoryAlreadyExistsMessage": "이 폴더에 \"{name}\" 폴더가 이미 있습니다.",
+    "spellingTitle": "맞춤법 검사",
+    "spellcheckerDisabledMessage": "맞춤법 검사가 꺼져 있어 언어를 변경할 수 없습니다.",
+    "uploadImageTitle": "이미지 업로드",
+    "updateTitle": "업데이트",
+    "updateNotAvailableTitle": "업데이트 없음",
+    "updateDownloadedTitle": "업데이트 다운로드 완료",
+    "updateAvailableTitle": "업데이트 사용 가능"
   },
   "store": {
     "editor": {
