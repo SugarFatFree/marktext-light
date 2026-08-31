@@ -1967,6 +1967,24 @@ Tauri 窗口就是一个 WebView,没有第二个原生绘图层,所以能画出�
 **方法上的教训(第三次才做对)**:先存失败输出,再用 `--reporter=verbose` 看**逐用例耗时**。
 2431 ms 这个数字一出来,因果就是明摆着的;前两次没看它,才会把"跑绿了几次"当成证据。
 
+### macOS DMG 打包的偶发失败(第 114 轮,记录待复现)
+
+发 v1.0.0 时,同一个 commit(`322a0e57`)被两条流水线同时构建——合并进 develop 触发一次,
+打 tag 触发一次。**tag 那次 macos-x64 成功并产出 dmg;develop 那次同一个 leg 失败**:
+
+```
+Bundling marktext-light_1.0.0_x64.dmg
+Running bundle_dmg.sh
+failed to bundle project: error running bundle_dmg.sh
+```
+
+**同一份代码一成一败,所以是偶发,不是回归。** 不要因为看到红叉就去改代码。
+
+影响有限:`tauri-build.yml` 的 release 作业是 `if: always()`,缺一个平台不挡发版;
+且重跑同一个 tag 会 `gh release upload --clobber` 补上缺的那个,不会推倒重来。
+真要治,方向是给 `Build Tauri app` 这一步加重试,**但先要攒到第二次复现**——
+现在只有一次,连是不是 `hdiutil` 争用都不知道。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
