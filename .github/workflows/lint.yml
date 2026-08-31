@@ -7,6 +7,12 @@ on:
     # Skip the desktop lint+typecheck on muya-only PRs.
     paths-ignore:
       - 'packages/muya/**'
+  # Also on a push to develop, not only on pull requests. Day-to-day work lands
+  # on develop directly, so with a pull-request-only trigger this suite stopped
+  # running at all — every commit between releases went out on local checks
+  # alone, and the one thing a local check cannot do is launch the app.
+  push:
+    branches: [develop]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
