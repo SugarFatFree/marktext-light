@@ -65,11 +65,17 @@
       #splash.is-done {
         opacity: 0;
       }
+      /*
+        No entrance animation on the mark. This screen *is* the first frame the
+        document can paint, so there is no previous state to transition from —
+        a fade from `opacity: 0` would only mean the thing that exists to appear
+        early spends the start of its life invisible. It appears; the bar below
+        carries the sense of motion.
+      */
       #splash svg {
         width: 104px;
         height: auto;
         color: rgba(0, 0, 0, 0.24);
-        animation: splash-in 420ms ease-out both;
       }
       #splash .splash-bar {
         position: relative;
@@ -91,12 +97,6 @@
         border-radius: 2px;
         background: rgba(0, 0, 0, 0.28);
         animation: splash-sweep 1150ms cubic-bezier(0.65, 0, 0.35, 1) infinite;
-      }
-      @keyframes splash-in {
-        from {
-          opacity: 0;
-          transform: translateY(4px);
-        }
       }
       @keyframes splash-sweep {
         from {
@@ -123,7 +123,6 @@
         }
       }
       @media (prefers-reduced-motion: reduce) {
-        #splash svg,
         #splash .splash-bar i {
           animation: none;
         }
