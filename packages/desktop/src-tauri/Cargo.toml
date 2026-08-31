@@ -25,6 +25,11 @@ tauri-plugin-clipboard-manager = "2"
 tauri-plugin-dialog = "2"
 # A second launch must reuse the running window (one window, many tabs).
 tauri-plugin-single-instance = "2"
+# Remember where the window was and how big it was. Electron did this with
+# `electron-window-state`; without it every launch opened at the 1200x800 from
+# tauri.conf.json, wherever the OS felt like putting it. See lib.rs for which
+# parts of the state are restored and which are deliberately not.
+tauri-plugin-window-state = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # Detect the OS UI language to localize the native application menu.

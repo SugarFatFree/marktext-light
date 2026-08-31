@@ -34,6 +34,32 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             handle_second_instance(app, argv);
         }))
+        // Size, position and maximized/fullscreen are restored from the last
+        // run — the `electron-window-state` the Electron build used. The flags
+        // are spelled out rather than left at their default, which is all of
+        // them, because two of the defaults would break this window:
+        //
+        //   DECORATIONS — the window is `decorations: false` and draws its own
+        //   title bar. Restoring `decorated: true` from a state file written by
+        //   some earlier build would put the OS frame back on top of ours.
+        //
+        //   VISIBLE — a state file that ever recorded a hidden window would
+        //   start the app with nothing on screen and no way to ask for it.
+        //
+        // Position is only restored onto a monitor that still exists: the
+        // plugin checks the saved rectangle against `available_monitors()` and
+        // leaves placement to the OS when none of them contains it, which is
+        // the same guard `ensureWindowPosition` gave the Electron build.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::SIZE
+                        | tauri_plugin_window_state::StateFlags::POSITION
+                        | tauri_plugin_window_state::StateFlags::MAXIMIZED
+                        | tauri_plugin_window_state::StateFlags::FULLSCREEN,
+                )
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
