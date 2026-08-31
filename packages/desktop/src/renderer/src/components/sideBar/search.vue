@@ -104,7 +104,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useLayoutStore } from '@/store/layout'
 import { useProjectStore } from '@/store/project'
 import { useEditorStore } from '@/store/editor'
@@ -329,6 +329,9 @@ onMounted(() => {
     searcherRunning.value = true
     search()
   }
+})
+onBeforeUnmount(() => {
+  bus.off('findInFolder', handleFindInFolder)
 })
 </script>
 

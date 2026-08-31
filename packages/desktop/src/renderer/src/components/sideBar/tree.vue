@@ -167,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useProjectStore } from '@/store/project'
 import { useEditorStore } from '@/store/editor'
@@ -299,35 +299,55 @@ const handleInputEnter = (): void => {
   projectStore.CREATE_FILE_DIRECTORY(createName.value)
 }
 
+/**
+ * Abandon a half-typed rename or create.
+ *
+ * On `document`, not on the tree, because the click that means "never mind" is
+ * usually outside it. Buttons that open these inputs use `@click.stop` so their
+ * own click never reaches here.
+ */
+const dismissInputs = (event: Event): void => {
+  const target = event.target as HTMLElement | null
+  if (target && target.tagName === 'INPUT') return
+  projectStore.CHANGE_ACTIVE_ITEM({})
+  projectStore.createCache = {}
+  projectStore.renameCache = null
+}
+
+const dismissInputsOnContextMenu = (event: Event): void => {
+  const target = event.target as HTMLElement | null
+  if (target && target.tagName === 'INPUT') return
+  projectStore.createCache = {}
+  projectStore.renameCache = null
+}
+
+const dismissInputsOnEscape = (event: KeyboardEvent): void => {
+  if (event.key !== 'Escape') return
+  projectStore.createCache = {}
+  projectStore.renameCache = null
+}
+
 onMounted(() => {
   bus.on('SIDEBAR::show-new-input', handleInputFocus)
-
-  // Hide rename / create inputs on outside clicks. Buttons that open these
-  // inputs must use @click.stop so their click never reaches this listener.
-  document.addEventListener('click', (event) => {
-    const target = event.target as HTMLElement | null
-    if (target && target.tagName !== 'INPUT') {
-      projectStore.CHANGE_ACTIVE_ITEM({})
-      projectStore.createCache = {}
-      projectStore.renameCache = null
-    }
-  })
-
-  document.addEventListener('contextmenu', (event) => {
-    const target = event.target as HTMLElement | null
-    if (target && target.tagName !== 'INPUT') {
-      projectStore.createCache = {}
-      projectStore.renameCache = null
-    }
-  })
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      projectStore.createCache = {}
-      projectStore.renameCache = null
-    }
-  })
+  document.addEventListener('click', dismissInputs)
+  document.addEventListener('contextmenu', dismissInputsOnContextMenu)
+  document.addEventListener('keydown', dismissInputsOnEscape)
 })
+
+// All four were registered and never removed. The bus handler leaked once per
+// time the sidebar was shown; the three document listeners are worse, because
+// they outlive the component that wanted them and go on running on every click
+// and keystroke in the app, each holding the store through its closure.
+//
+// They were anonymous, which is why they could not be removed — naming them is
+// most of the fix.
+onBeforeUnmount(() => {
+  bus.off('SIDEBAR::show-new-input', handleInputFocus)
+  document.removeEventListener('click', dismissInputs)
+  document.removeEventListener('contextmenu', dismissInputsOnContextMenu)
+  document.removeEventListener('keydown', dismissInputsOnEscape)
+})
+
 </script>
 
 <style scoped>

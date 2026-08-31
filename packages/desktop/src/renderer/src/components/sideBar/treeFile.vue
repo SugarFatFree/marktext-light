@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, defineAsyncComponent, h } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, defineAsyncComponent, h } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useProjectStore } from '@/store/project'
 import { useEditorStore } from '@/store/editor'
@@ -109,6 +109,13 @@ onMounted(() => {
   }
 
   bus.on('SIDEBAR::show-rename-input', focusRenameInput)
+})
+// One of these is mounted per file in the tree, so a handler left registered
+// after unmount is not one leak but one per file ever shown — and each holds the
+// component's whole scope alive through its closure. Collapsing a folder or
+// switching projects unmounts them by the hundred.
+onBeforeUnmount(() => {
+  bus.off('SIDEBAR::show-rename-input', focusRenameInput)
 })
 </script>
 

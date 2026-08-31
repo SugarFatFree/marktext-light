@@ -59,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useProjectStore } from '@/store/project'
 import { showContextMenu } from '../../contextMenu/sideBar'
@@ -141,6 +141,11 @@ onMounted(() => {
   }
   bus.on('SIDEBAR::show-new-input', handleInputFocus)
   bus.on('SIDEBAR::show-rename-input', focusRenameInput)
+})
+// One per folder in the tree; see the note in treeFile.vue.
+onBeforeUnmount(() => {
+  bus.off('SIDEBAR::show-new-input', handleInputFocus)
+  bus.off('SIDEBAR::show-rename-input', focusRenameInput)
 })
 </script>
 

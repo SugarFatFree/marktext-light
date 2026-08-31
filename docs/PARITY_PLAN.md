@@ -2118,6 +2118,34 @@ Electron 用 `electron-window-state` 存尺寸+位置,还有 `ensureWindowPositi
 原生菜单没有"打开最近"是**干净的缺席**(注释写明未移植,自绘菜单栏也没有,
 侧栏面板覆盖了需求,**没有死 UI**);菜单一致性已有 `menu-parity.spec.ts` 在守。
 
+### 侧栏树的监听器从不注销(第 119 轮)
+
+机械比对全渲染层的 `bus.on` / `bus.off` 后得到 10 个不匹配的文件。**六个是 Pinia store**
+——单例,监听器本就该活到应用结束,**不是泄漏**。真正有问题的是四个组件:
+
+`treeFile.vue` / `treeFolder.vue` **每个文件、每个文件夹各挂一个实例**。
+它们在 `onMounted` 里 `bus.on`,而整个文件里**没有任何 `onBeforeUnmount`**。
+折叠一个文件夹、切换项目,就一次性卸载几百个——每个都留下一个处理器,
+每个处理器通过闭包**把整个组件作用域拽住不放**。
+
+**说准确一点:没有可见的错误行为。** `focusRenameInput` 里有 `if (renameInput.value)`,
+而 Vue 卸载后模板 ref 会置 null,所以死处理器只是空跑。**纯内存问题**——
+但正对着用户"占用低"这条要求,而且随浏览行为无界增长。
+
+**更重的一处是顺手发现的**:`tree.vue` 的 `onMounted` 往 **document** 上挂了三个
+**匿名**监听器(click / contextmenu / keydown),同样从不移除。它们活过组件、
+活到应用结束,**每一次点击和按键都在跑**,各自持有 store。
+**匿名正是它们无法被移除的原因**——起名字就是修复的主要部分。
+
+**扫过全渲染层的 document/window 监听,其余三处都是应用级单例**
+(`bootstrap.ts` 全局错误处理、`app.vue` 根组件、桥的快捷键安装),不会卸载,不是泄漏。
+
+`component-listener-teardown.spec.ts` 把这一整类锁住:任何 `.vue` 组件注册了
+bus 处理器或 document/window 监听,就必须有对应的注销;
+`pages/app.vue` 在白名单里并写明理由(它卸载就等于窗口没了);
+store 目录不扫,并写明为什么要求那里对称是**要求错了东西**。
+两半都验过会因回退而失败。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
