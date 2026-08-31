@@ -694,6 +694,7 @@
     "keybindings": {
       "title": "Raccourcis clavier",
       "description": "Personnaliser les raccourcis clavier",
+      "editingUnavailable": "Les raccourcis ne peuvent pas être modifiés dans cette version. La liste ci-dessous est celle qui est active.",
       "save": "Enregistrer",
       "restoreDefaults": "Restaurer les valeurs par défaut",
       "debugOptions": "Options de débogage",

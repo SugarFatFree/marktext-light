@@ -694,6 +694,7 @@
     "keybindings": {
       "title": "按鍵綁定",
       "description": "自訂鍵盤快捷鍵",
+      "editingUnavailable": "此版本暫不支援修改快速鍵。下表即目前生效的快速鍵。",
       "save": "儲存",
       "restoreDefaults": "還原預設值",
       "debugOptions": "除錯選項",

@@ -40,7 +40,7 @@ import { exportDocument, printDocument, type ExportPayload } from './export'
 import { askForImagePath, moveOpenFileTo, renameOpenFile } from './files'
 import { askForImageAutoPath } from './image-path'
 import { askForImportFile, canImportWithPandoc, importWithPandoc } from './import'
-import { sendKeybindings } from './keybindings'
+import { getPrefKeybindings, sendKeybindings } from './keybindings'
 import {
   installContextMenuStyles,
   popupContextMenu as showContextMenu
@@ -91,7 +91,11 @@ const INVOKE_ROUTES: Record<string, CommandRoute> = {
 
 // Invoke channels the bridge answers itself rather than routing to Rust.
 const LOCAL_INVOKES: Record<string, (args: unknown[]) => Promise<unknown>> = {
-  'mt::ask-for-image-path': () => askForImagePath()
+  'mt::ask-for-image-path': () => askForImagePath(),
+  // The settings window destructures this reply as it mounts, so leaving it to
+  // the unhandled-channel path — which resolves `undefined` — threw into a
+  // `.catch` that only logs, and the Keybindings page came up empty.
+  'mt::keybinding-get-pref-keybindings': async() => getPrefKeybindings(bootPlatform)
 }
 
 // Invoke channels answered by doing nothing, on purpose. Kept separate from the

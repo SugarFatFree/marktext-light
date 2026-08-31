@@ -694,6 +694,7 @@
     "keybindings": {
       "title": "キーバインド",
       "description": "キーバインドをカスタマイズ",
+      "editingUnavailable": "このビルドではショートカットを変更できません。下の一覧が現在有効なものです。",
       "save": "保存",
       "restoreDefaults": "デフォルトに復元",
       "debugOptions": "デバッグオプション",

@@ -694,6 +694,7 @@
     "keybindings": {
       "title": "Keybindings",
       "description": "Customize keyboard shortcuts",
+      "editingUnavailable": "Shortcuts cannot be changed in this build. The list below is the set that is active.",
       "save": "Save",
       "restoreDefaults": "Restore defaults",
       "debugOptions": "Debug Options",

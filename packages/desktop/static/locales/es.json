@@ -694,6 +694,7 @@
     "keybindings": {
       "title": "Atajos de Teclado",
       "description": "Personalizar atajos de teclado",
+      "editingUnavailable": "Los atajos no se pueden cambiar en esta versión. La lista siguiente es la que está activa.",
       "save": "Guardar",
       "restoreDefaults": "Restaurar predeterminados",
       "debugOptions": "Opciones de Depuración",

@@ -694,6 +694,7 @@
     "keybindings": {
       "title": "快捷键",
       "description": "自定义键盘快捷键",
+      "editingUnavailable": "此版本暂不支持修改快捷键。下表即当前生效的快捷键。",
       "save": "保存",
       "restoreDefaults": "恢复默认",
       "debugOptions": "调试选项",

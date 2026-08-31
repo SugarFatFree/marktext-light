@@ -694,6 +694,7 @@
     "keybindings": {
       "title": "Tastenkürzel",
       "description": "Tastenkürzel anpassen",
+      "editingUnavailable": "Tastenkürzel können in dieser Version nicht geändert werden. Die Liste unten zeigt die aktiven Kürzel.",
       "save": "Speichern",
       "restoreDefaults": "Standardwerte wiederherstellen",
       "debugOptions": "Debug-Optionen",

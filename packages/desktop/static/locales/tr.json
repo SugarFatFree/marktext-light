@@ -694,6 +694,7 @@
     "keybindings": {
       "title": "Kısayol Tuşları",
       "description": "Klavye kısayollarını özelleştir",
+      "editingUnavailable": "Bu sürümde kısayollar değiştirilemez. Aşağıdaki liste etkin olan kısayollardır.",
       "save": "Kaydet",
       "restoreDefaults": "Varsayılanları geri yükle",
       "debugOptions": "Hata Ayıklama Seçenekleri",

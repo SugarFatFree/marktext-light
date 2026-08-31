@@ -14,6 +14,12 @@
           class="link-icon"
         /></a>.
       </div>
+      <div
+        v-if="!canEdit"
+        class="text"
+      >
+        {{ t('preferences.keybindings.editingUnavailable') }}
+      </div>
       <el-table
         :data="keybindingList"
         style="width: 100%"
@@ -36,6 +42,7 @@
             <el-button
               type="text"
               size="small"
+              :disabled="!canEdit"
               :title="t('preferences.keybindings.table.edit')"
               @click="handleEditClick(scope.$index, scope.row)"
             >
@@ -47,6 +54,7 @@
             <el-button
               type="text"
               size="small"
+              :disabled="!canEdit"
               :title="t('preferences.keybindings.table.reset')"
               @click="handleResetClick(scope.$index, scope.row)"
             >
@@ -58,6 +66,7 @@
             <el-button
               type="text"
               size="small"
+              :disabled="!canEdit"
               :title="t('preferences.keybindings.table.unbind')"
               @click="handleUnbindClick(scope.$index, scope.row)"
             >
@@ -74,12 +83,14 @@
       <separator />
       <el-button
         size="medium"
+        :disabled="!canEdit"
         @click="saveKeybindings"
       >
         {{ t('preferences.keybindings.save') }}
       </el-button>
       <el-button
         size="medium"
+        :disabled="!canEdit"
         @click="restoreDefaults"
       >
         {{ t('preferences.keybindings.restoreDefaults') }}
@@ -110,7 +121,7 @@
 <script setup lang="ts">
 import log from 'electron-log'
 import { setKeyboardLayout } from '@hfelix/electron-localshortcut'
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import Separator from '../common/separator/index.vue'
 import KeyInputDialog from './key-input-dialog.vue'
 import KeybindingConfigurator from './KeybindingConfigurator'
@@ -119,6 +130,7 @@ import notice from '@/services/notification'
 import { Edit, RefreshRight, Delete } from '@element-plus/icons-vue'
 import LinkIcon from '@/components/icons/LinkIcon.vue'
 import { useI18n } from 'vue-i18n'
+import { isTauri } from '@/util/isTauri'
 
 const { t, locale } = useI18n()
 
@@ -139,18 +151,39 @@ watch(locale, () => {
   rebuildKeybindingList()
 })
 
+/**
+ * Whether a shortcut can be changed at all.
+ *
+ * Saving one means writing a file the Electron `Keybindings` class owned and
+ * then making both the renderer's shortcut layer and the native menu honour it.
+ * None of that exists under the Tauri shell yet, so the buttons are disabled and
+ * the page says why. Leaving them live would have meant a Save that changed
+ * nothing and reported nothing.
+ */
+const canEdit = computed(() => !isTauri())
+
 onMounted(() => {
   window.electron.ipcRenderer
     .invoke('mt::keybinding-get-keyboard-info')
-    .then(({ layout, keymap }) => {
+    .then((info) => {
+      // Absent under a shell with no native keyboard layer.
+      // `setKeyboardLayout` belongs to Electron's local-shortcut package, and
+      // an unanswered channel resolves `undefined` — the destructure that used
+      // to be in this signature threw straight into the `.catch` below, where
+      // it was logged and forgotten.
+      if (!info) return
       // Update the key mapper to prevent problems on non-US keyboards.
-      setKeyboardLayout(layout, keymap)
+      setKeyboardLayout(info.layout, info.keymap)
     })
     .catch((error) => log.error('Error while loading keyboard information for settings:', error))
 
   window.electron.ipcRenderer
     .invoke('mt::keybinding-get-pref-keybindings')
-    .then(({ defaultKeybindings, userKeybindings }) => {
+    .then((tables) => {
+      // Same shape of failure, with a worse symptom: this one left the page an
+      // empty table with buttons that did nothing and said nothing.
+      if (!tables) return
+      const { defaultKeybindings, userKeybindings } = tables
       const configurator = new KeybindingConfigurator(defaultKeybindings, userKeybindings)
       keybindingConfigurator.value = configurator
       keybindingList.value = configurator.getKeybindings()
