@@ -25,6 +25,7 @@ import { addThemeStyle } from '@/util/theme'
 import { DEFAULT_STYLE } from '@/config'
 import { isOsx } from '@/util'
 import { registerSettingsComponents } from '@/prefComponents/settingsComponents'
+import { dismissSplash } from '@/util/splash'
 
 // The settings tree's own Element Plus components, registered here rather than
 // at startup so the editor window does not pay for them. Setup runs before this
@@ -59,6 +60,9 @@ onMounted(() => {
     addThemeStyle(state.theme ?? DEFAULT_STYLE.theme)
 
     preferencesStore.ASK_FOR_USER_PREFERENCE()
+    // This window shares `index.html`, and therefore its loading screen, with
+    // the editor. Its own first content is the settings tree, which is here.
+    dismissSplash()
   })
 })
 </script>

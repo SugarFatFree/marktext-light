@@ -62,6 +62,7 @@ import UnsavedFilesDialog from '@/components/unsavedFilesDialog/index.vue'
 import bus from '@/bus'
 import { isTauri } from '@/tauri-bridge'
 import { markStartup } from '@/util/startupTrace'
+import { dismissSplash } from '@/util/splash'
 import { showEditorContextMenu } from '@/contextMenu/editor'
 import { DEFAULT_STYLE } from '@/config'
 import { useLayoutStore } from '@/store/layout'
@@ -129,6 +130,21 @@ watch(customCss, (value, oldValue) => {
 watch(zoom, (zoomValue) => {
   bus.emit('mt::window-zoom', zoomValue)
 })
+
+// The other end of startup, for a window opened with no document: `<recent>` is
+// the first content on screen, so it owns taking the loading screen down. The
+// window that does open a document dismisses it from the editor instead, when
+// the document is laid out — dropping it here would uncover an empty editor.
+//
+// Both flags are set in one synchronous block by the bootstrap handler, so this
+// runs once, with the final value of each, and never sees a half-applied state.
+watch(
+  [init, hasCurrentFile],
+  ([ready, hasFile]) => {
+    if (ready && !hasFile) nextTick(dismissSplash)
+  },
+  { immediate: true }
+)
 
 // Electron built the editor's context menu in the main process from a
 // `webContents` hook; a WebView has none, so the renderer raises it. Guarded so

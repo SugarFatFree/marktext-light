@@ -93,6 +93,7 @@ import Main from './Main.vue'
 
 import { installTauriBridge, isTauri } from './tauri-bridge'
 import { markStartup, markNetworkTimings } from './util/startupTrace'
+import { armSplashSafetyNet } from './util/splash'
 import { usePreferencesStore } from './store/preferences'
 
 import './assets/styles/index.css'
@@ -109,6 +110,11 @@ import './assets/styles/printService.css'
 // cost of the bundle rather than of anything the app does.
 markNetworkTimings()
 markStartup('script start')
+
+// Armed here rather than after mount, so that a failure anywhere in `start()`
+// below — a bridge handshake that never resolves, a throw in bootstrap — still
+// ends with the window showing something other than the loading screen.
+armSplashSafetyNet()
 
 async function start(): Promise<void> {
   if (isTauri()) {

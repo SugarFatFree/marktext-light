@@ -116,6 +116,7 @@ import { applyCursor, isIndexCursor } from '@/util/cursor'
 import EditorSearch from '../search/index.vue'
 import bus from '@/bus'
 import { markStartup, reportStartup } from '@/util/startupTrace'
+import { dismissSplash } from '@/util/splash'
 import { DEFAULT_EDITOR_FONT_FAMILY, DEFAULT_CODE_FONT_FAMILY } from '@/config'
 import notice from '@/services/notification'
 import Printer from '@/services/printService'
@@ -1828,6 +1829,9 @@ onMounted(() => {
   // The last phase a user waits through: the engine has parsed the document
   // and put it on screen. Prints the renderer's startup line, once.
   reportStartup('editor ready')
+  // Same moment, said to the user rather than to the log: there is a document
+  // behind the loading screen now, so take it down.
+  dismissSplash()
   // The first document's content is set via constructor options, so no
   // `file-loaded` / `setMarkdownToEditor` runs for it — seed its TOC here.
   editorStore.UPDATE_TOC(muya.getTOC())

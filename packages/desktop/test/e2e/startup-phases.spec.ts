@@ -129,6 +129,17 @@ test.describe('startup phases', () => {
     expect(ordered).toEqual(PHASES)
   })
 
+  test('takes the loading screen down once the document is on screen', async() => {
+    // Here rather than in a spec of its own because the launch above is exactly
+    // the event being checked: `beforeAll` returned when the trace closed, which
+    // is the moment `editor ready` fires and the splash is dismissed.
+    //
+    // The short budget is the assertion. `util/splash.ts` also arms a 6 s safety
+    // net, so a generous timeout here would pass on the safety net alone and say
+    // nothing about whether the editor ever dismissed it.
+    await expect(page.locator('#splash')).toHaveCount(0, { timeout: 1500 })
+  })
+
   test('never goes backwards in time', () => {
     const backwards = phases
       .slice(1)

@@ -26,10 +26,139 @@
                   font-src 'self' data:;
                   "
     />
+    <!--
+      The splash, written out here rather than rendered, because everything the
+      app renders arrives too late to be a splash.
+
+      A Tauri window is a WebView and nothing else — there is no native surface
+      to draw a loading screen on while the WebView starts, so the earliest
+      frame anyone can put on screen is the one the document itself paints. That
+      frame is here: markup and styles inline, no script, no stylesheet, no
+      image, so it needs nothing beyond the document that carries it. Measured
+      against the trace, it lands about a second ahead of Vue's first render,
+      which is the whole window a user currently spends looking at empty grey.
+
+      Inline styles, not a class in the app stylesheet: that stylesheet is part
+      of what we are waiting for. And no inline <script> — the CSP above forbids
+      it — so `util/splash.ts` takes it down once there is content behind it.
+
+      Colours follow `prefers-color-scheme` rather than the app's saved theme,
+      for the same reason `color-scheme` above does: the saved choice lives in
+      storage only script can read, and script has not run yet.
+    -->
+    <style>
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 28px;
+        background: #fafafa;
+        /* Never in the way of the app painting behind it, even mid-fade. */
+        pointer-events: none;
+        opacity: 1;
+        transition: opacity 180ms ease-out;
+      }
+      #splash.is-done {
+        opacity: 0;
+      }
+      #splash svg {
+        width: 104px;
+        height: auto;
+        color: rgba(0, 0, 0, 0.24);
+        animation: splash-in 420ms ease-out both;
+      }
+      #splash .splash-bar {
+        position: relative;
+        width: 104px;
+        height: 2px;
+        overflow: hidden;
+        border-radius: 2px;
+        background: rgba(0, 0, 0, 0.08);
+      }
+      /*
+        Indeterminate on purpose: startup has phases but no progress anyone can
+        measure, and a bar that guesses at a percentage is a bar that lies.
+      */
+      #splash .splash-bar i {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 40%;
+        border-radius: 2px;
+        background: rgba(0, 0, 0, 0.28);
+        animation: splash-sweep 1150ms cubic-bezier(0.65, 0, 0.35, 1) infinite;
+      }
+      @keyframes splash-in {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+      }
+      @keyframes splash-sweep {
+        from {
+          left: -40%;
+        }
+        to {
+          left: 100%;
+        }
+      }
+      @media (prefers-color-scheme: dark) {
+        /* Matches `backgroundColor` in tauri.conf.json, so the window does not
+           change colour when the document arrives. */
+        #splash {
+          background: #282828;
+        }
+        #splash svg {
+          color: rgba(255, 255, 255, 0.3);
+        }
+        #splash .splash-bar {
+          background: rgba(255, 255, 255, 0.1);
+        }
+        #splash .splash-bar i {
+          background: rgba(255, 255, 255, 0.34);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #splash svg,
+        #splash .splash-bar i {
+          animation: none;
+        }
+        /* Without the sweep the track reads as a broken widget; drop it and
+           leave the mark alone on the canvas. */
+        #splash .splash-bar {
+          display: none;
+        }
+      }
+    </style>
   </head>
 
   <body>
     <div id="app"></div>
+    <div id="splash">
+      <!-- The markdown mark, inline: a file reference here would be one more
+           round trip in front of the frame this exists to bring forward. -->
+      <svg viewBox="0 0 208 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect
+          x="5"
+          y="5"
+          width="198"
+          height="118"
+          rx="10"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="10"
+        />
+        <path
+          fill="currentColor"
+          d="M30 98V30h20l20 25 20-25h20v68H90V59L70 84 50 59v39zm125 0l-30-33h20V30h20v35h20z"
+        />
+      </svg>
+      <div class="splash-bar"><i></i></div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
