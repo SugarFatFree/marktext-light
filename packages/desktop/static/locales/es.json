@@ -932,6 +932,7 @@
     "spellingTitle": "Ortografía",
     "spellcheckerDisabledMessage": "No se puede cambiar el idioma porque el corrector ortográfico está desactivado.",
     "uploadImageTitle": "Subir imagen",
+    "imageUploaderUnavailable": "La subida de imágenes a un servicio de alojamiento no está disponible en esta versión; la imagen se guardó junto al documento.",
     "updateTitle": "Actualización",
     "updateNotAvailableTitle": "No hay actualizaciones",
     "updateDownloadedTitle": "Actualización descargada",

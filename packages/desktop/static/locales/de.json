@@ -932,6 +932,7 @@
     "spellingTitle": "Rechtschreibung",
     "spellcheckerDisabledMessage": "Sprache kann nicht geändert werden, da die Rechtschreibprüfung deaktiviert ist.",
     "uploadImageTitle": "Bild hochladen",
+    "imageUploaderUnavailable": "Das Hochladen von Bildern zu einem Hosting-Dienst ist in dieser Version nicht verfügbar; das Bild wurde stattdessen neben dem Dokument gespeichert.",
     "updateTitle": "Update",
     "updateNotAvailableTitle": "Kein Update verfügbar",
     "updateDownloadedTitle": "Update heruntergeladen",

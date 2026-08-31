@@ -932,6 +932,7 @@
     "spellingTitle": "拼字檢查",
     "spellcheckerDisabledMessage": "拼字檢查已關閉，無法切換語言。",
     "uploadImageTitle": "上傳圖片",
+    "imageUploaderUnavailable": "此版本尚不支援上傳圖片到圖床，圖片已改為儲存在文件旁邊。",
     "updateTitle": "更新",
     "updateNotAvailableTitle": "暫無更新",
     "updateDownloadedTitle": "更新已下載",

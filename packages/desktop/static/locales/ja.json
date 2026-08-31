@@ -932,6 +932,7 @@
     "spellingTitle": "スペルチェック",
     "spellcheckerDisabledMessage": "スペルチェックが無効なため、言語を変更できません。",
     "uploadImageTitle": "画像のアップロード",
+    "imageUploaderUnavailable": "このビルドでは画像のアップロードに対応していません。画像はドキュメントの隣に保存しました。",
     "updateTitle": "更新",
     "updateNotAvailableTitle": "更新はありません",
     "updateDownloadedTitle": "更新をダウンロードしました",

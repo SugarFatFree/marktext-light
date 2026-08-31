@@ -932,6 +932,7 @@
     "spellingTitle": "Yazım denetimi",
     "spellcheckerDisabledMessage": "Yazım denetimi kapalı olduğu için dil değiştirilemiyor.",
     "uploadImageTitle": "Görsel yükle",
+    "imageUploaderUnavailable": "Görselleri bir barındırma hizmetine yükleme bu sürümde kullanılamıyor; görsel bunun yerine belgenin yanına kaydedildi.",
     "updateTitle": "Güncelleme",
     "updateNotAvailableTitle": "Güncelleme yok",
     "updateDownloadedTitle": "Güncelleme indirildi",

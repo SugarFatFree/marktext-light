@@ -646,7 +646,24 @@ const stubbedExtras = () => ({
       invoke('load_locale', { lang: language }).then((v) => (v as Record<string, unknown>) ?? {})
   },
   ripgrep: buildRipgrep(),
-  uploader: { uploadImage: async() => ({}) },
+  // Rejects rather than resolves. Electron ran the configured uploader in the
+  // main process and returned a URL; there is no such implementation here, and
+  // resolving with an empty object meant `editor.vue` wrote it into the
+  // document as the image's path — an `![]()` whose URL read `[object Object]`,
+  // saved to disk, with nothing said. Rejecting reaches the `catch` written for
+  // exactly this: it warns, then saves the image beside the document instead.
+  //
+  // The message is what the user sees, so `editor.vue` renders it directly.
+  uploader: {
+    uploadImage: async(): Promise<never> => {
+      throw t('notifications.imageUploaderUnavailable')
+    }
+  },
+  // Empty, not stubbed-and-forgotten: a WebView cannot enumerate installed
+  // fonts, and deriving family names from font *filenames* would produce names
+  // that do not exist ("msyh.ttc" is Microsoft YaHei). The picker falls back to
+  // the bundled families and stays a free-text field, so a font can still be
+  // named — it just cannot be offered.
   fonts: { list: async() => [] as string[] }
 })
 

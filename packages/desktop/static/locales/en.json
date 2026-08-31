@@ -932,6 +932,7 @@
     "spellingTitle": "Spelling",
     "spellcheckerDisabledMessage": "Cannot change language because spellchecker is disabled.",
     "uploadImageTitle": "Upload Image",
+    "imageUploaderUnavailable": "Uploading images to a hosting service is not available in this build; the image was saved next to the document instead.",
     "updateTitle": "Update",
     "updateNotAvailableTitle": "Update not Available",
     "updateDownloadedTitle": "Update Downloaded",

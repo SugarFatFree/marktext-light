@@ -932,6 +932,7 @@
     "spellingTitle": "맞춤법 검사",
     "spellcheckerDisabledMessage": "맞춤법 검사가 꺼져 있어 언어를 변경할 수 없습니다.",
     "uploadImageTitle": "이미지 업로드",
+    "imageUploaderUnavailable": "이 빌드에서는 이미지 업로드를 지원하지 않습니다. 이미지는 문서 옆에 저장했습니다.",
     "updateTitle": "업데이트",
     "updateNotAvailableTitle": "업데이트 없음",
     "updateDownloadedTitle": "업데이트 다운로드 완료",
