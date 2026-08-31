@@ -17,6 +17,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { save as showSaveDialog } from '@tauri-apps/plugin-dialog'
 import pathe from 'pathe'
 
+import { t } from '@/i18n'
 import type { DispatchLocal } from './save'
 
 export interface ExportPayload {
@@ -25,6 +26,19 @@ export interface ExportPayload {
   content?: string
   filename?: string
   pathname?: string
+}
+
+/**
+ * Say so. Electron raised `mt::show-notification` from the main process when an
+ * export failed; this file only wrote to the console, so a save into a folder
+ * that had gone read-only, or onto a full disk, looked exactly like a successful
+ * export — the dialog closed and nothing else happened. The same silence on the
+ * open path is what `notifyUnreadable` was added for.
+ */
+const notifyExportFailed = (dispatchLocal: DispatchLocal, message: string): void => {
+  dispatchLocal('mt::show-notification', [
+    { title: t('notifications.exportFailedTitle'), type: 'error', message }
+  ])
 }
 
 const EXTENSION: Record<string, string> = {
@@ -67,6 +81,7 @@ export const exportDocument = async(
 
   if (!content) {
     console.error('[tauri-bridge] nothing to export: no HTML content')
+    notifyExportFailed(dispatchLocal, t('notifications.exportNoContentMessage'))
     return
   }
 
@@ -84,6 +99,13 @@ export const exportDocument = async(
     await invoke('write_file', { path: filePath, data: content })
   } catch (err) {
     console.error('[tauri-bridge] error while exporting:', err)
+    notifyExportFailed(
+      dispatchLocal,
+      t('notifications.exportFailedMessage', {
+        path: filePath,
+        msg: err instanceof Error ? err.message : String(err)
+      })
+    )
     return
   }
 

@@ -13,6 +13,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { open as showOpenDialog } from '@tauri-apps/plugin-dialog'
 
 import { getStoredPreference } from './preferences'
+import { notifyFailure, pathAndReason } from './notify'
 import type { DispatchLocal } from './save'
 
 interface ProjectEntry {
@@ -59,6 +60,10 @@ export const loadProjectTree = async(
     entries = (await invoke('scan_project', { path: pathname, exclusions })) as ProjectEntry[]
   } catch (err) {
     console.error(`[tauri-bridge] cannot scan ${pathname}:`, err)
+    // The user picked this folder in a dialog and is watching for a tree. A
+    // directory that cannot be read — permissions, a network share that went
+    // away — otherwise leaves the sidebar exactly as it was.
+    notifyFailure(dispatchLocal, 'notifications.openFolderFailedTitle', pathAndReason(pathname, err))
     return
   }
 

@@ -11,6 +11,7 @@ import pathe from 'pathe'
 
 import { t } from '@/i18n'
 import { trackOpenFile, untrackOpenFile } from './open-files'
+import { notifyFailure, pathAndReason } from './notify'
 import type { DispatchLocal } from './save'
 
 // Mirrors `common/filesystem/paths`, which cannot be imported here: that module
@@ -52,6 +53,10 @@ export const renameOpenFile = async(
     await invoke('move_path', { src: pathname, dest: newPathname })
   } catch (err) {
     console.error(`[tauri-bridge] cannot rename ${pathname}:`, err)
+    // The user typed a name and pressed OK. Returning quietly leaves the file
+    // under its old name with nothing said — a reserved name or a character
+    // Windows forbids looks exactly like the dialog not having worked.
+    notifyFailure(dispatchLocal, 'notifications.renameFailedTitle', pathAndReason(pathname, err))
     return
   }
 
@@ -85,6 +90,7 @@ export const moveOpenFileTo = async(
     await invoke('move_path', { src: pathname, dest: destination })
   } catch (err) {
     console.error(`[tauri-bridge] cannot move ${pathname}:`, err)
+    notifyFailure(dispatchLocal, 'notifications.moveFailedTitle', pathAndReason(pathname, err))
     return
   }
 

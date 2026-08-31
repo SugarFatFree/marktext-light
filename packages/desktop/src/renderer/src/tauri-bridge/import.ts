@@ -9,6 +9,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { open as showOpenDialog } from '@tauri-apps/plugin-dialog'
 
 import { t } from '@/i18n'
+import { notifyFailure, pathAndReason } from './notify'
 import type { DispatchLocal } from './save'
 
 /** Formats pandoc is asked to read. Mirrors `PANDOC_EXTENSIONS` in main/config. */
@@ -61,9 +62,20 @@ export const importWithPandoc = async(
     markdown = await invoke('pandoc_to_markdown', { path })
   } catch (err) {
     console.error(`[tauri-bridge] cannot import ${path}:`, err)
+    // The doc comment above promises to explain why it could not be done, and
+    // the missing-pandoc case does. A conversion that fails — a corrupt .docx,
+    // a format pandoc will not take — used to end here in silence.
+    notifyFailure(dispatchLocal, 'notifications.importFailedTitle', pathAndReason(path, err))
     return
   }
-  if (typeof markdown !== 'string') return
+  if (typeof markdown !== 'string') {
+    notifyFailure(
+      dispatchLocal,
+      'notifications.importFailedTitle',
+      pathAndReason(path, 'pandoc produced no text')
+    )
+    return
+  }
 
   // No pathname: the tab is new content, not a view onto the imported file.
   dispatchLocal('mt::open-new-tab', [{ markdown }, {}, true])
