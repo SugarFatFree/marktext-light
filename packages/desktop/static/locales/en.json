@@ -223,7 +223,8 @@
     "invalidRegex": "Invalid regular expression \"{pattern}\"",
     "regexMatchEmpty": "Regular expression matches empty string \"{pattern}\"",
     "searchResultInfo": "{matchCount} matches in {fileCount} files",
-    "searchLimited": "Searched limited to first {count} results"
+    "searchLimited": "Searched limited to first {count} results",
+    "searchFailed": "Search failed: {msg}"
   },
   "sideBar": {
     "search": {

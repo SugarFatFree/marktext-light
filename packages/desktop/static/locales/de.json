@@ -223,7 +223,8 @@
     "invalidRegex": "Ungültiger regulärer Ausdruck \"{pattern}\"",
     "regexMatchEmpty": "Regulärer Ausdruck entspricht leerem String \"{pattern}\"",
     "searchResultInfo": "{matchCount} Treffer in {fileCount} Dateien",
-    "searchLimited": "Suche auf die ersten {count} Ergebnisse beschränkt"
+    "searchLimited": "Suche auf die ersten {count} Ergebnisse beschränkt",
+    "searchFailed": "Suche fehlgeschlagen: {msg}"
   },
   "sideBar": {
     "search": {

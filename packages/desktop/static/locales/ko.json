@@ -223,7 +223,8 @@
     "invalidRegex": "잘못된 정규식 \"{pattern}\"",
     "regexMatchEmpty": "정규식이 빈 문자열 \"{pattern}\"과 일치",
     "searchResultInfo": "{fileCount}개의 파일에서 {matchCount}개 일치",
-    "searchLimited": "처음 {count}개의 결과까지만 검색"
+    "searchLimited": "처음 {count}개의 결과까지만 검색",
+    "searchFailed": "검색에 실패했습니다: {msg}"
   },
   "sideBar": {
     "search": {

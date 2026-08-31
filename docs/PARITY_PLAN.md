@@ -2283,6 +2283,28 @@ auto-update(4)、`load-state`(有意不恢复标签页)、`bootstrap-editor`(Tau
 而我自己加的那条"理由至少 20 字符"的检查直接判了失败——
 一条豁免的理由应该在原地读得懂,不该让人往上翻。
 
+### 通道扫描的第三个方向,以及搜索失败被吞掉(第 124 轮)
+
+**方向三:渲染层 `send` 但桥不处理的通道**——只有 4 个,**全部已被挡住**:
+auto-update 两个(`isUpdatable()` 门)、截图(上一轮刚加 `!isTauri()`)、
+键盘信息导出(设置窗口的 URL 写死 `debug: '0'`,按钮不显示)。
+**三个方向的通道扫描到此穷尽。**
+
+**顺带查过、确认没问题的**:项目扫描有 `MAX_DEPTH`(注释写明"a stray symlink into
+`/` cannot hang the scan")、搜索走目录有 `depth > 24`、监视交给 OS 的递归模式;
+搜索命中上限在渲染层(>100 个文件即取消并提示),Rust 注释里的说法属实。
+
+**但在核实那个上限时发现了一处真的静默失败**:`search.vue` 的 `.catch` 会
+**清空结果、只写一行日志**。而 `searchErrorString` 就在旁边——它渲染在结果下方,
+搜索开始时会清空,**却只在"超过 100 个文件"那一支被设置过**。
+
+于是:**搜索出错 → 结果清空 → 什么都不显示 → 用户读作"没有匹配"**。
+最现实的触发是搜索框那个正则开关:输入 `[unclosed`,Rust 侧 `build_matcher` 返回 Err
+(那边甚至有一条测试 `an_invalid_regexp_is_reported_rather_than_panicking`),
+promise reject,然后被吞掉。**Rust 报了名字,渲染层扔了。**
+
+**这是两个外壳共有的 bug**,不是 Tauri 迁移的缺口——`search.vue` 是共享代码。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，

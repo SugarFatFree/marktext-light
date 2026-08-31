@@ -241,6 +241,14 @@ const search = (): void => {
       canceled = true
       cancellable.cancel()
       log.error('Error while searching in directory:', err)
+      // Say so. The results are cleared either way, so silence here read as
+      // "nothing matched" — and the likeliest cause is a regular expression the
+      // user just typed, which the search backend rejects by name. The panel
+      // already has somewhere to put this: it is where the 100-file limit
+      // reports itself.
+      searchErrorString.value = t('search.searchFailed', {
+        msg: err instanceof Error ? err.message : String(err)
+      })
       searchResult.value = []
       searcherRunning.value = false
       searcherCancelCallback = null

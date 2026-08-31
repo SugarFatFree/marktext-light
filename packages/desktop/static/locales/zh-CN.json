@@ -223,7 +223,8 @@
     "invalidRegex": "无效的正则表达式 \"{pattern}\"",
     "regexMatchEmpty": "正则表达式 \"{pattern}\" 匹配到了空字符串",
     "searchResultInfo": "在 {fileCount} 个文件中找到 {matchCount} 个匹配项",
-    "searchLimited": "仅搜索前 {count} 个结果"
+    "searchLimited": "仅搜索前 {count} 个结果",
+    "searchFailed": "搜索失败：{msg}"
   },
   "sideBar": {
     "search": {

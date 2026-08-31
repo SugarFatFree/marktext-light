@@ -223,7 +223,8 @@
     "invalidRegex": "無効な正規表現 \"{pattern}\"",
     "regexMatchEmpty": "正規表現が空文字列 \"{pattern}\" にマッチ",
     "searchResultInfo": "{fileCount} 件のファイルで {matchCount} 件一致",
-    "searchLimited": "最初の {count} 件まで検索しました"
+    "searchLimited": "最初の {count} 件まで検索しました",
+    "searchFailed": "検索に失敗しました: {msg}"
   },
   "sideBar": {
     "search": {

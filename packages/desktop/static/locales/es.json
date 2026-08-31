@@ -223,7 +223,8 @@
     "invalidRegex": "Expresión regular inválida \"{pattern}\"",
     "regexMatchEmpty": "La expresión regular coincide con la cadena vacía \"{pattern}\"",
     "searchResultInfo": "{matchCount} coincidencias en {fileCount} archivos",
-    "searchLimited": "Búsqueda limitada a los primeros {count} resultados"
+    "searchLimited": "Búsqueda limitada a los primeros {count} resultados",
+    "searchFailed": "La búsqueda falló: {msg}"
   },
   "sideBar": {
     "search": {

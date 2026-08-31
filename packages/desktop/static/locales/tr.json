@@ -223,7 +223,8 @@
     "invalidRegex": "Geçersiz düzenli ifade \"{pattern}\"",
     "regexMatchEmpty": "Düzenli ifade boş dizeyle eşleşiyor \"{pattern}\"",
     "searchResultInfo": "{fileCount} dosyada {matchCount} eşleşme",
-    "searchLimited": "Arama ilk {count} sonuçla sınırlandırıldı"
+    "searchLimited": "Arama ilk {count} sonuçla sınırlandırıldı",
+    "searchFailed": "Arama başarısız: {msg}"
   },
   "sideBar": {
     "search": {

@@ -223,7 +223,8 @@
     "invalidRegex": "無效的正規表示式 \"{pattern}\"",
     "regexMatchEmpty": "正規表示式 \"{pattern}\" 符合空字串",
     "searchResultInfo": "在 {fileCount} 個檔案中找到 {matchCount} 個符合項目",
-    "searchLimited": "搜尋僅限前 {count} 個結果"
+    "searchLimited": "搜尋僅限前 {count} 個結果",
+    "searchFailed": "搜尋失敗：{msg}"
   },
   "sideBar": {
     "search": {
