@@ -1,6 +1,6 @@
 [package]
 name = "marktext"
-version = "1.0.0"
+version = "1.0.1"
 description = "MarkText — next generation markdown editor"
 authors = ["Jocs"]
 edition = "2021"

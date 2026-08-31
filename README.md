@@ -118,6 +118,7 @@ Everything below is measured on this repository's own builds, not estimated.
 
 | Version | Date | Notes |
 |---|---|---|
+| [1.0.1](https://github.com/SugarFatFree/marktext-light/releases/tag/v1.0.1) | 2026-09-01 | Documents no longer lose a heading to a byte-order mark, or fail to open because they are GBK. Saves are atomic. A preference changed in the settings window reaches the editor. The window remembers where it was. |
 | [1.0.0](https://github.com/SugarFatFree/marktext-light/releases/tag/v1.0.0) | 2026-08-31 | First tagged release of the Tauri shell. Loading screen on first paint; startup, large-document and memory work from the migration. |
 
 ## Download and Installation
