@@ -2091,6 +2091,33 @@ done"**,而且紧邻的 `reportMissingPandoc` 处理了"pandoc 不存在",
 新增 5 个 title 键 + 1 个共享 message 键(`{path}: {msg}`),10 种语言。
 共享 message 是有意的:动词在标题里,消息只有路径和原因,**避开了各语言的动词变位**。
 
+### 窗口尺寸和位置根本没有保存(第 118 轮)
+
+Electron 用 `electron-window-state` 存尺寸+位置,还有 `ensureWindowPosition`
+保证恢复到一块**仍然存在**的显示器上。Tauri 侧**一样都没有**——每次启动都是
+`tauri.conf.json` 里的 1200×800,位置随操作系统。这是每一次启动都会碰到的。
+
+装官方的 `tauri-plugin-window-state`。**装之前先读了它的源码,确认三件事**,
+而不是装上就算:
+
+1. **有没有显示器边界防护**——有。`lib.rs:192` 遍历 `available_monitors()` 做
+   `intersects`,不匹配就跳过定位、交给操作系统。和 Electron 那个防护同源。
+2. **默认 flags 会不会坑我们**——**会**。默认含 `DECORATIONS` 和 `VISIBLE`:
+   前者会把系统边框恢复到自绘标题栏之上(本窗口 `decorations: false`),
+   后者可能让应用启动后屏幕上什么都没有。**所以必须显式写 flags**,
+   只留 SIZE / POSITION / MAXIMIZED / FULLSCREEN。
+3. **桥走 `destroy()` 而不是 `close()`,状态还存得下来吗**——存得下来。
+   状态在 `Moved`/`Resized` 时进内存缓存,在 `RunEvent::Exit` 时落盘。
+   若插件只在 `CloseRequested` 落盘,这个应用就一次都记不住。
+
+第 2 点是**最容易被后人当成"简化"删掉的**:改回 `Builder::default()` 读起来更干净,
+在全新安装上什么都不会坏,**只有状态文件里已经写着 `decorated: true` 的人会中招**。
+`window-state-flags.spec.ts` 专门锁这一条。
+
+**顺带查过、确认不是 bug 的**:最近文件列表(localStorage,已持久化,有文档);
+原生菜单没有"打开最近"是**干净的缺席**(注释写明未移植,自绘菜单栏也没有,
+侧栏面板覆盖了需求,**没有死 UI**);菜单一致性已有 `menu-parity.spec.ts` 在守。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
