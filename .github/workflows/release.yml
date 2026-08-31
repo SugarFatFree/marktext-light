@@ -1,11 +1,25 @@
 name: Release MarkText
 
+# NOT triggered by tags any more. A `v*` tag is a marktext-light release, and
+# marktext-light ships the Tauri shell — `tauri-build.yml` owns that tag. When
+# both ran, one tag produced two sets of installers for two different shells,
+# with no way for someone on the release page to tell which app they were
+# downloading.
+#
+# Kept, and kept working, because the Electron build is still what the Tauri
+# shell is measured against. Run it against a tag, not a branch:
+#
+#     gh workflow run release.yml --ref v1.2.3
+#
+# Dispatching accepts a tag as the ref, so `github.ref_name` below is that tag
+# and every step reads exactly as it did under the push trigger. Dispatched
+# against a *branch* it would name the release after the branch, which is why
+# there is no input to pass a tag separately — the ref is the tag.
+#
+# Tags cut before this change carry the old file, which has no dispatch trigger,
+# so they cannot be built this way.
 on:
-  push:
-    # Broad trigger so the validate job can reject malformed v-tags
-    # (e.g. `vbad.tag`) instead of them silently not triggering anything.
-    tags:
-      - 'v*'
+  workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref }}
