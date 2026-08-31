@@ -69,8 +69,15 @@ pub fn read_file(path: String, encoding: Option<String>) -> Result<FileData, Str
         // (or nothing) is treated as raw bytes.
         Some("utf8") | Some("utf-8") => {
             let bytes = fs::read(&path).map_err(|e| e.to_string())?;
-            String::from_utf8(bytes)
-                .map(FileData::Text)
+            // Drop a byte-order mark. Every caller here wants text, and none of
+            // them wants U+FEFF in front of it: `JSON.parse` rejects it outright
+            // on the preferences file, and it is invisible everywhere else,
+            // which is worse. Markdown documents go through
+            // `commands::markdown` instead, which also handles the encodings
+            // this branch cannot decode at all.
+            let bytes = bytes.strip_prefix(&[0xefu8, 0xbb, 0xbf][..]).unwrap_or(&bytes);
+            std::str::from_utf8(bytes)
+                .map(|text| FileData::Text(text.to_owned()))
                 .map_err(|e| e.to_string())
         }
         _ => fs::read(&path)

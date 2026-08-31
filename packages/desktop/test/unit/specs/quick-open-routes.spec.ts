@@ -71,8 +71,19 @@ const install = async() => {
   invoke.mockReset()
   invoke.mockImplementation((cmd: string, args: Record<string, unknown>) => {
     if (cmd === 'boot_info') return Promise.resolve(BOOT)
-    if (cmd === 'read_file') {
-      return Promise.resolve(args.path === DOC ? '# Notes\n' : null)
+    if (cmd === 'read_markdown_file') {
+      return args.path === DOC
+        ? Promise.resolve({
+          markdown: '# Notes\n',
+          filename: 'notes.md',
+          pathname: DOC,
+          encoding: { encoding: 'utf8', isBom: false },
+          lineEnding: 'lf',
+          adjustLineEndingOnSave: false,
+          trimTrailingNewline: 1,
+          isMixedLineEndings: false
+        })
+        : Promise.reject(new Error('not a text document'))
     }
     return Promise.resolve(null)
   })

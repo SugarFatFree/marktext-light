@@ -90,6 +90,9 @@ pub fn run() {
             commands::fs::readdir,
             commands::fs::readdir_kinds,
             commands::fs::stat,
+            // Loading a markdown document: encoding detection, BOM stripping
+            // and line-ending normalisation, which `read_file` does not do.
+            commands::markdown::read_markdown_file,
             // project tree
             commands::project::scan_project,
             // project-wide search (replaces the bundled ripgrep binary)

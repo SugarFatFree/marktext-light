@@ -80,7 +80,7 @@ const install = async(readFile: (path: string) => Promise<unknown>): Promise<Ren
   invoke.mockReset()
   invoke.mockImplementation((cmd: string, args: Record<string, unknown>) => {
     if (cmd === 'boot_info') return Promise.resolve(BOOT)
-    if (cmd === 'read_file') return readFile(String(args.path))
+    if (cmd === 'read_markdown_file') return readFile(String(args.path))
     return Promise.resolve(null)
   })
 
@@ -113,14 +113,19 @@ describe('opening a file that cannot be read', () => {
   })
 
   it('says so for a file that is not text either', async() => {
-    const renderer = await install(() => Promise.resolve(null))
-    const notices: unknown[] = []
-    renderer.on('mt::show-notification', (_e, opts) => notices.push(opts))
+    // The refusal moved into Rust when the loader gained encoding detection:
+    // a detector always returns some encoding, so binary content would open as
+    // a screenful of noise unless something upstream of it says no. It does
+    // that on a NUL byte and reports this message.
+    const renderer = await install(() => Promise.reject(new Error('not a text document')))
+    const notices: Array<{ message?: string }> = []
+    renderer.on('mt::show-notification', (_e, opts) => notices.push(opts as never))
 
     renderer.send('mt::open-file', '/tmp/photo.png', {})
     await settle()
 
     expect(notices).toHaveLength(1)
+    expect(notices[0]?.message).toContain('not a text document')
   })
 
   it('opens no tab when the read failed', async() => {

@@ -45,6 +45,7 @@ import {
   popupContextMenu as showContextMenu
 } from './context-menu'
 import { handleDiskChange, trackOpenFile, untrackOpenFile } from './open-files'
+import { loadMarkdownFile, type LoadedMarkdown } from './markdown-file'
 import { askForOpenProject, loadProjectTree } from './project'
 import { broadcastLanguage, openSettingsWindow, sendCurrentLanguage } from './settings'
 import { installTabShortcuts } from './shortcuts'
@@ -161,25 +162,19 @@ const notifyUnreadable = (pathname: string, reason: unknown): void => {
 
 const openFileAsTab = async(pathname: string, options: unknown): Promise<void> => {
   if (!pathname) return
-  let markdown: unknown
+  let document: LoadedMarkdown
   try {
-    markdown = await invoke('read_file', { path: pathname, encoding: 'utf8' })
+    document = await loadMarkdownFile(pathname, bootPlatform)
   } catch (err) {
     // Gone, unreadable, or not permitted. Silence here meant a click on a file
     // in the tree or the recent list simply did nothing.
     notifyUnreadable(pathname, err)
     return
   }
-  if (typeof markdown !== 'string') {
-    notifyUnreadable(pathname, 'not a text document')
-    return
-  }
   trackOpenFile(pathname)
-  dispatchLocal('mt::open-new-tab', [
-    { markdown, filename: pathe.basename(pathname), pathname },
-    options ?? {},
-    true
-  ])
+  // The whole document, not just its text: the encoding and line ending travel
+  // with it onto the tab, where the save path reads them back.
+  dispatchLocal('mt::open-new-tab', [document, options ?? {}, true])
 }
 
 /** Prompt for a markdown file and open it as another tab in this window. */
@@ -775,7 +770,7 @@ export async function installTauriBridge(): Promise<void> {
   installWindowEvents(dispatchLocal)
   registerEvent(
     'mt::file-changed-on-disk',
-    (_event, payload) => fire(handleDiskChange(payload, dispatchLocal)),
+    (_event, payload) => fire(handleDiskChange(payload, dispatchLocal, bootPlatform)),
     false
   )
   installFileDrop(async(path) => {

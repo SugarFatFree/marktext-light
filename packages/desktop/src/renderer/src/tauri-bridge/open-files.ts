@@ -7,8 +7,8 @@
 // two implementations of the same thing, free to drift.
 
 import { invoke } from '@tauri-apps/api/core'
-import pathe from 'pathe'
 
+import { loadMarkdownFile, type LoadedMarkdown } from './markdown-file'
 import type { DispatchLocal } from './save'
 
 /** Paths behind open tabs. The Rust watch is re-armed whenever this changes. */
@@ -58,7 +58,8 @@ interface DiskChange {
  */
 export const handleDiskChange = async(
   payload: unknown,
-  dispatchLocal: DispatchLocal
+  dispatchLocal: DispatchLocal,
+  platform: string
 ): Promise<void> => {
   const { pathname, kind } = (payload ?? {}) as Partial<DiskChange>
   if (!pathname || !openPaths.has(pathname)) return
@@ -68,22 +69,18 @@ export const handleDiskChange = async(
     return
   }
 
-  let markdown: unknown
+  let document: LoadedMarkdown
   try {
-    markdown = await invoke('read_file', { path: pathname, encoding: 'utf8' })
+    document = await loadMarkdownFile(pathname, platform)
   } catch {
     // Removed between the event and the read; the unlink event is on its way.
     return
   }
-  if (typeof markdown !== 'string') return
 
+  // The whole document. `loadChange` in the editor store reads the encoding and
+  // line ending off this payload, so sending only the text reset both to
+  // undefined every time a file changed underneath an open tab.
   dispatchLocal('mt::update-file', [
-    {
-      type: 'change',
-      change: {
-        pathname,
-        data: { markdown, filename: pathe.basename(pathname), pathname }
-      }
-    }
+    { type: 'change', change: { pathname, data: document } }
   ])
 }

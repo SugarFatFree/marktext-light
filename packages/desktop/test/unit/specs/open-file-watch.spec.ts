@@ -33,6 +33,18 @@ const watched = (): string[] => {
   return (calls[calls.length - 1][1] as { paths: string[] }).paths
 }
 
+/** What the Rust loader returns — the shape `loadChange` destructures. */
+const reloaded = {
+  markdown: 'edited elsewhere',
+  filename: 'a.md',
+  pathname: '/docs/a.md',
+  encoding: { encoding: 'utf8', isBom: false },
+  lineEnding: 'lf',
+  adjustLineEndingOnSave: false,
+  trimTrailingNewline: 1,
+  isMixedLineEndings: false
+}
+
 const settle = async(): Promise<void> => {
   // The watch is re-armed on a debounce, so let it fire.
   await vi.advanceTimersByTimeAsync(500)
@@ -121,26 +133,22 @@ describe('reacting to a change on disk', () => {
     vi.useFakeTimers()
   })
 
-  it('reads the file and hands the content over', async() => {
+  it('hands over the whole document, not just its text', async() => {
     const { trackOpenFile, handleDiskChange } = await load()
     invoke.mockImplementation((command: string) =>
-      Promise.resolve(command === 'read_file' ? 'edited elsewhere' : undefined)
+      Promise.resolve(command === 'read_markdown_file' ? reloaded : undefined)
     )
     const dispatch = vi.fn()
 
     trackOpenFile('/docs/a.md')
-    await handleDiskChange({ pathname: '/docs/a.md', kind: 'change' }, dispatch)
+    await handleDiskChange({ pathname: '/docs/a.md', kind: 'change' }, dispatch, 'darwin')
 
-    // The store compares this against the tab's own text before it warns, so a
-    // save the editor just made passes through without bothering anyone.
+    // `loadChange` in the editor store destructures the encoding and the line
+    // ending off this payload. Sending only the text set both to undefined
+    // every time a file changed underneath an open tab, so a CRLF document
+    // quietly became an LF one on the next save.
     expect(dispatch).toHaveBeenCalledWith('mt::update-file', [
-      {
-        type: 'change',
-        change: {
-          pathname: '/docs/a.md',
-          data: { markdown: 'edited elsewhere', filename: 'a.md', pathname: '/docs/a.md' }
-        }
-      }
+      { type: 'change', change: { pathname: '/docs/a.md', data: reloaded } }
     ])
   })
 
@@ -149,9 +157,9 @@ describe('reacting to a change on disk', () => {
     const dispatch = vi.fn()
 
     trackOpenFile('/docs/a.md')
-    await handleDiskChange({ pathname: '/docs/a.md', kind: 'unlink' }, dispatch)
+    await handleDiskChange({ pathname: '/docs/a.md', kind: 'unlink' }, dispatch, 'darwin')
 
-    expect(invoke.mock.calls.some(([c]) => c === 'read_file')).toBe(false)
+    expect(invoke.mock.calls.some(([c]) => c === 'read_markdown_file')).toBe(false)
     expect(dispatch).toHaveBeenCalledWith('mt::update-file', [
       { type: 'unlink', change: { pathname: '/docs/a.md' } }
     ])
@@ -161,7 +169,7 @@ describe('reacting to a change on disk', () => {
     const { handleDiskChange } = await load()
     const dispatch = vi.fn()
 
-    await handleDiskChange({ pathname: '/docs/stranger.md', kind: 'change' }, dispatch)
+    await handleDiskChange({ pathname: '/docs/stranger.md', kind: 'change' }, dispatch, 'darwin')
 
     expect(dispatch).not.toHaveBeenCalled()
   })
@@ -169,12 +177,14 @@ describe('reacting to a change on disk', () => {
   it('says nothing when the file vanished before it could be read', async() => {
     const { trackOpenFile, handleDiskChange } = await load()
     invoke.mockImplementation((command: string) =>
-      command === 'read_file' ? Promise.reject(new Error('gone')) : Promise.resolve(undefined)
+      command === 'read_markdown_file'
+        ? Promise.reject(new Error('gone'))
+        : Promise.resolve(undefined)
     )
     const dispatch = vi.fn()
 
     trackOpenFile('/docs/a.md')
-    await handleDiskChange({ pathname: '/docs/a.md', kind: 'change' }, dispatch)
+    await handleDiskChange({ pathname: '/docs/a.md', kind: 'change' }, dispatch, 'darwin')
 
     // The matching unlink event is already on its way.
     expect(dispatch).not.toHaveBeenCalled()

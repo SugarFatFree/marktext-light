@@ -35,6 +35,13 @@ trash = "5"
 regex = "1"
 # Filesystem watching for the sidebar tree (chokidar's replacement).
 notify = "6"
+# Decoding markdown files that are not UTF-8. Electron used iconv-lite + ced;
+# these are the same two jobs — encoding_rs decodes, chardetng guesses — and are
+# the pair Firefox itself ships. Without them a GBK or Big5 file cannot be
+# opened at all, and a UTF-8 file with a byte-order mark loses its first
+# heading. See commands/markdown.rs.
+encoding_rs = "0.8"
+chardetng = "0.1"
 
 [features]
 # Enabled by tauri when building for production; forwarded from tauri.conf.json.
