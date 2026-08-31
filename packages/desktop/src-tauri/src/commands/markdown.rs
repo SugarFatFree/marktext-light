@@ -60,7 +60,14 @@ const BOM_UTF16LE: [u8; 2] = [0xff, 0xfe];
 /// as UTF-8 even when a statistical detector would prefer a legacy encoding,
 /// because that misdetection is what turned Greek letters into CJK in #3151.
 /// Only bytes that are not valid UTF-8 reach the detector.
-pub fn decode_text(bytes: &[u8]) -> (String, TextEncoding) {
+/// `tld` biases the detector towards a region, which is what makes the
+/// difference between GBK and EUC-KR on a short file: the two are not
+/// distinguishable from the bytes alone, and a document with one line in it
+/// gives a statistical detector almost nothing to work with. The hint comes
+/// from the OS UI language — the same source the native menu is translated
+/// from — on the reasoning that someone reading Simplified Chinese is far more
+/// likely to open a GBK file than a Korean one.
+pub fn decode_text(bytes: &[u8], tld: Option<&[u8]>) -> (String, TextEncoding) {
     if bytes.starts_with(&BOM_UTF8) {
         let (text, _, _) = UTF_8.decode(&bytes[BOM_UTF8.len()..]);
         return (text.into_owned(), enc("utf8", true));
@@ -83,9 +90,32 @@ pub fn decode_text(bytes: &[u8]) -> (String, TextEncoding) {
     // mojibake rather than a file that cannot be opened.
     let mut detector = chardetng::EncodingDetector::new();
     detector.feed(bytes, true);
-    let guessed = detector.guess(None, true);
+    let guessed = detector.guess(tld, true);
     let (text, _, _) = guessed.decode(bytes);
     (text.into_owned(), enc(&iconv_name(guessed), false))
+}
+
+/// The OS language as a country code the detector understands, or `None` when
+/// it is one whose legacy encoding is unambiguous anyway (most of Europe) or
+/// one we have no mapping for. Only the ambiguous CJK cases are worth naming:
+/// those are the ones where two encodings fit the same bytes.
+fn region_hint() -> Option<&'static [u8]> {
+    let locale = sys_locale::get_locale()?.to_ascii_lowercase().replace('_', "-");
+    let mut parts = locale.split('-');
+    let language = parts.next()?;
+    let region = parts.last().unwrap_or("");
+
+    // Sliced rather than left as `&[u8; 2]` so every arm has one type.
+    Some(match (language, region) {
+        ("zh", "tw" | "hk" | "mo") => &b"tw"[..],
+        ("zh", _) => &b"cn"[..],
+        ("ja", _) => &b"jp"[..],
+        ("ko", _) => &b"kr"[..],
+        ("ru", _) => &b"ru"[..],
+        ("th", _) => &b"th"[..],
+        ("tr", _) => &b"tr"[..],
+        _ => return None,
+    })
 }
 
 fn enc(name: &str, is_bom: bool) -> TextEncoding {
@@ -146,7 +176,7 @@ pub fn load_markdown(
     if bytes.contains(&0) {
         return Err("not a text document".to_string());
     }
-    let (raw, encoding) = decode_text(&bytes);
+    let (raw, encoding) = decode_text(&bytes, region_hint());
 
     let has_crlf = raw.contains("\r\n");
     // A lone LF, i.e. one not preceded by CR. `lines()` would hide the
@@ -222,7 +252,7 @@ mod tests {
         // its heading and keeps losing it on every reopen.
         let mut bytes = BOM_UTF8.to_vec();
         bytes.extend_from_slice(b"# Title\n");
-        let (text, encoding) = decode_text(&bytes);
+        let (text, encoding) = decode_text(&bytes, None);
 
         assert_eq!(text, "# Title\n");
         assert_eq!(encoding, enc("utf8", true));
@@ -230,7 +260,7 @@ mod tests {
 
     #[test]
     fn remembers_the_bom_so_saving_can_write_it_back() {
-        let (_, encoding) = decode_text(b"# Title\n");
+        let (_, encoding) = decode_text(b"# Title\n", None);
         assert!(!encoding.is_bom, "a file without a mark must not gain one");
     }
 
@@ -238,31 +268,66 @@ mod tests {
     fn decodes_utf16_in_both_byte_orders() {
         let mut le = BOM_UTF16LE.to_vec();
         le.extend_from_slice(&[0x23, 0x00, 0x20, 0x00, 0x41, 0x00]); // "# A"
-        assert_eq!(decode_text(&le).0, "# A");
+        assert_eq!(decode_text(&le, None).0, "# A");
 
         let mut be = BOM_UTF16BE.to_vec();
         be.extend_from_slice(&[0x00, 0x23, 0x00, 0x20, 0x00, 0x41]);
-        assert_eq!(decode_text(&be).0, "# A");
+        assert_eq!(decode_text(&be, None).0, "# A");
     }
+
+    /// "你好，世界。这是一个用 GBK 编码保存的 Markdown 文件，用来确认解码是对的。"
+    const GBK_SENTENCE: &[u8] = &[
+        0xc4, 0xe3, 0xba, 0xc3, 0xa3, 0xac, 0xca, 0xc0, 0xbd, 0xe7, 0xa1, 0xa3, 0xd5, 0xe2, 0xca,
+        0xc7, 0xd2, 0xbb, 0xb8, 0xf6, 0xd3, 0xc3, 0x20, 0x47, 0x42, 0x4b, 0x20, 0xb1, 0xe0, 0xc2,
+        0xeb, 0xb1, 0xa3, 0xb4, 0xe6, 0xb5, 0xc4, 0x20, 0x4d, 0x61, 0x72, 0x6b, 0x64, 0x6f, 0x77,
+        0x6e, 0x20, 0xce, 0xc4, 0xbc, 0xfe, 0xa3, 0xac, 0xd3, 0xc3, 0xc0, 0xb4, 0xc8, 0xb7, 0xc8,
+        0xcf, 0xbd, 0xe2, 0xc2, 0xeb, 0xca, 0xc7, 0xb6, 0xd4, 0xb5, 0xc4, 0xa1, 0xa3,
+    ];
+
+    /// "繁體中文以 Big5 儲存的檔案，這一段用來確認偵測結果。"
+    const BIG5_SENTENCE: &[u8] = &[
+        0xc1, 0x63, 0xc5, 0xe9, 0xa4, 0xa4, 0xa4, 0xe5, 0xa5, 0x48, 0x20, 0x42, 0x69, 0x67, 0x35,
+        0x20, 0xc0, 0x78, 0xa6, 0x73, 0xaa, 0xba, 0xc0, 0xc9, 0xae, 0xd7, 0xa1, 0x41, 0xb3, 0x6f,
+        0xa4, 0x40, 0xac, 0x71, 0xa5, 0xce, 0xa8, 0xd3, 0xbd, 0x54, 0xbb, 0x7b, 0xb0, 0xbb, 0xb4,
+        0xfa, 0xb5, 0xb2, 0xaa, 0x47, 0xa1, 0x43,
+    ];
 
     #[test]
     fn reads_a_gbk_file_that_strict_utf8_would_reject() {
-        // 0xC4 0xE3 0xBA 0xC3 is 你好 in GBK and is not valid UTF-8, so the old
-        // path failed with a decoder error and the file could not be opened.
-        let bytes = [0xc4u8, 0xe3, 0xba, 0xc3];
-        assert!(std::str::from_utf8(&bytes).is_err(), "premise: not valid UTF-8");
+        assert!(
+            std::str::from_utf8(GBK_SENTENCE).is_err(),
+            "premise: these bytes are not valid UTF-8, which is why the old path refused them"
+        );
 
-        let (text, encoding) = decode_text(&bytes);
-        assert_eq!(text, "你好");
+        let (text, encoding) = decode_text(GBK_SENTENCE, None);
+        assert!(text.starts_with("你好，世界。"), "decoded as: {text}");
+        assert_eq!(encoding.encoding, "gbk");
         assert!(!encoding.is_bom);
-        assert_ne!(encoding.encoding, "utf8", "must not claim to be UTF-8");
+    }
+
+    #[test]
+    fn reads_a_big5_file() {
+        let (text, _) = decode_text(BIG5_SENTENCE, Some(b"tw"));
+        assert!(text.starts_with("繁體中文"), "decoded as: {text}");
+    }
+
+    #[test]
+    fn the_region_hint_settles_bytes_that_fit_more_than_one_encoding() {
+        // The reason `region_hint` exists. These four bytes are 你好 in GBK and
+        // 콱봤 in EUC-KR, and nothing in them says which — a one-line file gives
+        // a statistical detector nothing to go on, so the reader's own language
+        // decides. Without the hint this file opens as mojibake either way; the
+        // point is that it opens as the *right* mojibake for the person reading.
+        let short = [0xc4u8, 0xe3, 0xba, 0xc3];
+        assert_eq!(decode_text(&short, Some(b"cn")).0, "你好");
+        assert_eq!(decode_text(&short, Some(b"kr")).0, "콱봤");
     }
 
     #[test]
     fn valid_utf8_is_never_handed_to_the_detector() {
         // #3151: `ced` read Greek as GBK and turned µκα into 碌魏伪. Valid UTF-8
         // has to win over any statistical guess.
-        let (text, encoding) = decode_text("µ κ α".as_bytes());
+        let (text, encoding) = decode_text("µ κ α".as_bytes(), None);
         assert_eq!(text, "µ κ α");
         assert_eq!(encoding.encoding, "utf8");
     }
