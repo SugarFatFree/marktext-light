@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     # This is the desktop electron Playwright suite. packages/muya has its
-    # own e2e under packages/muya/e2e/ wired via muya-e2e.yml.
+    # own e2e under packages/muya/e2e/ wired via muya.yml.
     paths-ignore:
       - 'packages/muya/**'
 

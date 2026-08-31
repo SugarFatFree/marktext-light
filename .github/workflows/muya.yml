@@ -1,0 +1,82 @@
+name: Muya
+
+# The editor engine (packages/muya, @muyajs/core) that the app bundles.
+#
+# One workflow, where there were six — build, lint, unit, spec, circular-dep and
+# e2e, each its own file, each paying the same ~40 s checkout + pnpm install
+# before doing 10-30 s of work. Run in sequence in one job they pay that setup
+# once, and a pull request gets two checks to read instead of six.
+#
+# The order is cheapest-first, so a lint error is not reported after the
+# conformance suite has spent four minutes proving the same commit is fine.
+#
+# The Playwright suite stays a separate job: it needs a browser download that
+# nothing else here does, and it is the only one that would gain from being
+# skipped while the fast checks are still failing.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'packages/muya/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/muya.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, build, unit + conformance
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - name: Lint
+        run: pnpm -C packages/muya lint
+
+      - name: Type-check
+        run: pnpm -C packages/muya lint:types
+
+      - name: Check for circular imports
+        run: pnpm -C packages/muya check-circular
+
+      - name: Build
+        run: pnpm -C packages/muya build
+
+      - name: Unit tests
+        run: pnpm -C packages/muya test
+
+      # ~670 fixtures from CommonMark 0.31 and GFM 0.29-gfm. This is what says
+      # the markdown the app renders is the markdown the specs describe, so it
+      # runs last and is never skipped.
+      - name: CommonMark + GFM conformance
+        run: pnpm -C packages/muya test:spec
+
+  e2e:
+    name: Playwright (chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      # Chromium only. Firefox and WebKit are wired into playwright.config.ts
+      # but add ~5 min of browser download, and a couple of specs need
+      # engine-independent rewrites first (packages/muya/e2e/BACKLOG.md, phase 3).
+      - name: Install Playwright browser
+        run: pnpm -C packages/muya/e2e exec playwright install --with-deps chromium
+
+      - name: Run Playwright
+        run: pnpm -C packages/muya/e2e exec playwright test --project=chromium
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: muya-e2e-report
+          path: packages/muya/e2e/playwright-report/
+          retention-days: 7

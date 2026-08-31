@@ -1,6 +1,8 @@
 # Releasing MarkText
 
-The release pipeline is triggered by pushing a `v*` tag. The `Release MarkText` workflow (`.github/workflows/release.yml`) then runs **validate → build (5-platform matrix) → publish** and creates a GitHub Release with installers and `SHA256SUMS.txt`.
+The release pipeline is triggered by pushing a `v*` tag. The `Tauri Build` workflow (`.github/workflows/tauri-build.yml`) then builds the four-platform matrix and creates a GitHub Release with the installers.
+
+> The Electron release workflow this page was written for (`release.yml`, 5-platform electron-builder matrix with `SHA256SUMS.txt`) was removed once the app shipped the Tauri shell — a `v*` tag was producing two sets of installers for two different applications. Recover it from git history if the Electron installers are ever wanted again.
 
 The flow below covers both release candidates and stable releases — same steps, only the version string differs.
 
@@ -59,7 +61,7 @@ gh pr create --draft --base develop --head release/vX.Y.0 \
 ## 6. Monitor the workflow
 
 ```bash
-gh run list --workflow=release.yml --limit 3
+gh run list --workflow=tauri-build.yml --limit 3
 gh run watch <run-id> --exit-status
 ```
 

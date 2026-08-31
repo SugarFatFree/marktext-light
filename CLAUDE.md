@@ -126,7 +126,7 @@ root holds only shared tooling and CI-facing scripts.
       examples/             muya-examples — vite vanilla-TS dev demo
                             (listed in pnpm-workspace.yaml).
       e2e/                  muya-e2e — Playwright suite. CI runs Chromium
-                            only via muya-e2e.yml; Firefox + WebKit are
+                            only via muya.yml; Firefox + WebKit are
                             wired in playwright.config.ts but deferred
                             until BACKLOG Phase 3 lands engine-independent
                             specs.

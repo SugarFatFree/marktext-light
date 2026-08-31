@@ -79,10 +79,13 @@
      应用在主进程加载阶段就抛错。
   3. 即便前两条解决，也**没有 X server 也没有 Xvfb**（`DISPLAY` 未设置）。
 - **但 CI 一直在跑真实运行时验证**，只是之前没去看：`e2e.yml` 每次推 PR 都会用
-  Playwright + 真实 Electron 跑 desktop E2E 套件；`test.yml` / `lint.yml` / `muya-*.yml`
+  Playwright + 真实 Electron 跑 desktop E2E 套件；`test.yml` / `lint.yml` / `muya.yml`
   同样自动运行。**推送后应当一并检查这些，而不是只看手动触发的 tauri-build。**
-- `website-deploy.yml` 在本 fork 上**必然失败**：缺 `CLOUDFLARE_API_TOKEN` secret。
-  与代码无关，PR diff 含 `pnpm-lock.yaml` 才命中它的路径过滤。
+- **CI 已于第 114 轮清理到 7 条**（原 15 条）：删掉 `build.yml`（每个 PR 建 5 平台
+  Electron 安装包，本项目不再发这个壳）、`release.yml`（Electron 发版，与 tag 抢
+  Release）、`website-deploy.yml`（不是应用，且缺 `CLOUDFLARE_API_TOKEN` 必然失败）；
+  muya 的 6 条合成 `muya.yml` 一条两作业。`typecheck` 由 `lint.yml` 覆盖，
+  Electron 主进程由 `e2e.yml` 的 `pnpm build` 覆盖，**没有因此丢掉验证面**。
 - **E2E 会被下一次推送掐掉**：`e2e.yml` 每次推 PR 自动触发、约需 13 分钟，且同样是
   `cancel-in-progress`。以每 10 分钟一次的节奏推送时，**它永远跑不完**——本会话曾连续 6 次被取消，
   唯一跑完的那次是失败的，而那个失败是编辑器窗口永久空白的真回归。
@@ -90,8 +93,9 @@
 - **触发 CI 前先确认没有正在跑的 run**：`tauri-build.yml` 配了
   `concurrency: cancel-in-progress: true`，再次 `gh workflow run` 会**直接取消上一次**，
   于是那次的验证信号就没了。等它结束再触发下一次。
-- **`gh` 命令行已不在本机**（`find /` 全盘搜不到），但 `~/.config/gh/hosts.yml` 里的 token 还在。
-  查 CI 状态改用 API，token 不要回显：
+- **`gh` 在 PATH 外**：二进制在 `/iflytek/workspace/znhu/github/gh_2.93.0_linux_amd64/bin/gh`，
+  `~/.config/gh/hosts.yml` 里已登录。加进 PATH 即可正常用 `gh run` / `gh pr` / `gh release`。
+  若哪天连二进制也没了，退回 API（token 不要回显）：
 
   ```bash
   TOKEN=$(grep -A5 'github.com' ~/.config/gh/hosts.yml | grep oauth_token | head -1 | sed 's/.*oauth_token: *//')
@@ -101,8 +105,8 @@
   ```
 - **改了 `src-tauri/**` 必须手动触发 `tauri-build.yml`,否则没有任何流水线会编译它。**
   它只在 `workflow_dispatch` 或推到 `develop` 时跑（见该文件顶部注释：4 平台 Rust 构建太贵，
-  每次 PR 同步都跑会和另外约 12 个 workflow 抢 runner）。**本分支上 PR Build 建的是 Electron，
-  不碰 Rust**——第 45 轮改完菜单差点就这么推走了。触发方式：
+  每次 PR 同步都跑会抢 runner）。**其余流水线一概不碰 Rust**——第 45 轮改完菜单差点就这么推走了。
+  另外 `v*` tag 现在也会触发它，并把安装包发成正式 Release（第 114 轮）。触发方式：
 
   ```bash
   curl -s -X POST -H "Authorization: token $TOKEN" \
