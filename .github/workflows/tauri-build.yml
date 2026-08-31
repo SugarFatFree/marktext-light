@@ -4,15 +4,20 @@ name: Tauri Build
 # a local Rust + webkit2gtk toolchain, and publishes the installers as Release
 # assets for the size / startup comparison against the Electron build.
 #
-# Triggered manually (workflow_dispatch) or on merge to develop — deliberately
-# NOT on every PR sync: a 4-platform Rust build is expensive and, when it ran on
-# each push, its jobs competed with ~12 other PR workflows for runners. Keeping
-# it manual gives a clean, contention-free signal (important while runner
-# scheduling is degraded).
+# Triggered manually (workflow_dispatch), on merge to develop, or by a `v*` tag
+# — deliberately NOT on every PR sync: a 4-platform Rust build is expensive and,
+# when it ran on each push, its jobs competed with ~12 other PR workflows for
+# runners. Keeping it manual gives a clean, contention-free signal (important
+# while runner scheduling is degraded).
+#
+# A `v*` tag is what makes a release: this is the only place the four platforms
+# are built, so the installers a release hands out can only come from here.
 
 on:
   workflow_dispatch:
   push:
+    tags:
+      - 'v*'
     branches: [develop]
     paths:
       - 'packages/desktop/src-tauri/**'
@@ -144,8 +149,31 @@ jobs:
           echo "Collected $count installers:"
           ls -la release
 
-      - name: Publish to the tauri-preview prerelease
-        if: ${{ steps.collect.outputs.count != '0' }}
+      # A tagged build is a release; anything else refreshes the moving preview.
+      # Both paths publish the same collected installers — the only differences
+      # are the tag they hang off and whether it is marked as a prerelease.
+      - name: Publish the release
+        if: ${{ steps.collect.outputs.count != '0' && startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          # A version tag names one commit forever, so its release is created
+          # once and never refreshed. Re-running the workflow on the same tag
+          # uploads the assets again rather than starting over, so that a single
+          # flaked platform leg can be filled in without dropping what built.
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" release/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" release/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "marktext-light ${tag}" \
+              --generate-notes
+          fi
+
+      - name: Refresh the tauri-preview prerelease
+        if: ${{ steps.collect.outputs.count != '0' && !startsWith(github.ref, 'refs/tags/v') }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
