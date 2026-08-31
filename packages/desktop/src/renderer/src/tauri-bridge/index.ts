@@ -32,6 +32,7 @@ import {
   getStoredPreference,
   pickFolderPreference,
   sendStoredUserData,
+  announcePreferences,
   setStoredPreferences,
   setStoredUserData
 } from './preferences'
@@ -185,12 +186,14 @@ const askForOpenFile = async(): Promise<void> => {
   if (typeof selected === 'string') await openFileAsTab(selected, {})
 }
 
-/** Flip a boolean preference and let the settings UI hear about it. */
+/** Flip a boolean preference and let every window hear about it. */
 const toggleBooleanPreference = async(key: string): Promise<void> => {
   const current = await getStoredPreference(key)
   const next = !current
   await setStoredPreferences({ [key]: next })
-  dispatchLocal('mt::user-preference', [{ [key]: next }])
+  // Global, not local: a toggle from the editor's menu has to reach an open
+  // settings window too, or its checkbox goes on showing the old value.
+  announcePreferences({ [key]: next })
 }
 
 /**
@@ -264,7 +267,7 @@ const handleSend = (channel: string, args: unknown[]): void => {
       if (typeof patch?.theme === 'string') rememberThemeChoice(patch.theme)
       // Language is changed in the settings window but has to reach the editor.
       if (typeof patch?.language === 'string') broadcastLanguage(patch.language)
-      fire(setStoredPreferences(patch))
+      fire(setStoredPreferences(patch).then(() => announcePreferences(patch)))
       return
     }
     case 'mt::open-setting-window':
@@ -285,7 +288,11 @@ const handleSend = (channel: string, args: unknown[]): void => {
       console.error('[renderer]', ...args)
       return
     case 'mt::set-user-data':
-      fire(setStoredUserData(args[0]))
+      fire(
+        setStoredUserData(args[0]).then(() =>
+          announcePreferences(args[0] as Record<string, unknown> | undefined)
+        )
+      )
       return
     case 'mt::app-try-quit':
       // One window per process here, so quitting and closing are the same

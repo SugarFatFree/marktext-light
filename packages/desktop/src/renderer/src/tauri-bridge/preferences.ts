@@ -10,6 +10,7 @@
 // `mt::user-preference` on top of it.
 
 import { invoke } from '@tauri-apps/api/core'
+import { emit } from '@tauri-apps/api/event'
 import { open as showOpenDialog } from '@tauri-apps/plugin-dialog'
 import pathe from 'pathe'
 
@@ -99,6 +100,31 @@ const merge = async(store: Store, patch: unknown): Promise<void> => {
 type DispatchLocal = (channel: string, args: unknown[]) => void
 
 /**
+ * Announce a preference change to every window.
+ *
+ * Electron's main process owned the preferences file and pushed each change out
+ * on `mt::user-preference`, so an open editor followed along with whatever the
+ * settings window did. Here each window writes the file itself, and for a long
+ * time that was all it did: the theme, the font, the line height, the tab width
+ * — every one of them landed on disk and changed nothing on screen until the
+ * next launch. Only `language` worked, because it had been given a broadcast of
+ * its own.
+ *
+ * A global `emit` reaches every window including this one, and `registerEvent`
+ * subscribes each window's store to it, so the sender needs no local dispatch as
+ * well — doing both would deliver the same patch twice.
+ *
+ * Not to be confused with `sendStoredPreferences` below, which answers a
+ * question one window asked and is rightly local.
+ */
+export const announcePreferences = (patch: Record<string, unknown> | undefined): void => {
+  if (!patch) return
+  emit('mt::user-preference', patch).catch((err) =>
+    console.warn('[tauri-bridge] cannot announce a preference change:', err)
+  )
+}
+
+/**
  * Answer `mt::ask-for-user-preference` / `mt::ask-for-user-data`. Upstream
  * replies to both on the single `mt::user-preference` channel, and the store
  * merges each payload, so sending the two bags separately is correct.
@@ -144,5 +170,7 @@ export const pickFolderPreference = async(
   }
 
   await setStoredPreferences({ [key]: chosen })
-  dispatchLocal('mt::user-preference', [{ [key]: chosen }])
+  // Global: the image folder decides where the *editor* puts a pasted image, so
+  // a folder picked in the settings window has to reach it.
+  announcePreferences({ [key]: chosen })
 }
