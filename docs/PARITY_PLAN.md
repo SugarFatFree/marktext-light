@@ -1985,6 +1985,48 @@ failed to bundle project: error running bundle_dmg.sh
 真要治,方向是给 `Build Tauri app` 这一步加重试,**但先要攒到第二次复现**——
 现在只有一次,连是不是 `hdiutil` 争用都不知道。
 
+### 打开文件时丢掉了编码、BOM 与行尾(第 115 轮)
+
+`read_file` 解的是**严格 UTF-8**,桥再把一个裸字符串交给渲染层。由此有两个 bug,
+其中一个是静默的。
+
+**BOM(静默,更糟)**:Notepad 存的 UTF-8 带 BOM,打开后 U+FEFF 成了文档第一个字符。
+拿引擎自己的 lexer 验的,不是推的:
+
+```
+"# Title\n"          -> ["heading", "space", "paragraph"]
+"\ufeff# Title\n"    -> ["paragraph", "space", "paragraph"]
+```
+
+**首个标题降级成段落**,而且 BOM 原样写回磁盘,所以每次重开都再错一次。
+
+**旧编码(响亮)**:GBK / Big5 / EUC-KR / Shift_JIS 的文件**根本打不开**,
+报的是 `invalid utf-8 sequence of 1 bytes from index 41`——读者无从下手。
+
+Electron 两样都没有:`main/filesystem/encoding.ts` 嗅 BOM、`ced` 猜其余,
+`loadMarkdownFile` 返回的文档带着编码、行尾与末尾空行数。**这些字段
+`MarkdownDocument` 和 tab state 里一直都有,保存侧也一直在读**——`save.ts` 特意
+拒绝转码非 UTF-8 文档,就是为了不悄悄改写。**桥从来没填过,所以那个拒绝永远触发不了,
+CRLF 文件存回去就变成了 LF。**
+
+**修法**:`commands/markdown.rs` 重建加载器。顺序照抄 Electron 且理由相同——
+BOM 是证据所以最优先;其次有效 UTF-8 一律当 UTF-8,**哪怕统计检测器另有偏好**
+(#3151 里希腊字母被认成 GBK 变成汉字,就是这一条防住的);剩下的才交给
+chardetng(Firefox 用的那个)。
+
+**两处是被测试逼出来的,不是想出来的**:
+
+1. **二进制会被解成乱码**。检测器**永远**给得出一个答案,所以原先被
+   `String::from_utf8` 拒掉的改名 PNG 会「打开」成一屏噪声。改成遇 NUL 字节即拒,
+   与 Electron 判据一致。
+2. **`C4 E3 BA C3` 这四个字节,chardetng 猜的是 EUC-KR(콱봤)而非 GBK(你好)**。
+   两种读法都成立,字节本身不含答案。`guess()` 有个地区提示参数正是为此——
+   用 OS 界面语言推出来传进去(`sys-locale` 本来就在依赖里)。
+   **单行文件就靠这个定夺。**
+
+**本机没有 Rust,这半边只能由 CI 验**:13 条 Rust 单测在 CI 的 Linux 作业跑通,
+四平台编译通过。渲染层 866 条本地通过。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
@@ -2013,10 +2055,9 @@ failed to bundle project: error running bundle_dmg.sh
    那是**纯散文**的数字。第 94 轮测出成本主要取决于**内容类型**：同为 60 KB，
    代码块曾是 44 ms/KB（散文 5.8）。两个修复后代码块降到约 9.9 ms/KB 且曲线变平。
    **能靠局部修复拿的都取完了**（第 96 轮逐条查证：公式/表格/列表都线性，无 bug）。
-8. **首屏那 393 ms**：探针已就位且**验证过有分辨力**（第 99 轮：Electron 下
-   `shell updated` 落在 `listeners registered` 之后，说明该探针能区分两种情况）。
-   **等一份 Tauri 日志**：落在 393 ms 窗口内 → 是 Vue 重渲染；落在窗口后 → 另有其人。
-   **这仍是可控部分里最大的一块。**
+8. ~~**首屏那 393 ms**~~ ✅ **第 113 轮结案**：确实是 Vue 重渲染（207 ms），
+   偏好改到 `app.mount()` 之前后消失。第 114 轮 CI 日志复核：
+   `mounted 255 → shell flushed 279`，只剩 24 ms。**不要重开。**
 9. ~~**入口 CSS 的 372 KB Element Plus**~~ ✅ 第 85 轮已做，372.5 → 132.7 KB。
    **待目视确认样式没塌**——这是本机验不了的那一半。
 
