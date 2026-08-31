@@ -1,5 +1,13 @@
 name: Claude Code
 
+# Answers an `@claude` mention on an issue, a PR review or a comment.
+#
+# Two things had to be fixed before it could ever fire on this fork. The actor
+# gate named `Jocs`, upstream's maintainer, who has no activity here — so every
+# event was rejected. And the action was invoked unconditionally, which on a
+# repository with no `CLAUDE_CODE_OAUTH_TOKEN` secret means a failed run under
+# every comment containing the word.
+
 on:
   issue_comment:
     types: [created]
@@ -13,7 +21,7 @@ on:
 jobs:
   claude:
     if: |
-      github.actor == 'Jocs' &&
+      github.actor == github.repository_owner &&
       (
         (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
         (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
@@ -36,8 +44,24 @@ jobs:
         with:
           fetch-depth: 1
 
+      # Secrets are not readable from a job-level `if`, so the gate is a step.
+      # Without the token the run is a no-op that passes, rather than a red mark
+      # under a comment whose author did nothing wrong.
+      - name: Check for the token
+        id: gate
+        env:
+          TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -n "$TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::CLAUDE_CODE_OAUTH_TOKEN is not set — skipping. Add it in Settings → Secrets and variables → Actions to enable @claude replies."
+          fi
+
       - name: Run Claude Code
         id: claude
+        if: steps.gate.outputs.present == 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
