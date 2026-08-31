@@ -86,18 +86,20 @@ pub fn read_file(path: String, encoding: Option<String>) -> Result<FileData, Str
     }
 }
 
+/// Both of these go through `atomic_write`, which also creates missing parent
+/// directories — so `output_file`'s one distinguishing behaviour is now what
+/// every write does, and the two are kept apart only because the renderer's
+/// `fileUtils` still has both names.
 #[tauri::command]
 pub fn write_file(path: String, data: FileWriteData) -> Result<(), String> {
-    fs::write(&path, data.into_bytes()).map_err(|e| e.to_string())
+    super::atomic_write::write_atomic(Path::new(&path), &data.into_bytes())
+        .map_err(|e| e.to_string())
 }
 
-/// `output-file` also creates any missing parent directories (fs-extra parity).
 #[tauri::command]
 pub fn output_file(path: String, data: FileWriteData) -> Result<(), String> {
-    if let Some(parent) = Path::new(&path).parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    fs::write(&path, data.into_bytes()).map_err(|e| e.to_string())
+    super::atomic_write::write_atomic(Path::new(&path), &data.into_bytes())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

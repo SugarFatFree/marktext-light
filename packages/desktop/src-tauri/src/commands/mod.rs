@@ -1,3 +1,4 @@
+pub mod atomic_write;
 pub mod boot;
 pub mod cmd;
 pub mod fs;
