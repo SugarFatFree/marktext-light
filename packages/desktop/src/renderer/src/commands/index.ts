@@ -2,6 +2,7 @@
 import bus from '../bus'
 import { delay, isOsx } from '@/util'
 import { isUpdatable } from './utils'
+import { isTauri } from '@/util/isTauri'
 import getCommandDescriptionById from './descriptions'
 import { t } from '../i18n'
 import { usePreferencesStore } from '@/store/preferences'
@@ -760,7 +761,12 @@ if (isUpdatable()) {
   })
 }
 
-if (isOsx) {
+// macOS only — and, under the Tauri shell, not at all. Nothing answers
+// `mt::make-screenshot` there, so the entry would appear in the command palette
+// and do nothing when chosen, which is worse than not offering it. The same
+// reasoning keeps Check for Update out of the palette above: absent beats
+// present-and-dead.
+if (isOsx && !isTauri()) {
   commands.push({
     id: 'edit.screenshot',
     execute: async() => {

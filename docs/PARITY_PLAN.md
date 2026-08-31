@@ -2253,6 +2253,36 @@ Tauri 下未实现的 invoke **resolve 成 `undefined`**(桥里有意为之,见 
 
 `canEdit = !isTauri()`——判据是**外壳**,不是构建标志:Electron 版能通到拥有那个文件的主进程。
 
+### 把上一轮那个模式机械化,扫了两个方向(第 123 轮)
+
+上一轮快捷键页那个 bug 的形状是:**未实现的通道 resolve 成 `undefined` → 调用方直接用 → 静默炸掉**。
+值得机械化,于是两个方向都扫了一遍。
+
+**方向一:渲染层 invoke 但桥不服务的通道**——7 处,**全部已被妥善处理**:
+`getAvailableDictionaries` 有 `isOsx || isTauri()` 早退(注释里还写着
+"asking anyway returned undefined and threw on `.map`",有人踩过);
+拼写设置页有 `osManagedSpellcheck` 守卫;`set-enabled` / `switch-language` 不用返回值。
+**这一类清干净了,快捷键页是最后一处。**
+
+**方向二:渲染层监听但没人发的通道**——16 个,逐个查证后**15 个是干净的缺席**:
+auto-update(4)、`load-state`(有意不恢复标签页)、`bootstrap-editor`(Tauri 走 boot info)、
+`cm-*`(4,自绘右键菜单直接发 bus)、`spelling-*`(2,右键菜单没搬这一节)、
+`show-export-dialog`(导出走命令中心)、`switch-tab-by-file_path`(只有一个窗口)、
+`window-zoom`(走 bus)。
+
+**只有一处是真死 UI**:`edit.screenshot` 命令的注册条件是 `isOsx`——
+**macOS 上的 Tauri 版会注册它**,命令面板里显示"截图",按下去发一个桥不处理的通道,
+什么都不发生。改成 `isOsx && !isTauri()`,与自动更新用 `isUpdatable()` 挡住是同一个先例:
+**缺席胜过在场但是死的**。
+
+**这轮扫描花了二十分钟,固化成 `unanswered-channels.spec.ts` 之后就永远免费了**:
+每个"没人发"的通道必须在白名单里,**且理由要说明这个功能从哪个入口缺席**。
+另有一条测试查过期的豁免(通道已被实现、或已不再监听)。
+
+**测试当场抓到了我自己偷的懒**:我把重复的理由写成 "As above.",
+而我自己加的那条"理由至少 20 字符"的检查直接判了失败——
+一条豁免的理由应该在原地读得懂,不该让人往上翻。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，
