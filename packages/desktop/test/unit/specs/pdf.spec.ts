@@ -1,10 +1,19 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 
 // `@/util/pdf` reads `window.path.join` and (for disk themes)
-// `window.marktext.paths` / `window.fileUtils` at call time, all normally
-// injected by the preload bridge. Stub the surface before the hoisted imports
-// run so the module graph can load. Per-test overrides below swap the
-// `window.fileUtils` behavior via `vi.resetModules()` + dynamic import.
+// `window.marktext.paths` / `window.fileUtils` — all of them inside
+// `getCssForOptions`, at call time, never while the module loads. So a test
+// changes what the module sees by assigning to those globals, and the module
+// itself is imported once, statically, below.
+//
+// It used to be re-imported per test behind `vi.resetModules()`, which bought
+// nothing (see above) and cost a great deal: `@/util/pdf` pulls in
+// `@muyajs/core`, and the first import of that graph is ~2.4 s on an idle
+// machine. Paid inside a test, that is half the 5 s budget before the test
+// starts; under a full-suite run the file failed roughly one time in fourteen,
+// always with a timeout on whichever test drew the cold import, and never when
+// run alone. As a static import it is paid once, during the file's load phase,
+// which no test's timeout applies to.
 vi.hoisted(() => {
   const w = globalThis as unknown as {
     window?: {
@@ -19,6 +28,8 @@ vi.hoisted(() => {
   w.window.fileUtils ??= { isFile: async() => false, readFile: async() => '' }
 })
 
+import { getCssForOptions, getHtmlToc } from '@/util/pdf'
+
 // NOTE: `academic.theme.css?inline` / `liber.theme.css?inline` resolve to an
 // EMPTY string under vitest (no CSS `?inline` transform is configured), so the
 // academic/liber branch contributes no CSS in this environment. We therefore
@@ -27,13 +38,13 @@ vi.hoisted(() => {
 // rather than asserting a theme-specific selector token, which is unavailable
 // here.
 
-const loadPdf = async() => {
-  return import('@/util/pdf')
-}
-
 describe('getCssForOptions', () => {
-  beforeEach(() => {
-    vi.resetModules()
+  // Restored before *and* after each test. Before, because a test may have
+  // replaced them; after, because a test that times out mid-way is abandoned
+  // where it stands, and one of these tests borrows the globals — a `finally`
+  // inside it is not reached when the test is abandoned, which is how a single
+  // slow import used to take the three tests after it down with it.
+  const install = (): void => {
     const w = globalThis as unknown as {
       window: {
         marktext: { paths: { userDataPath: string } }
@@ -42,35 +53,23 @@ describe('getCssForOptions', () => {
     }
     w.window.marktext = { paths: { userDataPath: '/userData' } }
     w.window.fileUtils = { isFile: async() => false, readFile: async() => '' }
-  })
+  }
+
+  beforeEach(install)
+  afterEach(install)
 
   it('academic/liber take the inline-theme branch (no disk access required)', async() => {
-    const { getCssForOptions } = await loadPdf()
     // Remove the disk surfaces entirely: if academic/liber tried a disk read
-    // these would throw. They must not.
-    //
-    // Put back explicitly rather than leaving it to the next `beforeEach`.
-    // This file has twice failed a full-suite run with `window.marktext`
-    // missing where that hook had just set it, twice cost an afternoon
-    // attributing it, and never reproduced alone. Whatever the mechanism,
-    // a test that borrows a global and does not return it is the only thing
-    // here that could leave one missing — so it returns it.
+    // these would throw. They must not. `afterEach` puts them back.
     const w = globalThis as unknown as { window: Record<string, unknown> }
-    const borrowed = { marktext: w.window.marktext, fileUtils: w.window.fileUtils }
     delete w.window.marktext
     delete w.window.fileUtils
 
-    try {
-      await expect(getCssForOptions({ theme: 'academic' })).resolves.toBeTypeOf('string')
-      await expect(getCssForOptions({ theme: 'liber' })).resolves.toBeTypeOf('string')
-    } finally {
-      w.window.marktext = borrowed.marktext
-      w.window.fileUtils = borrowed.fileUtils
-    }
+    await expect(getCssForOptions({ theme: 'academic' })).resolves.toBeTypeOf('string')
+    await expect(getCssForOptions({ theme: 'liber' })).resolves.toBeTypeOf('string')
   })
 
   it('appends no theme CSS for theme:"default" (disk lookup misses) or {}', async() => {
-    const { getCssForOptions } = await loadPdf()
     // 'default' is NOT special-cased: it falls into the disk branch, which
     // reads window.marktext.paths + window.fileUtils.isFile (→ false here).
     const def = await getCssForOptions({ theme: 'default' })
@@ -90,7 +89,6 @@ describe('getCssForOptions', () => {
     }
     w.window.fileUtils = { isFile, readFile }
 
-    const { getCssForOptions } = await loadPdf()
     const css = await getCssForOptions({ theme: 'mytheme' })
 
     expect(css).toContain('.custom{}')
@@ -103,7 +101,6 @@ describe('getCssForOptions', () => {
     }
     w.window.fileUtils = { isFile: async() => false, readFile: async() => '.custom{}' }
 
-    const { getCssForOptions } = await loadPdf()
     const css = await getCssForOptions({ theme: 'mytheme' })
 
     expect(css).not.toContain('.custom{}')
@@ -117,14 +114,12 @@ describe('getCssForOptions', () => {
     }
     w.window.fileUtils = { isFile: async() => true, readFile: async() => '.a > .b{color:red}' }
 
-    const { getCssForOptions } = await loadPdf()
     const css = await getCssForOptions({ theme: 'mytheme' })
 
     expect(css).toContain('.a > .b{color:red}')
   })
 
   it('emits font-family/size/line-height rules into .markdown-body', async() => {
-    const { getCssForOptions } = await loadPdf()
     const css = await getCssForOptions({ fontFamily: 'Foo', fontSize: 14, lineHeight: 1.6 })
 
     expect(css).toContain('font-family:"Foo"')
@@ -148,7 +143,6 @@ describe('getCssForOptions', () => {
       readFile: async() => '.markdown-body{font-size:99px;line-height:9;font-family:"Theme";}'
     }
 
-    const { getCssForOptions } = await loadPdf()
     const css = await getCssForOptions({
       theme: 'mytheme',
       fontFamily: 'Foo',
@@ -165,7 +159,6 @@ describe('getCssForOptions', () => {
   })
 
   it('adds heading auto-numbering CSS when autoNumberingHeadings is set', async() => {
-    const { getCssForOptions } = await loadPdf()
     const css = await getCssForOptions({ autoNumberingHeadings: true })
 
     expect(css).toContain('counter-reset')
@@ -173,7 +166,6 @@ describe('getCssForOptions', () => {
   })
 
   it('hides front matter when showFrontMatter is false, not when true', async() => {
-    const { getCssForOptions } = await loadPdf()
     const hidden = await getCssForOptions({ showFrontMatter: false })
     const shown = await getCssForOptions({ showFrontMatter: true })
 
@@ -182,7 +174,6 @@ describe('getCssForOptions', () => {
   })
 
   it('emits header/footer font-size rules when headerFooterFontSize is set', async() => {
-    const { getCssForOptions } = await loadPdf()
     const css = await getCssForOptions({ headerFooterFontSize: 9 })
 
     expect(css).toContain('font-size: 9px;')
@@ -190,7 +181,6 @@ describe('getCssForOptions', () => {
   })
 
   it('wraps printable CSS in an @media print @page block by default', async() => {
-    const { getCssForOptions } = await loadPdf()
     const printable = await getCssForOptions({})
     const styledHtml = await getCssForOptions({ type: 'styledHtml' })
 
@@ -202,7 +192,6 @@ describe('getCssForOptions', () => {
 
 describe('getHtmlToc', () => {
   it('renders a "Table of Contents" title and excludes the top H1 by default', async() => {
-    const { getHtmlToc } = await loadPdf()
     const toc = [
       { lvl: 1, content: 'Top' },
       { lvl: 2, content: 'Sub' }
@@ -217,7 +206,6 @@ describe('getHtmlToc', () => {
   })
 
   it('includes the top heading and honors a custom tocTitle', async() => {
-    const { getHtmlToc } = await loadPdf()
     const toc = [
       { lvl: 1, content: 'Top' },
       { lvl: 2, content: 'Sub' }
@@ -230,7 +218,6 @@ describe('getHtmlToc', () => {
   })
 
   it('clones its input — repeated calls are stable (the helper shifts internally)', async() => {
-    const { getHtmlToc } = await loadPdf()
     const toc = [
       { lvl: 1, content: 'Top' },
       { lvl: 2, content: 'Sub' }
@@ -245,7 +232,6 @@ describe('getHtmlToc', () => {
   })
 
   it('dedups identical heading slugs in document order with -N suffixes', async() => {
-    const { getHtmlToc } = await loadPdf()
     const toc = [
       { lvl: 2, content: 'Installation' },
       { lvl: 2, content: 'Installation' }
@@ -257,7 +243,6 @@ describe('getHtmlToc', () => {
   })
 
   it('returns an empty string when the TOC has no qualifying entries', async() => {
-    const { getHtmlToc } = await loadPdf()
     // A lone top-level H1 is shifted away by the default (exclude-top) path,
     // leaving nothing to render.
     expect(getHtmlToc([{ lvl: 1, content: 'Only' }], {})).toBe('')
