@@ -2199,6 +2199,27 @@ Electron 的主进程**拥有**偏好文件:设置窗口请它写,它写完向**
 `announcePreferences` 放在 `preferences.ts`(两处调用方共用),
 `preference-broadcast.spec.ts` 把这条区分锁住:变更必须广播、答复必须保持本地。
 
+### E2E 偶发一次:`all-blocks-roundtrip`(第 121 轮,机制未定,已存证)
+
+`all-blocks-roundtrip.spec.ts:167` 等编辑器变脏,5 秒没等到。**10 次里第一次。**
+
+**先排除了自己的改动**:该轮只碰了 `tauri-bridge/*`、一个单测、文档,
+而 `installTauriBridge()` 只在 `__TAURI_INTERNALS__` 存在时执行——**e2e 跑 Electron,
+这段代码不可达**。同一 commit 重跑即过。
+
+**两个假设,都被查证否掉**(记下来,别再重复走一遍):
+
+1. **并发抢资源**——失败前日志里有一份 CPU profile。但
+   `playwright.config.ts` 是 `workers: 1`,**串行**,那份 profile 是之前跑完的。
+2. **CodeMirror 还没挂载**——`setSourceMarkdown` 里 `if (cm && cm.CodeMirror)`
+   会静默跳过。但 `enterSourceMode` **确实**等了元素 attached **且** `cm.CodeMirror`
+   存在,各 10 秒超时。不成立。
+
+**没有机制就不假装有,也不去调大超时把它变绿。** 存了失败日志,
+并且**独立地**修掉那个静默守卫:改成缺 CodeMirror 就抛错。
+这不是修因,是保证**下次真失败时输出里能指回现场**——
+前一次 `pdf.spec` 查了三轮才破,就是因为前两次没留下可对比的东西。
+
 ## 下一步（按优先级）
 
 1. **深色模式目视验收**（唯一悬着的用户要求）：本机 sudo 需密码、装不了 webkit2gtk，

@@ -314,7 +314,13 @@ export const setSourceMarkdown = async(
     const cm = document.querySelector('.source-code .CodeMirror') as
       | (Element & { CodeMirror?: { setValue(v: string): void } })
       | null
-    if (cm && cm.CodeMirror) cm.CodeMirror.setValue(value)
+    // Throw rather than skip. `enterSourceMode` has already waited for both the
+    // element and its CodeMirror instance, so reaching here without one is a
+    // real problem — and swallowing it set no content at all, leaving the
+    // caller to fail several assertions later on a tab that was never dirtied,
+    // with nothing in the output pointing back here.
+    if (!cm?.CodeMirror) throw new Error('source mode is open but CodeMirror is not there')
+    cm.CodeMirror.setValue(value)
   }, markdown)
   await exitSourceMode(page, app)
 }
