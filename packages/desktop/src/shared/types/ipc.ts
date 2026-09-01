@@ -317,9 +317,18 @@ export interface BootInfo {
   }
   isUpdatable: boolean
   MARKDOWN_INCLUSIONS: string[]
-  // File to open on launch (CLI arg / file association), resolved by the Tauri
-  // backend. Absent under Electron.
-  initialFile?: { markdown: string; filename: string; pathname: string } | null
+  // Files to open on launch (CLI args / file associations), resolved by the
+  // Tauri backend. Absent under Electron.
+  initialFiles?: Array<{
+    markdown: string
+    filename: string
+    pathname: string
+    encoding?: { encoding: string; isBom: boolean }
+    lineEnding?: string
+    adjustLineEndingOnSave?: boolean
+    trimTrailingNewline?: number
+    isMixedLineEndings?: boolean
+  }>
   // OS UI language resolved to an available locale (e.g. 'zh-CN'). Tauri only.
   locale?: string
 }

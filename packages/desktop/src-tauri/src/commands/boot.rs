@@ -7,20 +7,14 @@ use serde::Serialize;
 use std::collections::HashMap;
 use tauri::Manager;
 
+use super::markdown::MarkdownDocument;
+
 #[derive(Serialize)]
 pub struct BootPaths {
     resources: String,
     user_data: String,
     cwd: String,
     ripgrep_binary: String,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InitialFile {
-    markdown: String,
-    filename: String,
-    pathname: String,
 }
 
 #[derive(Serialize)]
@@ -36,8 +30,8 @@ pub struct BootInfo {
     is_updatable: bool,
     #[serde(rename = "MARKDOWN_INCLUSIONS")]
     markdown_inclusions: Vec<String>,
-    /// File to open on launch, taken from the CLI argument / file association.
-    initial_file: Option<InitialFile>,
+    /// Files to open on launch, taken from CLI arguments / file associations.
+    initial_files: Vec<MarkdownDocument>,
     /// OS UI language resolved to an available locale (e.g. "zh-CN"), so the
     /// renderer loads the matching translations.
     locale: String,
@@ -46,7 +40,7 @@ pub struct BootInfo {
 /// Scan the process arguments for a readable file to open on launch (CLI use:
 /// `marktext-light path/to/file.md`, and Windows/Linux file associations, which
 /// also pass the path as an argument).
-fn initial_file_from_args() -> Option<InitialFile> {
+fn initial_files_from_args() -> Vec<MarkdownDocument> {
     file_from_args(std::env::args().skip(1))
 }
 
@@ -54,28 +48,18 @@ fn initial_file_from_args() -> Option<InitialFile> {
 /// is funnelled into the running instance rather than starting a new process,
 /// so the single-instance handler needs to run this over *that* process's argv
 /// (already stripped of argv[0]) instead of this one's.
-pub fn file_from_args(args: impl Iterator<Item = String>) -> Option<InitialFile> {
-    for arg in args {
-        if arg.starts_with('-') {
-            continue;
-        }
-        let path = std::path::Path::new(&arg);
-        if !path.is_file() {
-            continue;
-        }
-        if let Ok(markdown) = std::fs::read_to_string(path) {
-            let filename = path
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_default();
-            return Some(InitialFile {
-                markdown,
-                filename,
-                pathname: path.to_string_lossy().into_owned(),
-            });
-        }
-    }
-    None
+pub fn file_from_args(args: impl Iterator<Item = String>) -> Vec<MarkdownDocument> {
+    args.filter(|arg| !arg.starts_with('-'))
+        .filter_map(|arg| {
+            let path = std::path::Path::new(&arg)
+            if !path.is_file() {
+                return None
+            }
+            // Use the same decoder as normal file opens so CLI and file-association
+            // launches support BOMs and legacy encodings too.
+            super::markdown::load_markdown(&arg, "lf", false).ok()
+        })
+        .collect()
 }
 
 const MARKDOWN_EXTENSIONS: [&str; 11] = [
@@ -154,15 +138,60 @@ pub fn boot_info(app: tauri::AppHandle) -> Result<BootInfo, String> {
         // Auto-update lands in phase 7 (tauri-plugin-updater).
         is_updatable: false,
         markdown_inclusions: MARKDOWN_EXTENSIONS.iter().map(|s| s.to_string()).collect(),
-        initial_file: {
-            // The first file's contents ride along with this one round trip, so
-            // the renderer never makes a second call for them. Traced
-            // separately because a large document makes this read the one part
-            // of `boot_info` that is not constant time.
-            let file = initial_file_from_args();
-            crate::startup::trace("boot_info: initial file read");
-            file
+        initial_files: {
+            // File contents ride along with this one round trip, so the renderer
+            // never makes a second call for CLI or file-association launches.
+            let files = initial_files_from_args();
+            crate::startup::trace("boot_info: initial files read");
+            files
         },
         locale: crate::menu::i18n::resolve_locale().to_string(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+
+    fn temp_path(label: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "marktext-light-boot-{label}-{}",
+            std::process::id()
+        ))
+    }
+
+    #[test]
+    fn loads_all_readable_startup_files() {
+        let first = temp_path("first.md");
+        let second = temp_path("second.md");
+        fs::write(&first, b"# First\n").unwrap();
+        fs::write(&second, b"# Second\n").unwrap();
+
+        let files = file_from_args(vec![
+            first.to_string_lossy().into_owned(),
+            second.to_string_lossy().into_owned(),
+        ]
+        .into_iter());
+
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0].markdown, "# First\n");
+        assert_eq!(files[1].markdown, "# Second\n");
+        let _ = fs::remove_file(first);
+        let _ = fs::remove_file(second);
+    }
+
+    #[test]
+    fn startup_loader_strips_utf8_bom() {
+        let path = temp_path("bom.md");
+        fs::write(&path, [0xef, 0xbb, 0xbf, b'#', b' ', b'T', b'\n']).unwrap();
+
+        let files = file_from_args(vec![path.to_string_lossy().into_owned()].into_iter());
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].markdown, "# T\n");
+        assert!(files[0].encoding.is_bom);
+        let _ = fs::remove_file(path);
+    }
 }

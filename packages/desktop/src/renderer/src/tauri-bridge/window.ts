@@ -10,6 +10,7 @@
 
 import { getCurrentWindow } from '@tauri-apps/api/window'
 
+import { clearTrackedOpenFiles } from './open-files'
 import {
   askAboutUnsavedFiles,
   saveDocument,
@@ -41,6 +42,7 @@ export const installCloseGuard = (dispatchLocal: DispatchLocal, windowType: stri
 
 export const closeWindow = async(): Promise<void> => {
   closeConfirmed = true
+  clearTrackedOpenFiles()
   await getCurrentWindow().destroy()
 }
 

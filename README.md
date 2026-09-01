@@ -45,6 +45,12 @@
   <a href="docs/i18n/README-fr.md#readme">
     <span>:fr:</span>
   </a>
+  <a href="docs/i18n/README-de.md#readme">
+    <span>:de:</span>
+  </a>
+  <a href="docs/i18n/README-ar.md#readme">
+    <span>:saudi_arabia:</span>
+  </a>
   <a href="docs/i18n/README-tr.md#readme">
     <span>:tr:</span>
   </a>

@@ -17,11 +17,10 @@ fn handle_second_instance(app: &tauri::AppHandle, argv: Vec<String>) {
         let _ = window.unminimize();
         let _ = window.set_focus();
     }
-    let Some(file) = commands::boot::file_from_args(argv.into_iter().skip(1)) else {
-        return;
-    };
-    if let Err(err) = app.emit("mt::open-new-tab", serde_json::json!([file, null, true])) {
-        eprintln!("[single-instance] failed to emit mt::open-new-tab: {err}");
+    for file in commands::boot::file_from_args(argv.into_iter().skip(1)) {
+        if let Err(err) = app.emit("mt::open-new-tab", serde_json::json!([file, null, true])) {
+            eprintln!("[single-instance] failed to emit mt::open-new-tab: {err}");
+        }
     }
 }
 

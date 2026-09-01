@@ -41,6 +41,12 @@ export const untrackOpenFile = (pathname: string | null | undefined): void => {
   syncWatch()
 }
 
+export const clearTrackedOpenFiles = (): void => {
+  if (openPaths.size === 0) return
+  openPaths.clear()
+  syncWatch()
+}
+
 interface DiskChange {
   pathname: string
   kind: 'change' | 'unlink'

@@ -5,13 +5,19 @@ on:
     types: [opened, synchronize, reopened]
     paths:
       - 'package.json'
+      - 'packages/desktop/package.json'
       - 'pnpm-lock.yaml'
+      - 'scripts/validateLicenses.ts'
+      - 'scripts/thirdPartyChecker.ts'
   push:
     branches:
       - develop
     paths:
       - 'package.json'
+      - 'packages/desktop/package.json'
       - 'pnpm-lock.yaml'
+      - 'scripts/validateLicenses.ts'
+      - 'scripts/thirdPartyChecker.ts'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
