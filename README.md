@@ -114,6 +114,48 @@ Everything below is measured on this repository's own builds, not estimated.
 - **Dark mode** follows the OS by default and remembers an explicit choice across
   restarts, including the frame before any stylesheet has loaded.
 
+## How it compares
+
+Two tables, because the three projects are not knowable to the same depth.
+Everything in the first column of both tables was measured in this repository.
+The MarkText column comes from reading its source, which is the same codebase
+this was forked from. The Typora column comes from typora.io and store.typora.io,
+checked on 2026-09-01 — Typora is a commercial product with no public source, so
+nothing about its internals is claimed here.
+
+| | marktext-light | MarkText | Typora |
+|---|---|---|---|
+| Licence | MIT | MIT | Proprietary, no public source |
+| Price | Free | Free | US$14.99 without tax, 15-day trial, up to 3 devices |
+| Shell | Tauri 2 — links the system WebView | Electron 42 — ships its own Chromium | Not stated by the vendor |
+| Windows installer | **6 MB** | Not measured here | Not published |
+| Other installers | deb/rpm 8 MB, dmg 7 MB, AppImage 82 MB | Not measured here | Not published |
+| Builds published for | Linux x64, Windows x64, macOS x64 + arm64 | The same, plus Windows arm64 | macOS, Windows 64-bit/32-bit/ARM, Linux |
+| Interface languages | 10 | 10 | Not stated by the vendor |
+
+The AppImage is the outlier for a reason: it carries the GTK and WebKit
+libraries the other Linux packages take from the distribution. Size is the one
+axis where linking the system WebView shows up plainly, and it is not a claim
+about speed — see the note under **What the fork changes**.
+
+### Against the MarkText it was forked from
+
+Both directions. The features below are absent from this build because the
+Electron main process implemented them and nothing here has replaced it yet;
+they are tracked, not forgotten.
+
+| | marktext-light | MarkText |
+|---|---|---|
+| Opening several files | Tabs in one window, always | Tabs by default; a preference can open new windows instead |
+| Tabs restored on relaunch | No — deliberate; the recent-files drawer is what survives | Yes |
+| Saving | Atomic: written to a temp file, flushed, then renamed | Atomic (`write-file-atomic`) |
+| Legacy encodings | GBK, Big5, EUC-KR, Shift_JIS, UTF-16, and a byte-order mark stripped on read | The same, via `ced` + `iconv-lite` |
+| Window size and position | Remembered, and only restored onto a display that still exists | The same, via `electron-window-state` |
+| **Auto-update** | **No** — and absent from every menu rather than present and dead | Yes |
+| **Custom keybindings** | **No** — the list is shown, the editing controls are disabled and say why | Yes |
+| **Uploading images to a host** | **No** — the attempt fails with a message and the image is saved beside the document | Yes, through the PicGo CLI or a script of your own |
+| **Spell-check dictionaries** | **No** — spelling is the system WebView's, with no dictionary list and no custom words | Chromium's spell checker, with a dictionary list and a custom word list |
+
 ## Version
 
 | Version | Date | Notes |
