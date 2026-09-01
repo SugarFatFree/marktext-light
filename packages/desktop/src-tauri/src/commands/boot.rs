@@ -51,7 +51,7 @@ fn initial_files_from_args() -> Vec<MarkdownDocument> {
 pub fn file_from_args(args: impl Iterator<Item = String>) -> Vec<MarkdownDocument> {
     args.filter(|arg| !arg.starts_with('-'))
         .filter_map(|arg| {
-            let path = std::path::Path::new(&arg)
+            let path = std::path::Path::new(&arg);
             if !path.is_file() {
                 return None
             }
