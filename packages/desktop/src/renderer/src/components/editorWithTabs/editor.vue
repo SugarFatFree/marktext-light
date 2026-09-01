@@ -284,6 +284,7 @@ const rowInput = ref<InputNumberInstance | null>(null)
 let printer: Printer | null = null
 let spellchecker: any = null
 let switchLanguageCommand: SpellcheckerLanguageCommand | null = null
+let registerCommandTimer: ReturnType<typeof setTimeout> | null = null
 let imageViewer: SimpleImageViewer | null = null
 // The engine has no `scroll` event; we listen on the scroll container directly.
 let scrollHandler: ((e: Event) => void) | null = null
@@ -1855,7 +1856,10 @@ onMounted(() => {
 
   // Register command palette entry for switching spellchecker language.
   switchLanguageCommand = new SpellcheckerLanguageCommand(spellchecker)
-  setTimeout(() => bus.emit('cmd::register-command', switchLanguageCommand), 100)
+  registerCommandTimer = setTimeout(() => {
+    registerCommandTimer = null
+    bus.emit('cmd::register-command', switchLanguageCommand)
+  }, 100)
 
   if (typewriter.value) {
     scrollToCursor()
@@ -2014,6 +2018,10 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (registerCommandTimer) {
+    clearTimeout(registerCommandTimer)
+    registerCommandTimer = null
+  }
   bus.off('file-loaded', setMarkdownToEditor)
   bus.off('invalidate-image-cache', handleInvalidateImageCache)
   bus.off('undo', handleUndo)
