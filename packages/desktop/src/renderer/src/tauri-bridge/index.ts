@@ -214,6 +214,16 @@ const handleFormatLinkClick = async(payload: unknown): Promise<void> => {
   if (hasMarkdownExtension(normalized)) {
     await openFileAsTab(normalized, {})
   } else {
+    const executableSafeName = pathe.basename(normalized).replace(/[. ]+$/g, '')
+    const extension = pathe.extname(executableSafeName).slice(1).toLowerCase()
+    if (DANGEROUS_LINK_EXTENSIONS.has(extension)) {
+      dispatchLocal('mt::show-notification', [{
+        title: t('dialog.unsafeFileTitle'),
+        type: 'error',
+        message: t('dialog.unsafeFileMessage')
+      }])
+      return
+    }
     await openPath(normalized)
   }
 }
@@ -548,6 +558,48 @@ const MARKDOWN_EXTENSIONS = [
   'text',
   'txt'
 ] as const
+
+const DANGEROUS_LINK_EXTENSIONS = new Set([
+  'app',
+  'appimage',
+  'bat',
+  'cmd',
+  'com',
+  'command',
+  'cpl',
+  'desktop',
+  'exe',
+  'gadget',
+  'hta',
+  'inf',
+  'jar',
+  'js',
+  'jse',
+  'jnlp',
+  'lnk',
+  'msc',
+  'msi',
+  'msp',
+  'ps1',
+  'ps1xml',
+  'ps2',
+  'ps2xml',
+  'psc1',
+  'psc2',
+  'psd1',
+  'psm1',
+  'reg',
+  'run',
+  'scf',
+  'scr',
+  'sh',
+  'vbe',
+  'vbs',
+  'wsc',
+  'wsf',
+  'wsh',
+  'ws'
+])
 
 const hasMarkdownExtension = (filename: string): boolean => {
   if (!filename || typeof filename !== 'string') return false
