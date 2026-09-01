@@ -940,11 +940,11 @@ export const useEditorStore = defineStore('editor', {
       // self-bootstrap once the listeners above are set up: open the CLI /
       // file-association file if one was passed, otherwise a blank tab.
       if (isTauri()) {
-        const initialFiles = (window as unknown as {
-          __MT_INITIAL_FILES__?: MarkdownDocument[]
-        }).__MT_INITIAL_FILES__ ?? []
+        const initialPaths = (window as unknown as {
+          __MT_INITIAL_PATHS__?: string[]
+        }).__MT_INITIAL_PATHS__ ?? []
         bootstrapEditor({
-          addBlankTab: initialFiles.length === 0,
+          addBlankTab: initialPaths.length === 0,
           markdownList: [],
           lineEnding: 'lf',
           // The file drawer is the app's entry point here — it carries the
@@ -954,14 +954,11 @@ export const useEditorStore = defineStore('editor', {
           tabBarVisibility: true,
           sourceCodeModeEnabled: false
         })
-        initialFiles.forEach((markdownDocument, index) => {
-          trackOpenFile(markdownDocument.pathname)
-          this.NEW_TAB_WITH_CONTENT({
-            markdownDocument,
-            options: {},
-            selected: index === 0
-          })
-        })
+        // Open after bootstrap so the normal async loader applies user
+        // preferences and reports unreadable files instead of blocking startup.
+        for (const pathname of initialPaths) {
+          window.electron.ipcRenderer.send('mt::open-file', pathname, {})
+        }
         // Keep the theme in sync with the OS and the native Theme menu.
         initThemeController((theme) => preferencesStore.SET_USER_PREFERENCE({ theme }))
       }

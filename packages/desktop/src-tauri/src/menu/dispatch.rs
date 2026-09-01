@@ -89,7 +89,12 @@ fn open_file<R: Runtime>(app: &AppHandle<R>) {
             let Some(path) = to_pathbuf(selected) else {
                 return;
             };
-            match crate::commands::markdown::load_markdown(&path.to_string_lossy(), "lf", false) {
+            let preferred_eol = if cfg!(windows) { "crlf" } else { "lf" };
+            match crate::commands::markdown::load_markdown(
+                &path.to_string_lossy(),
+                preferred_eol,
+                false,
+            ) {
                 Ok(doc) => {
                     emit(&handle, "mt::open-new-tab", json!([doc, null_opts(), true]));
                 }

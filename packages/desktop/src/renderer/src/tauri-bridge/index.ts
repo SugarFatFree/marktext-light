@@ -773,8 +773,9 @@ function applyGlobals(boot: BootInfo): void {
   w.ripgrep = extras.ripgrep
   w.uploader = extras.uploader
   w.fonts = extras.fonts
-  // Consumed by the editor's Tauri self-bootstrap to open CLI/associated files.
-  w.__MT_INITIAL_FILES__ = boot.initialFiles ?? []
+  // Consumed after the editor has installed its listeners, so opening a large
+  // CLI/associated file cannot block the first usable frame.
+  w.__MT_INITIAL_PATHS__ = boot.initialPaths ?? []
 }
 
 /**

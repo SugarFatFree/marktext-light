@@ -30,8 +30,8 @@ pub struct BootInfo {
     is_updatable: bool,
     #[serde(rename = "MARKDOWN_INCLUSIONS")]
     markdown_inclusions: Vec<String>,
-    /// Files to open on launch, taken from CLI arguments / file associations.
-    initial_files: Vec<MarkdownDocument>,
+    /// Paths to open after the renderer has installed its listeners.
+    initial_paths: Vec<String>,
     /// OS UI language resolved to an available locale (e.g. "zh-CN"), so the
     /// renderer loads the matching translations.
     locale: String,
@@ -40,26 +40,27 @@ pub struct BootInfo {
 /// Scan the process arguments for a readable file to open on launch (CLI use:
 /// `marktext-light path/to/file.md`, and Windows/Linux file associations, which
 /// also pass the path as an argument).
-fn initial_files_from_args() -> Vec<MarkdownDocument> {
-    file_from_args(std::env::args().skip(1))
+fn initial_paths_from_args() -> Vec<String> {
+    paths_from_args(std::env::args().skip(1))
 }
 
 /// The argument scan itself, over an arbitrary argument list. A second launch
 /// is funnelled into the running instance rather than starting a new process,
 /// so the single-instance handler needs to run this over *that* process's argv
 /// (already stripped of argv[0]) instead of this one's.
-pub fn file_from_args(args: impl Iterator<Item = String>) -> Vec<MarkdownDocument> {
+pub fn paths_from_args(args: impl Iterator<Item = String>) -> Vec<String> {
     args.filter(|arg| !arg.starts_with('-'))
-        .filter_map(|arg| {
-            let path = std::path::Path::new(&arg);
-            if !path.is_file() {
-                return None
-            }
-            // Use the same decoder as normal file opens so CLI and file-association
-            // launches support BOMs and legacy encodings too.
-            super::markdown::load_markdown(&arg, "lf", false).ok()
-        })
+        .filter(|arg| std::path::Path::new(arg).is_file())
         .collect()
+}
+
+pub fn file_from_args(args: impl Iterator<Item = String>) -> Vec<MarkdownDocument> {
+    paths_from_args(args).into_iter().filter_map(|arg| {
+        // Use the same decoder as normal file opens so second-instance launches
+        // support BOMs and legacy encodings too.
+        let preferred_eol = if cfg!(windows) { "crlf" } else { "lf" };
+        super::markdown::load_markdown(&arg, preferred_eol, false).ok()
+    }).collect()
 }
 
 const MARKDOWN_EXTENSIONS: [&str; 11] = [
@@ -138,12 +139,12 @@ pub fn boot_info(app: tauri::AppHandle) -> Result<BootInfo, String> {
         // Auto-update lands in phase 7 (tauri-plugin-updater).
         is_updatable: false,
         markdown_inclusions: MARKDOWN_EXTENSIONS.iter().map(|s| s.to_string()).collect(),
-        initial_files: {
-            // File contents ride along with this one round trip, so the renderer
-            // never makes a second call for CLI or file-association launches.
-            let files = initial_files_from_args();
-            crate::startup::trace("boot_info: initial files read");
-            files
+        initial_paths: {
+            // Defer file reads until the renderer has mounted so a large startup
+            // document cannot block the first usable frame.
+            let paths = initial_paths_from_args();
+            crate::startup::trace("boot_info: initial paths collected");
+            paths
         },
         locale: crate::menu::i18n::resolve_locale().to_string(),
     })
