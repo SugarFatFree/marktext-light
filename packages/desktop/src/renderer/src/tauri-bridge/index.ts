@@ -421,6 +421,7 @@ type Listener = (event: unknown, ...args: unknown[]) => void
 // on the Tauri bus so a Rust `emit` and a bridge-side `dispatchLocal` are
 // indistinguishable to the renderer.
 const localListeners = new Map<string, Set<Listener>>()
+const listenerDisposers = new Map<string, Set<() => void>>()
 
 const dispatchLocal = (channel: string, args: unknown[]): void => {
   const listeners = localListeners.get(channel)
@@ -434,8 +435,12 @@ const registerEvent = (channel: string, listener: Listener, once: boolean): (() 
   let disposed = false
 
   const dispose = (): void => {
+    if (disposed) return
     disposed = true
     localListeners.get(channel)?.delete(local)
+    if (localListeners.get(channel)?.size === 0) localListeners.delete(channel)
+    listenerDisposers.get(channel)?.delete(dispose)
+    if (listenerDisposers.get(channel)?.size === 0) listenerDisposers.delete(channel)
     if (unlisten) unlisten()
   }
 
@@ -446,6 +451,9 @@ const registerEvent = (channel: string, listener: Listener, once: boolean): (() 
   const forChannel = localListeners.get(channel) ?? new Set<Listener>()
   forChannel.add(local)
   localListeners.set(channel, forChannel)
+  const disposers = listenerDisposers.get(channel) ?? new Set<() => void>()
+  disposers.add(dispose)
+  listenerDisposers.set(channel, disposers)
 
   fire(
     listen(channel, (evt) => {
@@ -474,8 +482,14 @@ const buildIpcWrapper = () => ({
   invoke: (channel: string, ...args: unknown[]) => routedInvoke(channel, args),
   on: (channel: string, listener: Listener) => registerEvent(channel, listener, false),
   once: (channel: string, listener: Listener) => registerEvent(channel, listener, true),
-  removeAllListeners: () => {
-    // Per-listener disposers are returned by on()/once(); callers use those.
+  removeAllListeners: (channel?: string) => {
+    if (channel == null) {
+      for (const disposers of [...listenerDisposers.values()]) {
+        for (const dispose of [...disposers]) dispose()
+      }
+      return
+    }
+    for (const dispose of [...(listenerDisposers.get(channel) ?? [])]) dispose()
   }
 })
 

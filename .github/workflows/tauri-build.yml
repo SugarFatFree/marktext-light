@@ -22,7 +22,14 @@ on:
     paths:
       - 'packages/desktop/src-tauri/**'
       - 'packages/desktop/vite.tauri.config.ts'
-      - 'packages/desktop/src/renderer/src/tauri-bridge/**'
+      - 'packages/desktop/src/renderer/**'
+      - 'packages/desktop/static/**'
+      - 'packages/muya/**'
+      - 'packages/muyajs/**'
+      - 'packages/desktop/package.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - '.github/workflows/tauri-build.yml'
 
 concurrency:

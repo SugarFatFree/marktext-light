@@ -198,7 +198,7 @@ export default [
 
   // 10. i18n JSON locales
   {
-    files: ['packages/desktop/src/shared/i18n/locales/*.json'],
+    files: ['packages/desktop/static/locales/*.json'],
     plugins: {
       'i18n-json': pluginI18nJson
     },
@@ -208,7 +208,7 @@ export default [
       'i18n-json/identical-keys': [
         'error',
         {
-          filePath: 'packages/desktop/src/shared/i18n/locales/en.json'
+          filePath: 'packages/desktop/static/locales/en.json'
         }
       ]
     }
