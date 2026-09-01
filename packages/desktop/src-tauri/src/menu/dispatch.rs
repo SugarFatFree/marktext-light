@@ -89,13 +89,8 @@ fn open_file<R: Runtime>(app: &AppHandle<R>) {
             let Some(path) = to_pathbuf(selected) else {
                 return;
             };
-            match std::fs::read_to_string(&path) {
-                Ok(markdown) => {
-                    let doc = json!({
-                        "markdown": markdown,
-                        "filename": file_name(&path),
-                        "pathname": path.to_string_lossy(),
-                    });
+            match crate::commands::markdown::load_markdown(&path.to_string_lossy(), "lf", false) {
+                Ok(doc) => {
                     emit(&handle, "mt::open-new-tab", json!([doc, null_opts(), true]));
                 }
                 Err(err) => eprintln!("[menu] open failed: {err}"),
@@ -112,12 +107,6 @@ fn open_folder<R: Runtime>(app: &AppHandle<R>) {
         };
         emit(&handle, "mt::open-directory", json!(path.to_string_lossy()));
     });
-}
-
-fn file_name(path: &PathBuf) -> String {
-    path.file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default()
 }
 
 fn null_opts() -> serde_json::Value {

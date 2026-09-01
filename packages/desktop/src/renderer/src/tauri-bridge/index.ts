@@ -182,6 +182,42 @@ const openFileAsTab = async(pathname: string, options: unknown): Promise<void> =
   dispatchLocal('mt::open-new-tab', [document, options ?? {}, true])
 }
 
+const handleFormatLinkClick = async(payload: unknown): Promise<void> => {
+  const { data, dirname } = (payload ?? {}) as {
+    data?: { href?: string; text?: string }
+    dirname?: string
+  }
+  const rawUrl = data?.href || data?.text
+  if (!rawUrl) return
+
+  const urlCandidate = rawUrl.replace(/^<(.+)>$/, '$1')
+  if (urlCandidate === rawUrl && /\s/.test(rawUrl)) {
+    dispatchLocal('mt::show-notification', [{
+      title: t('notifications.fileReadFailedTitle'),
+      type: 'error',
+      message: t('notifications.pathFailedMessage', {
+        path: rawUrl,
+        msg: t('notifications.fileReadFailedTitle')
+      })
+    }])
+    return
+  }
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(urlCandidate)) {
+    await openUrl(urlCandidate)
+    return
+  }
+
+  const pathname = dirname && !pathe.isAbsolute(urlCandidate)
+    ? pathe.join(dirname, urlCandidate)
+    : urlCandidate
+  const normalized = pathe.normalize(decodeURIComponent(pathname))
+  if (hasMarkdownExtension(normalized)) {
+    await openFileAsTab(normalized, {})
+  } else {
+    await openPath(normalized)
+  }
+}
+
 /** Prompt for a markdown file and open it as another tab in this window. */
 const askForOpenFile = async(): Promise<void> => {
   const selected = await showOpenDialog({
@@ -369,12 +405,14 @@ const handleSend = (channel: string, args: unknown[]): void => {
     case 'mt::update-sidebar-menu':
     case 'mt::view-layout-changed':
     case 'mt::set-editor-format-menus-enabled':
-    case 'mt::format-link-click':
       // Menu state: Electron pushed these so the native menu could tick the
       // active format, line ending and layout. The Tauri menu does not reflect
       // state yet, so there is nothing to update — and `editor-selection-changed`
       // fires on every cursor move, so warning here would flood the console and
       // cost real time on a large document.
+      return
+    case 'mt::format-link-click':
+      fire(handleFormatLinkClick(args[0]))
       return
     case 'mt::win::minimize':
       fire(win().minimize())

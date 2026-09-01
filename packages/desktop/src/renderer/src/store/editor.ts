@@ -33,6 +33,7 @@ import type {
 } from '@shared/types/files'
 import { isTauri } from '@/tauri-bridge'
 import { initThemeController } from '@/tauri-bridge/theme'
+import { trackOpenFile } from '@/tauri-bridge/open-files'
 
 // ----------------------------------------------------------------------------
 // Local helper types
@@ -954,6 +955,7 @@ export const useEditorStore = defineStore('editor', {
           sourceCodeModeEnabled: false
         })
         initialFiles.forEach((markdownDocument, index) => {
+          trackOpenFile(markdownDocument.pathname)
           this.NEW_TAB_WITH_CONTENT({
             markdownDocument,
             options: {},
@@ -971,6 +973,7 @@ export const useEditorStore = defineStore('editor', {
         'mt::open-new-tab',
         (_, markdownDocument, options = {}, selected = true) => {
           if (markdownDocument) {
+            trackOpenFile(markdownDocument.pathname)
             // Create tab with content.
             this.NEW_TAB_WITH_CONTENT({ markdownDocument, options, selected })
           } else {
