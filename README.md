@@ -166,6 +166,7 @@ they are tracked, not forgotten.
 
 | Version | Date | Notes |
 |---|---|---|
+| [1.0.2](https://github.com/SugarFatFree/marktext-light/releases/tag/v1.0.2) | 2026-09-02 | A markdown link to a script or installer is refused rather than handed to the OS. Links open again at all — an external URL in the browser, a markdown file as another tab. Open File keeps a document's encoding and line ending. Files named on the command line all open, and no longer hold up the first frame. Find Next and Find Previous work. |
 | [1.0.1](https://github.com/SugarFatFree/marktext-light/releases/tag/v1.0.1) | 2026-09-01 | Documents no longer lose a heading to a byte-order mark, or fail to open because they are GBK. Saves are atomic. A preference changed in the settings window reaches the editor. The window remembers where it was. |
 | [1.0.0](https://github.com/SugarFatFree/marktext-light/releases/tag/v1.0.0) | 2026-08-31 | First tagged release of the Tauri shell. Loading screen on first paint; startup, large-document and memory work from the migration. |
 
